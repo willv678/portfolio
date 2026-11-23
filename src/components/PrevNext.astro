@@ -1,0 +1,50 @@
+---
+// Bottom of a project page or post: ← previous, esc home, next →.
+// The same targets are bound to the arrow keys (see Base.astro).
+interface Side { href: string; title: string; color?: string; icon?: string }
+interface Props { prev?: Side; next?: Side }
+const { prev, next } = Astro.props;
+---
+<nav class="pn" aria-label="More">
+  {prev ? (
+    <a class="side nav-tile l" href={prev.href} data-blip="900">
+      {prev.icon && <span class="tile" style={`color:${prev.color}`} set:html={prev.icon} />}
+      <span><span class="mono lbl"><kbd>←</kbd> previous</span><span class="t">{prev.title}</span></span>
+    </a>
+  ) : <span />}
+  <a class="home mono" href="/" data-blip="700"><kbd>esc</kbd> home</a>
+  {next ? (
+    <a class="side nav-tile r" href={next.href} data-blip="980">
+      <span><span class="mono lbl">next <kbd>→</kbd></span><span class="t">{next.title}</span></span>
+      {next.icon && <span class="tile" style={`color:${next.color}`} set:html={next.icon} />}
+    </a>
+  ) : <span />}
+</nav>
+<script>
+  // The arrow keys use a slide transition; make clicking these do the same.
+  document.querySelectorAll<HTMLAnchorElement>('.pn .side').forEach((a) =>
+    a.addEventListener('click', () => { try { sessionStorage.setItem('nav-dir', a.classList.contains('l') ? 'prev' : 'next'); } catch {} }));
+</script>
+<style>
+  .pn { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 16px; margin-top: 80px; padding-top: 28px; border-top: 1px solid var(--line); }
+  .home { color: var(--muted); text-decoration: none; display: flex; gap: 8px; align-items: center; }
+  .home:hover { color: var(--ink); }
+  kbd { font: inherit; font-size: 11px; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 5px; padding: 0 5px; background: var(--panel); }
+  .side { display: flex; align-items: center; gap: 14px; text-decoration: none; }
+  .side > span:not(.tile) { display: grid; gap: 2px; }
+  .r { justify-self: end; text-align: right; }
+  .lbl { color: var(--muted); }
+  .t { font-family: var(--serif); font-size: 19px; line-height: 1.2; }
+  .tile {
+    flex: none; width: 52px; height: 52px; border-radius: 14px; background: var(--panel); border: 1px solid var(--line);
+    box-shadow: var(--shadow); display: grid; place-items: center; padding: 12px;
+    transition: transform .18s cubic-bezier(.3,1.6,.5,1);
+  }
+  .tile :global(svg) { width: 100%; height: auto; }
+  .side:hover .tile { transform: translateY(-3px) scale(1.05); }
+  @media (max-width: 640px) {
+    .pn { grid-template-columns: 1fr 1fr; }
+    .home { grid-column: 1 / -1; grid-row: 2; justify-self: center; }
+    .tile { display: none; }
+  }
+</style>

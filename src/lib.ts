@@ -24,9 +24,9 @@ export function iconSvg(name?: string, glyph?: string) {
     return raw
       .replace(/id="([^"]+)"/g, `id="$1-${n}"`)
       .replace(/url\(#([^)]+)\)/g, `url(#$1-${n})`)
-      .replace('<svg ', '<svg fill="currentColor" aria-hidden="true" ');
+      .replace('<svg ', `<svg class="icon${raw.includes('class=') ? '' : ' hop'}" fill="currentColor" aria-hidden="true" `);
   }
-  return `<svg viewBox="0 0 40 40" aria-hidden="true"><text x="20" y="27" text-anchor="middle" font-family="Fraunces, serif" font-size="20" fill="currentColor">${glyph ?? '?'}</text></svg>`;
+  return `<svg class="icon hop" viewBox="0 0 40 40" aria-hidden="true"><text x="20" y="27" text-anchor="middle" font-family="Fraunces, serif" font-size="20" fill="currentColor">${glyph ?? '?'}</text></svg>`;
 }
 
 export const fmtDate = (d: Date) =>

@@ -54,6 +54,7 @@ export function initSoundButton() {
 // Any element with [data-blip] gets the hover tick.
 export function initHoverBlips() {
   document.addEventListener('pointerover', (e) => {
+    if (document.documentElement.classList.contains('kbd')) return;
     const el = (e.target as Element).closest('[data-blip]');
     const from = (e.relatedTarget as Element | null)?.closest?.('[data-blip]');
     if (el && el !== from) blip(Number((el as HTMLElement).dataset.blip) || 880);

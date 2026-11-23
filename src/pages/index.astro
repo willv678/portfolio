@@ -17,6 +17,8 @@ const items = [
 const empties = Math.max(0, Math.ceil((items.length + 1) / 6) * 6 - items.length);
 ---
 <Base home>
+  <!-- Don't paint until the shelf exists, so the banner → tile morph always has a target. -->
+  <link slot="head" rel="expect" href="#shelf" blocking="render" />
   <main class="console">
     <section class="stage">
       <div class="screen" id="screen">
@@ -111,19 +113,31 @@ const empties = Math.max(0, Math.ceil((items.length + 1) / 6) * 6 - items.length
     // the trip from a tile up to the panel doesn't drop the selection.
     let leave: number | undefined;
     const later = () => { clearTimeout(leave); leave = window.setTimeout(() => select(-1), 250); };
+    // Keyboard mode (see global.css): arrows hide the cursor and pause hover
+    // until the mouse actually moves. Tiles lifting/dropping under a resting
+    // cursor fire fake hover events, which used to steal the selection back.
+    const root = document.documentElement;
+    let mx = -1, my = -1;
+    addEventListener('pointermove', (e) => {
+      if (e.clientX === mx && e.clientY === my) return;
+      mx = e.clientX; my = e.clientY;
+      root.classList.remove('kbd');
+    });
     addEventListener('pointerover', (e) => {
       if (e.pointerType === 'touch') return;          // phones: a tap just opens the page
+      if (root.classList.contains('kbd')) return;
       const t = (e.target as Element).closest<HTMLElement>('.tile[data-i]');
       if (t) { clearTimeout(leave); select(Number(t.dataset.i)); return; }
       if ((e.target as Element).closest('#screen')) { clearTimeout(leave); return; }
       if (cur >= 0) later();
     });
-    document.documentElement.addEventListener('pointerleave', later);
+    root.addEventListener('pointerleave', () => { if (!root.classList.contains('kbd')) later(); });
 
     // Keyboard: arrows browse like a console menu, Enter opens, Esc backs out.
     addEventListener('keydown', (e) => {
       if (e.metaKey || e.ctrlKey || e.altKey || !tiles.length) return;
       if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+        root.classList.add('kbd'); clearTimeout(leave);
         const d = e.key === 'ArrowRight' ? 1 : -1;
         select(cur < 0 ? 0 : (cur + d + tiles.length) % tiles.length);
         tiles[cur].focus({ preventScroll: true });
@@ -188,7 +202,7 @@ const empties = Math.max(0, Math.ceil((items.length + 1) / 6) * 6 - items.length
     color: var(--c); outline: none;
     transition: transform .18s cubic-bezier(.3, 1.6, .5, 1), box-shadow .18s;
   }
-  a.tile:hover, .tile:global(.on) { transform: translateY(-4px) scale(1.04); }
+  :global(html:not(.kbd)) a.tile:hover, .tile:global(.on) { transform: translateY(-4px) scale(1.04); }
   .tile:global(.on)::after {
     content: ""; position: absolute; inset: -6px; border-radius: 27px; border: 2px solid var(--sel);
     animation: pulse 1.6s ease-in-out infinite;

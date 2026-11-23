@@ -3,17 +3,22 @@ import Base from '../../layouts/Base.astro';
 import Figure from '../../components/Figure.astro';
 import YouTube from '../../components/YouTube.astro';
 import Note from '../../components/Note.astro';
+import PrevNext from '../../components/PrevNext.astro';
 import { render } from 'astro:content';
 import { posts, fmtDate } from '../../lib';
 import '../../styles/prose.css';
 
 export async function getStaticPaths() {
-  return (await posts()).map((p) => ({ params: { slug: p.id }, props: { p } }));
+  // Posts are newest first, so "next" is the older post. No wrap-around.
+  const all = await posts();
+  return all.map((p, i) => ({ params: { slug: p.id }, props: { p, newer: all[i - 1], older: all[i + 1] } }));
 }
-const { p } = Astro.props;
+const { p, newer, older } = Astro.props;
+const side = (x?: typeof p) => x && { href: `/writing/${x.id}/`, title: x.data.title };
+const prev = side(newer), next = side(older);
 const { Content } = await render(p);
 ---
-<Base title={p.data.title} description={p.data.blurb}>
+<Base title={p.data.title} description={p.data.blurb} prev={prev?.href} next={next?.href}>
   <main class="page">
     <header style={`view-transition-name:vt-w-${p.id}`}>
       <span class="mono d">{fmtDate(p.data.date)}{p.data.tags[0] && ` · ${p.data.tags[0]}`}</span>
@@ -21,7 +26,8 @@ const { Content } = await render(p);
       <p class="lede">{p.data.blurb}</p>
     </header>
     <article class="prose"><Content components={{ Figure, YouTube, Note }} /></article>
-    <p class="back mono"><a href="/writing/" data-blip="700">← all writing</a> · <kbd>esc</kbd> home</p>
+    <PrevNext prev={prev} next={next} />
+    <p class="back mono"><a href="/writing/" data-blip="700">all writing</a></p>
   </main>
 </Base>
 <style>
@@ -30,7 +36,7 @@ const { Content } = await render(p);
   .d, .lede { color: var(--muted); }
   h1 { font-family: var(--serif); font-weight: 500; font-size: clamp(34px, 5vw, 48px); letter-spacing: -.015em; line-height: 1.12; margin-top: 8px; }
   .lede { font-size: 17px; margin-top: 12px; }
-  .back { color: var(--muted); margin-top: 64px; }
+  .back { color: var(--muted); margin-top: 20px; text-align: center; }
   .back a { color: inherit; }
   kbd { font: inherit; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 5px; padding: 0 5px; background: var(--panel); }
 </style>

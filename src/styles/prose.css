@@ -1,15 +1,15 @@
 /* Long-form text for project pages and posts. */
-.prose { font-size: 16.5px; line-height: 1.7; }
-.prose > * + * { margin-top: 1.1em; }
+.prose { font-size: 17px; line-height: 1.75; }
+.prose > * + * { margin-top: 1.35em; }
 .prose h2, .prose h3 { font-family: var(--serif); font-weight: 500; letter-spacing: -.01em; line-height: 1.25; }
-.prose h2 { font-size: 26px; margin-top: 2em; }
+.prose h2 { font-size: 27px; margin-top: 2.4em; }
 .prose h3 { font-size: 20px; margin-top: 1.7em; }
 .prose h2 + *, .prose h3 + * { margin-top: .6em; }
 .prose a { color: var(--ink); text-decoration-color: color-mix(in srgb, var(--accent) 60%, transparent); text-decoration-thickness: 1.5px; text-underline-offset: 3px; }
 .prose a:hover { text-decoration-color: var(--accent); }
 .prose strong { font-weight: 500; }
 .prose ul, .prose ol { padding-left: 1.3em; }
-.prose li + li { margin-top: .35em; }
+.prose li + li { margin-top: .5em; }
 .prose li::marker { color: var(--accent); }
 .prose blockquote { border-left: 2px solid var(--accent); padding-left: 16px; color: var(--muted); font-style: italic; }
 .prose hr { border: 0; text-align: center; margin: 2.4em 0; }
