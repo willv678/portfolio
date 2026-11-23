@@ -6,7 +6,7 @@
 
 import {
   BoxGeometry, BufferGeometry, CapsuleGeometry, CircleGeometry, CylinderGeometry, DoubleSide, Group, Mesh, MeshBasicMaterial,
-  SphereGeometry, TorusGeometry, Vector3,
+  SphereGeometry, TorusGeometry, Vector3, IcosahedronGeometry, CatmullRomCurve3, TubeGeometry,
 } from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { OPTIONS, heightScale, buildScale, type Avatar } from '../scripts/avatar';
@@ -102,17 +102,49 @@ export function makeHead(kit: Kit, a: Avatar) {
   const r = R * 1.1;
 
   switch (style) {
-    case 'wavy':
-      // a full, messy mop over the ears; scalloped fringe; extra volume and curls on top
-      hair(r * 1.04, (x) => 0.36 + 0.07 * Math.cos(x * 16), (x, z) => -0.38 + 0.08 * Math.sin(Math.atan2(x, z) * 7), { rip: 0.07, freq: 30, faceW: 0.7 });
-      lump(0, 0.14, -0.02, 0.16, 0.075, 0.155, 0, -0.25);
-      // curls on the crown
-      for (const [x, y, z, s] of [[-0.08, 0.17, 0.02, 0.07], [0.07, 0.175, 0.0, 0.072], [0, 0.19, -0.06, 0.075], [-0.1, 0.13, -0.09, 0.065], [0.1, 0.13, -0.1, 0.065]] as const)
-        lump(x, y, z, s, s * 0.85, s);
-      // the fringe: a row of curls tumbling over the forehead
-      for (const [x, y, z, rz] of [[-0.11, 0.085, 0.11, 0.7], [-0.055, 0.105, 0.13, 0.35], [0.005, 0.11, 0.14, 0], [0.065, 0.1, 0.13, -0.4], [0.12, 0.08, 0.105, -0.8]] as const)
-        lump(x, y, z, 0.058, 0.046, 0.04, rz);
+    case 'wavy': {
+      // Low-poly, after Will's haircut: thin and close on the sides, real
+      // volume on top, and chunky curled strands tumbling over the forehead.
+      const flat = toon(hc, { side: DoubleSide, flatShading: true });
+      const facet = (geo: BufferGeometry, x: number, y: number, z: number) => {
+        const m = new Mesh(geo, flat); m.position.set(x * wide, y * tall, z * wide); g.add(m); return m;
+      };
+      // thin sides + back (low segment count, faceted)
+      const sides = new SphereGeometry(r * 0.97, 18, 12);
+      const sp = sides.attributes.position, v = new Vector3();
+      for (let i = 0; i < sp.count; i++) {
+        v.fromBufferAttribute(sp, i).divideScalar(r * 0.97);
+        const inFace = Math.min(0.42 - v.y, 0.78 - Math.abs(v.x), (v.z - 0.05) * 1.5);
+        const below = (0.0 - 0.36 * smooth(0.1, -0.55, v.z)) - v.y;
+        v.multiplyScalar(1 - 0.22 * Math.max(smooth(-0.04, 0.06, inFace), smooth(-0.04, 0.06, below)));
+        sp.setXYZ(i, v.x * r * 0.97, v.y * r * 0.97, v.z * r * 0.97);
+      }
+      sp.needsUpdate = true; sides.computeVertexNormals();
+      facet(sides, 0, 0, 0).scale.set(wide, tall, wide);
+      // the volume on top, pushed a little forward
+      const top = new IcosahedronGeometry(1, 1);
+      const tm = facet(top, 0.005, 0.15, 0.04); tm.scale.set(0.175 * wide, 0.125 * tall, 0.16 * wide); tm.rotation.set(-0.3, 0.3, 0.05);
+      const top2 = new IcosahedronGeometry(1, 1);
+      const tm2 = facet(top2, -0.01, 0.13, -0.06); tm2.scale.set(0.17 * wide, 0.11 * tall, 0.15 * wide); tm2.rotation.set(0.25, -0.4, 0.1);
+      // chunky curled strands: short curving tubes with few sides
+      const strand = (pts: [number, number, number][], rad: number) => {
+        const curve = new CatmullRomCurve3(pts.map(([x, y, z]) => new Vector3(x * wide, y * tall, z * wide)));
+        const geo = new TubeGeometry(curve, 6, rad, 5, false);
+        const m = new Mesh(geo, flat); g.add(m);
+        const cap = new Mesh(new IcosahedronGeometry(rad * 1.05, 0), flat); cap.position.copy(curve.getPoint(1)); g.add(cap);
+        return m;
+      };
+      // over the forehead (falling forward and curling back up at the tips)
+      strand([[-0.1, 0.17, 0.08], [-0.13, 0.11, 0.16], [-0.1, 0.07, 0.175], [-0.08, 0.09, 0.17]], 0.028);
+      strand([[-0.03, 0.19, 0.08], [-0.05, 0.12, 0.175], [-0.02, 0.08, 0.19], [0.0, 0.1, 0.185]], 0.03);
+      strand([[0.04, 0.19, 0.07], [0.05, 0.12, 0.175], [0.08, 0.085, 0.18], [0.095, 0.105, 0.17]], 0.028);
+      strand([[0.1, 0.16, 0.06], [0.14, 0.1, 0.13], [0.15, 0.06, 0.12]], 0.024);
+      // a few curling across the crown (lying down, not sticking up)
+      strand([[-0.11, 0.23, 0.02], [-0.06, 0.265, -0.03], [-0.01, 0.255, 0.01], [-0.03, 0.235, 0.05]], 0.026);
+      strand([[0.02, 0.255, -0.02], [0.08, 0.255, -0.06], [0.12, 0.225, -0.02], [0.1, 0.215, 0.02]], 0.026);
+      strand([[-0.06, 0.23, -0.1], [-0.01, 0.235, -0.15], [0.05, 0.215, -0.15]], 0.024);
       break;
+    }
     case 'short':
       // tidy, above the ears, with a side part sweeping across the forehead
       hair(r * 0.98, (x) => 0.5 + 0.18 * x, (x, z) => 0.02 - 0.46 * smooth(0.1, -0.5, z), { rip: 0.015, freq: 30, faceW: 0.82 });
