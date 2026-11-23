@@ -5,19 +5,21 @@
 // the *active* entry instead of the page: each entry gets an equal slice of
 // scroll, entries appear one by one, the line draws down to the active dot,
 // and the 3D viewer on the right (which never moves) shows the active one.
-// Once past the last entry the page carries on to the "earlier" list.
+// The "earlier" list and links are the final stop, so the page ends right
+// there instead of leaving a screen of empty space.
 // Phones: a normal list that reveals as you scroll; no viewer.
 import { experience } from '../data/experience';
 const major = experience.filter((e) => !e.minor);
 const minor = experience.filter((e) => e.minor);
 const when = (e: (typeof experience)[number]) => (e.end ? `${e.start} – ${e.end}` : e.start);
 ---
-<section id="experience" class="exp" style={`--n:${major.length}`} aria-labelledby="exp-h">
+<section id="experience" class="exp" style={`--n:${major.length + 1}`} aria-labelledby="exp-h">
   <div class="pin">
     <div class="inner">
       <div class="col">
         <h2 id="exp-h">Experience</h2>
         <div class="window" id="xp-window">
+        <div class="track" id="xp-track">
         <ol class="tl" id="tl">
           {major.map((e, i) => (
             <li class="entry" data-i={i} data-model={e.model} data-org={e.org} data-when={when(e)}>
@@ -28,20 +30,8 @@ const when = (e: (typeof experience)[number]) => (e.end ? `${e.start} – ${e.en
             </li>
           ))}
         </ol>
-        </div>
-        <div class="more mono" id="xp-more" aria-hidden="true"><span class="mouse"><i></i></span>scroll</div>
-      </div>
-      <aside class="viewer" aria-hidden="true">
-        <div class="box" id="xp-stage"></div>
-        <div class="cap mono"><span id="xp-org"></span><span id="xp-when"></span></div>
-      </aside>
-    </div>
-  </div>
-</section>
-
-<section class="after">
-  <div class="inner-after">
-    <h4 class="mono earlier">earlier</h4>
+        <div class="tail" id="xp-tail">
+          <h4 class="mono earlier">earlier</h4>
     <ul class="minor">
       {minor.map((e) => (
         <li>
@@ -54,8 +44,20 @@ const when = (e: (typeof experience)[number]) => (e.end ? `${e.start} – ${e.en
       <a href="/CSResume.pdf" target="_blank" rel="noopener" data-blip="900">full resume (pdf) ↗</a>
       <a href="#top" data-blip="700">back to top ↑</a>
     </p>
+        </div>
+        </div>
+        </div>
+        <div class="more mono" id="xp-more" aria-hidden="true"><span class="mouse"><i></i></span>scroll</div>
+      </div>
+      <aside class="viewer" aria-hidden="true">
+        <div class="box" id="xp-stage"></div>
+        <div class="cap mono"><span id="xp-org"></span><span id="xp-when"></span></div>
+      </aside>
+    </div>
   </div>
 </section>
+
+
 
 <script>
   import { blip } from '../scripts/sound';
@@ -70,6 +72,7 @@ const when = (e: (typeof experience)[number]) => (e.end ? `${e.start} – ${e.en
   const pinned = () => matchMedia('(min-width: 821px)').matches;
   const more = document.getElementById('xp-more')!;
   const win = document.getElementById('xp-window')!;
+  const track = document.getElementById('xp-track')!, tail = document.getElementById('xp-tail')!;
   const smooth = (x: number) => x * x * (3 - 2 * x);
 
   document.documentElement.classList.add('xp-anim');   // only hide entries when JS can reveal them
@@ -110,17 +113,21 @@ const when = (e: (typeof experience)[number]) => (e.end ? `${e.start} – ${e.en
       // rests on it; in the second half it glides to the next one.
       const top = sec.offsetTop, range = sec.offsetHeight - innerHeight;
       const p = Math.min(0.9999, Math.max(0, (scrollY - top) / range));
-      const f = p * entries.length, base = Math.floor(f), frac = f - base;
-      const glide = base < entries.length - 1 ? smooth(Math.max(0, (frac - 0.45) / 0.55)) : 0;
-      const pos = base + glide;                                      // 0 … n-1, fractional while gliding
-      const i = Math.min(entries.length - 1, Math.round(pos));
+      // Stops: every entry, then the "earlier" tail.
+      const stops = [...entries, tail], last = stops.length - 1;
+      const f = p * stops.length, base = Math.min(last, Math.floor(f)), frac = f - Math.floor(f);
+      const glide = base < last ? smooth(Math.max(0, (frac - 0.45) / 0.55)) : 0;
+      const pos = base + glide;                                      // 0 … last, fractional while gliding
+      const i = Math.min(entries.length - 1, Math.round(pos));       // the tail keeps the last entry active
       entries.forEach((e, j) => e.classList.toggle('in', j <= i));
+      tail.classList.toggle('in', pos > last - 0.5);
       setActive(i);
-      const y = (k: number) => entries[k].offsetTop;
-      const at = y(base) + (base < entries.length - 1 ? (y(base + 1) - y(base)) * glide : 0);
-      tl.style.setProperty('--shift', `${win.clientHeight * 0.22 - at}px`);
+      const tTop = track.getBoundingClientRect().top;
+      const y = (k: number) => stops[k].getBoundingClientRect().top - tTop;
+      const at = y(base) + (base < last ? (y(base + 1) - y(base)) * glide : 0);
+      track.style.setProperty('--shift', `${win.clientHeight * 0.22 - at}px`);
       tl.style.setProperty('--fill', `${dotY(i)}px`);
-      more.classList.toggle('done', i === entries.length - 1);
+      more.classList.toggle('done', pos > last - 0.5);
     } else {
       // phones: plain list; active = nearest the middle of the screen
       const mid = innerHeight * 0.45;
@@ -153,7 +160,11 @@ const when = (e: (typeof experience)[number]) => (e.end ? `${e.start} – ${e.en
     height: calc(100svh - 300px); overflow: hidden; margin-left: -8px; padding-left: 8px;
     mask-image: linear-gradient(transparent, #000 9%, #000 78%, transparent);
   }
-  .tl { list-style: none; padding: 0 0 0 30px; position: relative; --fill: 0px; --shift: 0px; transform: translateY(var(--shift)); }
+  .track { --shift: 0px; transform: translateY(var(--shift)); }
+  .tl { list-style: none; padding: 0 0 0 30px; position: relative; --fill: 0px; }
+  .tail { padding: 8px 0 0 30px; }
+  :global(.xp-anim) .tail { opacity: 0; transform: translateY(12px); transition: opacity .45s ease, transform .45s cubic-bezier(.2,.8,.3,1); }
+  :global(.xp-anim) .tail:global(.in) { opacity: 1; transform: none; }
   .tl::before, .tl::after { content: ""; position: absolute; left: 5px; top: 10px; width: 1.5px; border-radius: 1px; }
   .tl::before { bottom: 10px; background: var(--line); }
   .tl::after { height: calc(var(--fill) - 10px); background: var(--ink); transition: height .45s cubic-bezier(.3,.9,.3,1); }
@@ -215,9 +226,6 @@ const when = (e: (typeof experience)[number]) => (e.end ? `${e.start} – ${e.en
   #xp-org { color: var(--ink); }
   #xp-when { white-space: nowrap; }
 
-  /* after the pinned stretch */
-  .after { padding: 24px var(--gutter) 96px; }
-  .inner-after { width: min(1040px, 100%); margin: 0 auto; }
   .earlier { color: var(--muted); font-weight: 400; margin: 0 0 10px; }
   .minor { list-style: none; padding: 0; display: grid; gap: 10px; max-width: 760px; }
   .minor li { display: grid; grid-template-columns: 170px 1fr; gap: 12px; color: var(--muted); font-size: 14px; }
@@ -234,7 +242,8 @@ const when = (e: (typeof experience)[number]) => (e.end ? `${e.start} – ${e.en
     .exp { height: auto; }
     .pin { position: static; height: auto; padding: 56px var(--gutter) 8px; }
     .window { height: auto; overflow: visible; mask-image: none; }
-    .tl { transform: none; }
+    .track { transform: none; }
+    :global(.xp-anim) .tail { opacity: 1; transform: none; }
     .inner { grid-template-columns: 1fr; }
     .viewer, .more { display: none; }
     .minor li { grid-template-columns: 1fr; gap: 0; }
