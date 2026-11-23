@@ -7,7 +7,9 @@
 import type { SceneHandle } from '../scenes/kit';
 
 // Every file in src/scenes/ except the shared kit is a scene.
-const loaders = import.meta.glob<{ create: () => SceneHandle | null }>(['../scenes/*.ts', '!../scenes/kit.ts']);
+// simgate.ts is left out until the paper's double-blind review ends (notification
+// 2027-01-15): remove '!../scenes/simgate.ts' then, and the draft flag in simgate.mdx.
+const loaders = import.meta.glob<{ create: () => SceneHandle | null }>(['../scenes/*.ts', '!../scenes/kit.ts', '!../scenes/simgate.ts']);
 const built = new Map<string, Promise<SceneHandle | null>>();
 
 export const motionOK = () => !matchMedia('(prefers-reduced-motion: reduce)').matches;
