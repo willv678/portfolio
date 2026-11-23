@@ -88,7 +88,7 @@ export const create = () => createStage((kit) => {
   const rim = new Mesh(new TorusGeometry(0.68, 0.05, 12, 48), toon(C.rim));
   rim.rotation.x = Math.PI / 2;
   hull.add(rim);
-  const dome = new Mesh(new SphereGeometry(0.4, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2),
+  const dome = new Mesh(new SphereGeometry(0.44, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2),
     toon(C.dome, { transparent: true, opacity: 0.32, depthWrite: false }));
   dome.position.y = 0.1;
   hull.add(dome);
@@ -101,7 +101,7 @@ export const create = () => createStage((kit) => {
   }
   // The pilot: the visitor's avatar head (or Will's), in the dome. Doesn't spin with the hull.
   const pilot = new Group();
-  pilot.position.y = 0.2;
+  pilot.position.y = 0.3;
   ufo.add(pilot);
   const seat = (cfg: Avatar) => {
     pilot.clear();
@@ -181,7 +181,7 @@ export const create = () => createStage((kit) => {
 
     // Pilot looks where it's going, and down while the beam is on.
     pilot.rotation.set(on * 0.35, dir * 0.7 * speed, hull.rotation.z);
-    pilot.position.y = 0.22 + Math.sin(t * 5) * 0.008;
+    pilot.position.y = 0.3 + Math.sin(t * 5) * 0.008;     // sits up high enough that the whole face clears the rim
 
     // Save: rises A→UFO, rides along, sinks UFO→B.
     const under = pos.clone().add(new Vector3(0, -0.32, 0));
