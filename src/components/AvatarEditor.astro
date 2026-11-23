@@ -90,7 +90,7 @@
   const open = (on: boolean) => {
     ed.hidden = !on; btn.setAttribute('aria-expanded', String(on));
     document.documentElement.classList.toggle('editing', on);
-    if (on) { nudge.hidden = true; const say = document.getElementById('me-say'); if (say && !say.hidden) { say.hidden = true; dispatchEvent(new Event('avatar-point-end')); } btn.classList.remove('ring'); renderGrid(); }
+    if (on) { nudge.hidden = true; dispatchEvent(new Event('avatar-hush')); btn.classList.remove('ring'); renderGrid(); }
     // the big preview is a live 3D render (the flat drawing shows until it's ready)
     if (on) getScene('preview').then((s) => { if (s && !ed.hidden) { preview3d = s; s.attach($('ed-preview')); } });
     else { preview3d?.detach(); }
@@ -113,16 +113,15 @@
       if (!ed.hidden) return;
       try { localStorage.setItem('avatar-nudges', String(shown + 1)); sessionStorage.setItem('avatar-nudged', '1'); } catch {}
       // On the home page your avatar says it; elsewhere, a small bubble under the button.
-      const say = document.getElementById('me-say'), fig = document.getElementById('me-fig');
-      const onHome = !!(say && fig && fig.offsetParent);
-      const bubble = onHome ? say! : nudge;
-      // your avatar turns, looks up and points at the button while it talks…
-      if (onHome) dispatchEvent(new Event('avatar-point'));
-      bubble.hidden = false; blip(880, 0.05, 0.02); setTimeout(() => blip(1180, 0.06, 0.02), 90);
+      const fig = document.getElementById('me-fig');
+      const onHome = !!(fig && fig.offsetParent);
+      // On the home page your avatar says it out loud (the home page handles the
+      // bubble, the voice and the pointing); elsewhere, a small bubble here.
+      if (onHome) dispatchEvent(new Event('avatar-nudge'));
+      else { nudge.hidden = false; blip(880, 0.05, 0.02); setTimeout(() => blip(1180, 0.06, 0.02), 90); setTimeout(() => (nudge.hidden = true), 8000); }
       // …and the button rings like a phone, twice
       btn.classList.add('ring');
       setTimeout(() => btn.classList.remove('ring'), 3400);
-      setTimeout(() => { bubble.hidden = true; dispatchEvent(new Event('avatar-point-end')); }, 8000);
     }, 3000);
   }
 </script>

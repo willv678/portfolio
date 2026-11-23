@@ -91,7 +91,9 @@ const empties = Math.max(0, Math.ceil((items.length + 1) / 6) * 6 - items.length
   <script>
     import { blip, openSound } from '../scripts/sound';
     import { getScene, preloadScenes } from '../scripts/scenes';
-    import { svg as avatarSvg, load as loadAvatar, DEFAULT as DEFAULT_AVATAR } from '../scripts/avatar';
+    import { svg as avatarSvg, load as loadAvatar, DEFAULT as DEFAULT_AVATAR, isWill } from '../scripts/avatar';
+    import { speak } from '../scripts/voice';
+    import { STATUS } from '../data/status';
 
     type Item = { title: string; blurb: string; status: string; tags: string[]; bg: string; color: string; kind: 'project' | 'post'; href: string; scene?: string; banner?: string };
     const P: Item[] = JSON.parse(document.getElementById('shelf-data')!.textContent!);
@@ -127,8 +129,47 @@ const empties = Math.max(0, Math.ceil((items.length + 1) / 6) * 6 - items.length
       say.style.left = `${Math.min(f.left - box.left + f.width * 0.5, box.width - 250)}px`;
       say.style.top = `${f.top - box.top + f.height * 0.06}px`;
     };
-    addEventListener('avatar-point', placeSay);
     addEventListener('resize', () => { if (!$('me-say').hidden) placeSay(); });
+
+    // ---------- your avatar talks ----------
+    // Lines type out in the bubble with a babbling synthesized voice pitched for
+    // the current avatar. First visits: "make your own character" (while it
+    // points at the button). Then a status line every ~12s: first person when
+    // the avatar is Will's own, third person when it's a visitor's character.
+    const say = $('me-say');
+    let hush: (() => void) | null = null, hideT = 0;
+    function sayLine(text: string, ms: number, pointing = false) {
+      hush?.(); clearTimeout(hideT);
+      placeSay();
+      say.textContent = ''; say.hidden = false;
+      if (pointing) dispatchEvent(new Event('avatar-point'));
+      dispatchEvent(new CustomEvent('avatar-talk', { detail: true }));
+      hush = speak(text, loadAvatar() ?? DEFAULT_AVATAR, (shown) => (say.textContent = shown),
+        () => dispatchEvent(new CustomEvent('avatar-talk', { detail: false })));
+      hideT = window.setTimeout(quiet, ms);
+    }
+    function quiet() {
+      hush?.(); hush = null; clearTimeout(hideT);
+      say.hidden = true;
+      dispatchEvent(new Event('avatar-point-end'));
+      dispatchEvent(new CustomEvent('avatar-talk', { detail: false }));
+    }
+    addEventListener('avatar-hush', quiet);
+    addEventListener('avatar-nudge', () => sayLine('click the button up there ↗ to make your own character', 8000, true));
+
+    let lastLine = -1, nextAt = performance.now() + (sessionStorage.getItem('avatar-nudged') ? 6000 : 14000);
+    setInterval(() => {
+      const now = performance.now();
+      const free = cur < 0 && !document.hidden && !document.documentElement.classList.contains('editing')
+        && meFig.offsetParent && scrollY < innerHeight * 0.5 && say.hidden;
+      if (!free || now < nextAt) return;
+      let k = Math.floor(Math.random() * STATUS.length);
+      if (k === lastLine) k = (k + 1) % STATUS.length;
+      lastLine = k;
+      const line = isWill(loadAvatar()) ? STATUS[k].me : STATUS[k].them;
+      sayLine(line, Math.max(4500, line.length * 70 + 2200));
+      nextAt = now + 12000;
+    }, 500);
     let playing: { detach(): void } | null = null, token = 0;
     const dropScene = () => { token++; playing?.detach(); playing = null; };
 
@@ -139,6 +180,7 @@ const empties = Math.max(0, Math.ceil((items.length + 1) / 6) * 6 - items.length
       tiles.forEach((t, j) => t.classList.toggle('on', j === i));
       $('proj-x').hidden = i < 0;
       showMe(i < 0);
+      if (i >= 0) dispatchEvent(new Event('avatar-hush'));
       if (i < 0) { home.hidden = false; proj.hidden = true; return; }
       const p = P[i], tile = tiles[i];
       blip(760 + i * 60);

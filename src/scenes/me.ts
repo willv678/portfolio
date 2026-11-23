@@ -23,12 +23,16 @@ export const create = () => createStage((kit) => {
   let pointing = false, pointK = 0;
   addEventListener('avatar-point', () => (pointing = true));
   addEventListener('avatar-point-end', () => (pointing = false));
+  // nod along while talking
+  let talking = false, talkK = 0;
+  addEventListener('avatar-talk', (e) => (talking = !!(e as CustomEvent<boolean>).detail));
 
   const L = 8;
   let prevT = 0;
   return (t) => {
     const dt = Math.min(0.05, t - prevT); prevT = t;
     pointK += ((pointing ? 1 : 0) - pointK) * Math.min(1, dt * 5);
+    talkK += ((talking ? 1 : 0) - talkK) * Math.min(1, dt * 8);
     const u = t % L;
     // idle: a soft bob and a little sway
     holder.position.y = Math.abs(Math.sin(t * 2.2)) * 0.015;
@@ -56,5 +60,6 @@ export const create = () => createStage((kit) => {
       fig.right.rotation.z = mix(fig.right.rotation.z, Math.PI * 0.75 + Math.sin(t * 5) * 0.05);
       fig.right.rotation.x = 0;
     } else { fig.head.rotation.x = 0; fig.head.rotation.y = 0; fig.right.rotation.x = 0; }
+    fig.head.rotation.x += Math.sin(t * 17) * 0.045 * talkK;          // little nods while speaking
   };
 }, { lookAt: new Vector3(0, 0.62, 0), minSpan: 1.15, minHeight: 1.3, outline: 0.008 });

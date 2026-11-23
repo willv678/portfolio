@@ -143,3 +143,8 @@ export const sfx = {
   /** signal light turning green */
   bip: () => tone(1046, 1046, 0.06, { vol: 0.01 }),
 };
+
+/** The audio context, if sound is on and unlocked (for the avatar voice). */
+export function audioOut(): AudioContext | null {
+  return on && unlocked && ctx && ctx.state === 'running' ? ctx : null;
+}

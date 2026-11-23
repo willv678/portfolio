@@ -26,6 +26,9 @@ export const DEFAULT: Avatar = {
   skin: 1, head: 0, hair: 0, hairColor: 2, eyes: 2, glasses: 0, makeup: 0, shirt: 0, body: 0, height: 3, build: 1,
 };
 
+/** True when the avatar is Will's own (the default). */
+export const isWill = (a: Avatar | null) => !a || PARTS.every((p) => a[p] === DEFAULT[p]);
+
 /** Height / build as scale factors (index 2 = 1.0). */
 export const heightScale = (a: Avatar) => 0.85 + a.height * 0.075;
 export const buildScale = (a: Avatar) => 0.84 + a.build * 0.08;
