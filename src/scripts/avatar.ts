@@ -6,12 +6,11 @@
 export const OPTIONS = {
   skin: ['#f6d7c3', '#f1c9a5', '#d9a47a', '#b97b53', '#8d5a3b', '#5e3b27'],
   head: ['round', 'oval', 'square'],
-  hair: ['wavy', 'short', 'long', 'bob', 'ponytail', 'curly', 'spiky', 'bun', 'buzz', 'none'],
+  hair: ['wavy', 'short', 'buzz', 'long', 'bob', 'ponytail'],
   hairColor: ['#2a2320', '#3d2a1e', '#6b4428', '#a0673a', '#e0b25a', '#b5522e', '#9aa0a8'],
   eyes: ['big', 'dots', 'happy', 'sleepy', 'wink'],
-  brows: ['soft', 'straight', 'thick'],
-  mouth: ['smile', 'grin', 'open', 'small'],
   glasses: ['none', 'round', 'square'],
+  makeup: ['none', 'blush', 'lipstick', 'both'],
   shirt: ['#5b8def', '#e2463c', '#4caf6a', '#7c6cf6', '#f0a020', '#2b2a30'],
   body: ['m', 'f'],
   height: ['shorter', 'short', 'medium', 'tall', 'taller'],
@@ -24,7 +23,7 @@ export const PARTS = Object.keys(OPTIONS) as Part[];
 
 // The default is Will: fair skin, wavy brown hair, happy eyes, blue top.
 export const DEFAULT: Avatar = {
-  skin: 1, head: 0, hair: 0, hairColor: 2, eyes: 2, brows: 0, mouth: 0, glasses: 0, shirt: 0, body: 0, height: 2, build: 2,
+  skin: 1, head: 0, hair: 0, hairColor: 2, eyes: 2, glasses: 0, makeup: 0, shirt: 0, body: 0, height: 2, build: 2,
 };
 
 /** Height / build as scale factors (index 2 = 1.0). */
@@ -61,7 +60,6 @@ function hairBack(a: Avatar) {
     case 'long': return `<path d="M24 34 Q17 66 21 92 Q28 98 36 92 Q33 70 36 50 Z M76 34 Q83 66 79 92 Q72 98 64 92 Q67 70 64 50 Z" fill="${c}" ${st}/>`;
     case 'bob': return `<path d="M22 36 Q20 62 30 68 H70 Q80 62 78 36 Z" fill="${c}" ${st}/>`;
     case 'ponytail': return `<path d="M66 24 Q86 22 84 46 Q83 64 74 72 Q78 52 70 36 Z" fill="${c}" ${st}/>`;
-    case 'curly': return `<circle cx="50" cy="34" r="33" fill="${c}" ${st}/>`;
     default: return '';
   }
 }
@@ -74,9 +72,6 @@ function hairFront(a: Avatar) {
     case 'long': return `<path d="M24 46 Q21 14 50 13 Q79 14 76 46 Q72 30 60 27 Q46 35 30 34 Q26 38 24 46 Z" fill="${c}" ${st}/>`;
     case 'bob': return `<path d="M23 44 Q21 13 50 13 Q79 13 77 44 Q74 30 66 29 H34 Q26 30 23 44 Z" fill="${c}" ${st}/>`;
     case 'ponytail': return cap(`<circle cx="70" cy="24" r="5" fill="${c}" ${st}/>`);
-    case 'curly': return `<path d="M27 38 Q26 22 38 22 Q44 16 50 21 Q56 16 62 22 Q74 22 73 38 Q66 30 50 30 Q34 30 27 38 Z" fill="${c}" ${st}/>`;
-    case 'spiky': return `<path d="M24 40 L22 22 L32 26 L34 10 L43 22 L50 6 L57 22 L66 10 L68 26 L78 22 L76 40 Q66 28 50 28 Q34 28 24 40 Z" fill="${c}" ${st}/>`;
-    case 'bun': return cap(`<circle cx="50" cy="9" r="9" fill="${c}" ${st}/>`);
     case 'buzz': return `<path d="M26 34 Q26 15 50 15 Q74 15 74 34 Q64 24 50 24 Q36 24 26 34 Z" fill="${c}" opacity=".85" ${st}/>`;
     default: return '';
   }
@@ -89,23 +84,17 @@ function face(a: Avatar) {
     sleepy: `<path d="M37 43 Q42 47 47 43 M53 43 Q58 47 63 43" fill="none" stroke="${INK}" stroke-width="3" stroke-linecap="round"/>`,
     wink: `<ellipse cx="42" cy="43" rx="3.6" ry="5.4" fill="${INK}"/><circle cx="43.2" cy="40.8" r="1.4" fill="#fff"/><path d="M53 45 Q58 38 63 45" fill="none" stroke="${INK}" stroke-width="3" stroke-linecap="round"/>`,
   }[OPTIONS.eyes[a.eyes]];
-  const brows = {
-    soft: `<path d="M37 34 Q42 31 46 33 M54 33 Q58 31 63 34" fill="none" stroke="${INK}" stroke-width="2.2" stroke-linecap="round" opacity=".8"/>`,
-    straight: `<path d="M37 33 H46 M54 33 H63" fill="none" stroke="${INK}" stroke-width="2.4" stroke-linecap="round" opacity=".85"/>`,
-    thick: `<path d="M36 34 L46 31 M54 31 L64 34" fill="none" stroke="${INK}" stroke-width="4" stroke-linecap="round"/>`,
-  }[OPTIONS.brows[a.brows]];
-  const mouth = {
-    smile: `<path d="M45 52 Q50 56.5 55 52" fill="none" stroke="${INK}" stroke-width="2.4" stroke-linecap="round"/>`,
-    grin: `<path d="M43 51 Q50 51 57 51 Q56 59 50 59 Q44 59 43 51 Z" fill="${INK}"/><path d="M45 51.6 H55 V53.5 H45 Z" fill="#fff"/>`,
-    open: `<ellipse cx="50" cy="54" rx="3.6" ry="4.2" fill="${INK}"/>`,
-    small: `<path d="M47 53 H53" fill="none" stroke="${INK}" stroke-width="2.4" stroke-linecap="round"/>`,
-  }[OPTIONS.mouth[a.mouth]];
+  const mk = OPTIONS.makeup[a.makeup];
+  const blush = mk === 'blush' || mk === 'both' ? `<ellipse cx="35" cy="50" rx="5" ry="2.8" fill="#ff8fa3" opacity=".55"/><ellipse cx="65" cy="50" rx="5" ry="2.8" fill="#ff8fa3" opacity=".55"/>` : '';
+  const lips = mk === 'lipstick' || mk === 'both';
+  const brows = `<path d="M37 34 Q42 31 46 33 M54 33 Q58 31 63 34" fill="none" stroke="${INK}" stroke-width="2.2" stroke-linecap="round" opacity=".8"/>`;
+  const mouth = `<path d="M45 52 Q50 56.5 55 52" fill="none" stroke="${lips ? '#d6334d' : INK}" stroke-width="${lips ? 3.4 : 2.4}" stroke-linecap="round"/>`;
   const glasses = {
     none: '',
     round: `<g fill="none" stroke="${INK}" stroke-width="2"><circle cx="42" cy="43" r="7"/><circle cx="58" cy="43" r="7"/><path d="M49 43 H51 M35 42 L27 40 M65 42 L73 40"/></g>`,
     square: `<g fill="none" stroke="${INK}" stroke-width="2"><rect x="34" y="37" width="15" height="12" rx="3"/><rect x="51" y="37" width="15" height="12" rx="3"/><path d="M49 42 H51 M34 41 L27 40 M66 41 L73 40"/></g>`,
   }[OPTIONS.glasses[a.glasses]];
-  return brows + eyes + mouth + glasses;
+  return blush + brows + eyes + mouth + glasses;
 }
 function head(a: Avatar) {
   const skin = OPTIONS.skin[a.skin];

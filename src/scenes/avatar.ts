@@ -5,7 +5,7 @@
 // Everything is primitives; each figure is a few dozen tiny meshes.
 
 import {
-  BoxGeometry, CapsuleGeometry, CircleGeometry, ConeGeometry, CylinderGeometry, Group, Mesh, MeshBasicMaterial,
+  BoxGeometry, CapsuleGeometry, CircleGeometry, CylinderGeometry, Group, Mesh, MeshBasicMaterial,
   SphereGeometry, TorusGeometry,
 } from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
@@ -43,19 +43,18 @@ export function makeHead(kit: Kit, a: Avatar) {
   const es = OPTIONS.eyes[a.eyes];
   eye(-0.058, es === 'wink' ? 'big' : es);
   eye(0.058, es === 'wink' ? 'happy' : es);
-  const bs = OPTIONS.brows[a.brows];
-  for (const d of [-1, 1]) {
-    const b = new Mesh(new CapsuleGeometry(bs === 'thick' ? 0.011 : 0.006, 0.032, 3, 6), ink);
-    b.rotation.z = Math.PI / 2 + (bs === 'straight' ? 0 : bs === 'thick' ? d * -0.28 : d * 0.18);
-    at(b, d * 0.058, 0.07, front - 0.004);
+  for (const d of [-1, 1]) {                               // soft brows
+    const b = new Mesh(new CapsuleGeometry(0.006, 0.032, 3, 6), ink);
+    b.rotation.z = Math.PI / 2 + d * 0.18; at(b, d * 0.058, 0.07, front - 0.004);
   }
-  const ms = OPTIONS.mouth[a.mouth];
-  if (ms === 'smile') at(arc(0.026, false), 0, -0.05, front - 0.003);
-  else if (ms === 'grin') {
-    const m = new Mesh(new CircleGeometry(0.036, 16, Math.PI, Math.PI), ink); at(m, 0, -0.04, front + 0.002);
-    const teeth = new Mesh(new BoxGeometry(0.05, 0.012, 0.002), white); at(teeth, 0, -0.046, front + 0.004);
-  } else if (ms === 'open') { const m = new Mesh(new CircleGeometry(0.02, 16), ink); m.scale.y = 1.2; at(m, 0, -0.06, front + 0.002); }
-  else { const m = new Mesh(new CapsuleGeometry(0.005, 0.03, 3, 6), ink); m.rotation.z = Math.PI / 2; at(m, 0, -0.058, front); }
+  const mk = OPTIONS.makeup[a.makeup];
+  const lips = mk === 'lipstick' || mk === 'both';
+  const smile = new Mesh(new TorusGeometry(0.026, lips ? 0.0095 : 0.0065, 6, 14, Math.PI), lips ? new MeshBasicMaterial({ color: '#d6334d' }) : ink);
+  smile.rotation.z = Math.PI; at(smile, 0, -0.05, front - 0.003);
+  if (mk === 'blush' || mk === 'both') {
+    const pink = new MeshBasicMaterial({ color: '#ff8fa3', transparent: true, opacity: 0.6, depthWrite: false });
+    for (const d of [-1, 1]) { const c = new Mesh(new CircleGeometry(0.026, 16), pink); c.scale.y = 0.55; c.rotation.y = d * 0.45; at(c, d * 0.1, -0.03, front - 0.02); }
+  }
   const gl = OPTIONS.glasses[a.glasses];
   if (gl !== 'none') {
     for (const d of [-1, 1]) {
@@ -68,7 +67,6 @@ export function makeHead(kit: Kit, a: Avatar) {
 
   // ---------- hair ----------
   const style = OPTIONS.hair[a.hair];
-  if (style === 'none') return g;
   const H = (geo: ConstructorParameters<typeof Mesh>[0], x: number, y: number, z: number) => {
     const m = new Mesh(geo, toon(hc)); m.position.set(x * wide, y * tall, z * wide); g.add(m); return m;
   };
@@ -115,24 +113,6 @@ export function makeHead(kit: Kit, a: Avatar) {
       const tail = H(new CapsuleGeometry(0.055, 0.22, 6, 12), 0, -0.07, -0.22); tail.rotation.x = 0.35;
       break;
     }
-    case 'curly':
-      curl(0, 0.07, -0.04, R * 1.35);
-      for (let i = 0; i < 12; i++) {
-        const t = (i / 12) * Math.PI * 2;
-        curl(Math.cos(t) * 0.2, 0.09 + Math.sin(t) * 0.16, -0.02 - Math.abs(Math.sin(t)) * 0.04, 0.07);
-      }
-      for (const x of [-0.08, 0, 0.08]) curl(x, 0.14, 0.11, 0.05);
-      break;
-    case 'spiky':
-      cap(1.06, -0.3);
-      for (const [x, z, lean] of [[-0.11, 0.02, 0.6], [-0.05, 0.06, 0.25], [0.02, 0.04, -0.05], [0.09, 0.02, -0.4], [0.13, -0.05, -0.75], [-0.13, -0.06, 0.8], [0, -0.07, 0], [-0.06, -0.12, 0.3], [0.07, -0.12, -0.3]] as const) {
-        const s = H(new ConeGeometry(0.05, 0.14, 8), x, 0.19, z); s.rotation.set(-z * 3, 0, lean);
-      }
-      break;
-    case 'bun':
-      cap();
-      curl(0, R + 0.035, -0.05, 0.075);
-      break;
     case 'buzz': cap(1.03, -0.2); break;
   }
   return g;

@@ -26,7 +26,6 @@
       <p class="note">saved only in this browser</p>
     </div>
     <div class="right">
-      <div class="tabs mono" id="ed-tabs" role="tablist"></div>
       <div class="grid" id="ed-grid"></div>
     </div>
     <button class="close" id="ed-x" aria-label="Close">×</button>
@@ -37,28 +36,22 @@
   import { OPTIONS, DEFAULT, load, save, clear, svg, type Avatar, type Part } from '../scripts/avatar';
   import { blip } from '../scripts/sound';
 
-  // tabs → which parts they show; color parts render as swatches, shape parts as head tiles
-  const TABS: { name: string; parts: Part[] }[] = [
-    { name: 'hair', parts: ['hair', 'hairColor'] },
-    { name: 'face', parts: ['eyes', 'brows', 'mouth', 'glasses'] },
-    { name: 'head', parts: ['head', 'skin'] },
-    { name: 'body', parts: ['body', 'shirt'] },
-  ];
+  // One screen: each choice is one row; colors sit directly under the row they color.
+  const ROWS: Part[] = ['hair', 'hairColor', 'eyes', 'glasses', 'makeup', 'head', 'skin', 'body', 'shirt'];
   const COLOR: Part[] = ['skin', 'hairColor', 'shirt'];
-  const LABEL: Partial<Record<Part, string>> = { hairColor: 'hair color', head: 'head shape', body: 'body' };
+  const LABEL: Partial<Record<Part, string>> = { hairColor: '', skin: '', shirt: '', head: 'face', body: 'body' };
 
   const $ = (id: string) => document.getElementById(id)!;
-  const btn = $('who'), ed = $('avatar-ed'), grid = $('ed-grid'), tabs = $('ed-tabs');
+  const btn = $('who'), ed = $('avatar-ed'), grid = $('ed-grid');
   const height = $('ed-height') as HTMLInputElement, build = $('ed-build') as HTMLInputElement;
   let cur: Avatar = load() ?? { ...DEFAULT };
-  let tab = 0;
 
   function renderGrid() {
-    grid.innerHTML = TABS[tab].parts.map((p) => `
-      <section><h4 class="mono">${LABEL[p] ?? p}</h4><div class="${COLOR.includes(p) ? 'swatches' : 'tiles'}">${
+    grid.innerHTML = ROWS.map((p) => `
+      <section class="${COLOR.includes(p) ? 'colors' : 'row'}"><h4 class="mono">${LABEL[p] ?? p}</h4><div class="${COLOR.includes(p) ? 'swatches' : 'tiles'}">${
         OPTIONS[p].map((o, i) => COLOR.includes(p)
           ? `<button data-p="${p}" data-v="${i}" class="sw" style="--sw:${o}" aria-label="${LABEL[p] ?? p} ${i + 1}"></button>`
-          : `<button data-p="${p}" data-v="${i}" class="tile" title="${o}">${p === 'body' ? svg({ ...cur, [p]: i }) : svg({ ...cur, [p]: i }, true)}<span class="mono">${o}</span></button>`).join('')
+          : `<button data-p="${p}" data-v="${i}" class="tile" title="${o}" aria-label="${LABEL[p] || p}: ${o}">${p === 'body' ? svg({ ...cur, [p]: i }) : svg({ ...cur, [p]: i }, true)}</button>`).join('')
       }</div></section>`).join('');
     mark();
   }
@@ -73,9 +66,6 @@
   }
   const set = (p: Part, v: number) => { cur = { ...cur, [p]: v }; save(cur); paint(); };
 
-  tabs.innerHTML = TABS.map((t, i) => `<button role="tab" data-t="${i}">${t.name}</button>`).join('');
-  const setTab = (i: number) => { tab = i; tabs.querySelectorAll('button').forEach((b, j) => b.setAttribute('aria-selected', String(j === i))); renderGrid(); };
-  tabs.addEventListener('click', (e) => { const b = (e.target as Element).closest<HTMLButtonElement>('[data-t]'); if (b) { setTab(Number(b.dataset.t)); blip(820, 0.04, 0.02); } });
   grid.addEventListener('click', (e) => {
     const b = (e.target as Element).closest<HTMLButtonElement>('[data-p]');
     if (!b) return;
@@ -94,7 +84,7 @@
   const open = (on: boolean) => {
     ed.hidden = !on; btn.setAttribute('aria-expanded', String(on));
     document.documentElement.classList.toggle('editing', on);
-    if (on) { nudge.hidden = true; setTab(tab); }
+    if (on) { nudge.hidden = true; renderGrid(); }
   };
   btn.addEventListener('click', () => open(ed.hidden));
   $('ed-done').addEventListener('click', () => open(false));
@@ -141,7 +131,7 @@
   .scrim[hidden] { display: none; }
   @keyframes fade { from { opacity: 0; } }
   .card {
-    position: relative; width: min(860px, 100%); max-height: min(640px, 100%); overflow: auto;
+    position: relative; width: min(820px, 100%); max-height: min(680px, 100%); overflow: auto;
     display: grid; grid-template-columns: 300px 1fr; gap: 24px; padding: 24px;
     background: var(--panel); color: var(--ink); border-radius: 22px; border: 1px solid var(--line);
     box-shadow: 0 30px 80px -30px rgba(0,0,0,.5); font-family: var(--sans);
@@ -161,23 +151,22 @@
   .note { color: var(--muted); font-size: 11px; font-weight: 300; opacity: .7; text-align: center; }
 
   .right { min-width: 0; display: grid; gap: 14px; align-content: start; }
-  .tabs { display: flex; gap: 6px; padding-right: 36px; }
-  .tabs :global(button) { border: 1px solid var(--line); background: var(--bg); color: var(--muted); border-radius: 99px; padding: 5px 14px; cursor: pointer; font: inherit; font-size: 12px; }
-  .tabs :global(button[aria-selected="true"]) { background: var(--ink); color: var(--panel); border-color: var(--ink); }
-  .grid { display: grid; gap: 16px; }
-  .grid :global(h4) { color: var(--muted); font-weight: 400; font-size: 11px; margin-bottom: 8px; text-transform: lowercase; }
-  .grid :global(.tiles) { display: grid; grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)); gap: 8px; }
+  /* label on the left, one row of choices on the right; colors sit right under their row */
+  .grid { display: grid; gap: 7px; padding-right: 34px; align-content: start; }
+  .grid :global(section) { display: grid; grid-template-columns: 64px 1fr; align-items: center; gap: 10px; }
+  .grid :global(.row:not(:first-child)) { margin-top: 6px; }
+  .grid :global(h4) { color: var(--muted); font-weight: 400; font-size: 11px; text-transform: lowercase; }
+  .grid :global(.tiles) { display: flex; flex-wrap: wrap; gap: 5px; }
   .grid :global(.tile) {
-    display: grid; justify-items: center; gap: 2px; padding: 6px 4px 5px; border-radius: 14px; cursor: pointer;
+    display: grid; place-items: center; width: 48px; height: 48px; padding: 0; border-radius: 13px; cursor: pointer;
     border: 1px solid var(--line); background: var(--bg); color: var(--muted);
     transition: transform .14s cubic-bezier(.3,1.6,.5,1), border-color .14s;
   }
-  .grid :global(.tile svg) { width: 58px; height: 58px; }
-  .grid :global(.tile span) { font-size: 10px; }
+  .grid :global(.tile svg) { width: 40px; height: 40px; }
   .grid :global(.tile:hover) { transform: translateY(-2px); }
   .grid :global(.tile[aria-pressed="true"]) { border-color: var(--sel); box-shadow: 0 0 0 2px var(--sel) inset; color: var(--ink); background: var(--panel); }
   .grid :global(.swatches) { display: flex; flex-wrap: wrap; gap: 8px; }
-  .grid :global(.sw) { width: 30px; height: 30px; border-radius: 50%; background: var(--sw); border: 2px solid var(--panel); outline: 1px solid var(--line); cursor: pointer; padding: 0; }
+  .grid :global(.sw) { width: 24px; height: 24px; border-radius: 50%; background: var(--sw); border: 2px solid var(--panel); outline: 1px solid var(--line); cursor: pointer; padding: 0; }
   .grid :global(.sw[aria-pressed="true"]) { outline: 2px solid var(--sel); }
   .close { position: absolute; top: 16px; right: 16px; width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--line); background: var(--bg); color: var(--muted); font: 20px/1 var(--sans); cursor: pointer; }
   .close:hover { color: var(--ink); }
@@ -187,6 +176,10 @@
     .card { grid-template-columns: 1fr; max-height: 92svh; padding: 16px; gap: 14px; border-radius: 20px 20px 16px 16px; }
     .preview { height: 190px; }
     .preview :global(svg) { height: 170px; }
-    .grid :global(.tiles) { grid-template-columns: repeat(auto-fill, minmax(68px, 1fr)); }
+    .grid { padding-right: 0; }
+    .grid :global(section) { grid-template-columns: 1fr; gap: 4px; }
+    .grid :global(.colors h4) { display: none; }
+    .grid :global(.tile) { width: 46px; height: 46px; }
+    .grid :global(.tile svg) { width: 38px; height: 38px; }
   }
 </style>

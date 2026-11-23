@@ -40,7 +40,7 @@ export const create = () => createStage((kit) => {
 
   // the teacher's desk with a laptop: its webcam watches the door, and its
   // screen shows the attendance list filling in
-  const DESK = new Vector3(1.45, 0, 0.35);
+  const DESK = new Vector3(1.5, 0, 0.78);                 // pulled forward, so students can walk out behind it
   const desk = new Group(); desk.position.copy(DESK); scene.add(desk);
   const top = new Mesh(new RoundedBoxGeometry(1.15, 0.06, 0.62, 2, 0.02), toon(C.wood)); top.position.y = 0.66; desk.add(top);
   for (const [x, z] of [[-0.5, -0.24], [0.5, -0.24], [-0.5, 0.24], [0.5, 0.24]]) {
@@ -109,8 +109,8 @@ export const create = () => createStage((kit) => {
   // avatar (the head button in the top bar); the other two are fixed.
   const PRESETS: Avatar[] = [
     { ...DEFAULT },
-    { ...DEFAULT, skin: 3, head: 1, hair: 2, hairColor: 0, eyes: 0, mouth: 1, shirt: 1, body: 1 },
-    { ...DEFAULT, skin: 0, head: 2, hair: 6, hairColor: 5, eyes: 1, glasses: 1, shirt: 3, body: 0 },
+    { ...DEFAULT, skin: 3, head: 1, hair: 3, hairColor: 0, eyes: 0, makeup: 3, shirt: 1, body: 1 },
+    { ...DEFAULT, skin: 0, head: 2, hair: 1, hairColor: 5, eyes: 1, glasses: 1, shirt: 3, body: 0 },
   ];
   const configs = PRESETS.map((p, i) => (i === 0 ? load() ?? p : p));
   const students = configs.map((cfg) => {
@@ -131,7 +131,7 @@ export const create = () => createStage((kit) => {
   });
 
   const L = 8.4, GAP = 2.5;
-  const DOOR_IN = new Vector3(-1.02, 0, -1.35), DOOR = new Vector3(-1.02, 0, -0.55), OUT = new Vector3(3.6, 0, 0.35);
+  const DOOR_IN = new Vector3(-1.02, 0, -1.35), DOOR = new Vector3(-1.02, 0, -0.55), OUT = new Vector3(3.6, 0, -0.42);
 
   return (t, prev) => {
     const u = t % L;
