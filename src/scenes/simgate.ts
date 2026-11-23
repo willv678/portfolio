@@ -220,7 +220,7 @@ export const create = () => createStage((kit) => {
 
     // Sound.
     if (passed(prev, t, 2.0, T)) kit.sfx(sfx.ding);
-    if (passed(prev, t, 8.85, T)) kit.sfx(sfx.buzz);
+    if (passed(prev, t, 8.85, T)) kit.sfx(sfx.nuhuh);
     if (passed(prev, t, 3.95, T)) kit.sfx(sfx.beep);
   };
-}, { lookAt: new Vector3(0, 1.0, 0), ground: 0x24584a });
+}, { lookAt: new Vector3(0, 1.0, 0), ground: 0x24584a, outline: 0.011 });

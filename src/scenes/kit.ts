@@ -9,7 +9,7 @@
 // primitives: no model files.
 
 import {
-  BufferGeometry, CanvasTexture, Clock, CylinderGeometry, DataTexture,
+  BackSide, BufferGeometry, CanvasTexture, type Object3D, Clock, CylinderGeometry, DataTexture,
   DirectionalLight, Float32BufferAttribute, HemisphereLight, MathUtils, Mesh, MeshBasicMaterial,
   MeshToonMaterial, NearestFilter, PerspectiveCamera, PlaneGeometry, Points, RedFormat, Scene,
   ShaderMaterial, Sprite, SpriteMaterial, Texture, Vector3, WebGLRenderer,
@@ -56,6 +56,7 @@ interface StageOpts {
   minSpan?: number;           // world units of width always visible
   minHeight?: number;         // world units of height always visible
   sky?: number; ground?: number;   // hemisphere light colors
+  outline?: number;           // cel outline thickness in world units (0 = none)
 }
 
 export function createStage(
@@ -80,7 +81,7 @@ export function createStage(
   const own = <T extends Texture>(t: T) => (textures.push(t), t);
 
   // Toon shading: three flat tones, like a 3DS menu render.
-  const ramp = own(new DataTexture(new Uint8Array([110, 185, 255]), 3, 1, RedFormat));
+  const ramp = own(new DataTexture(new Uint8Array([100, 178, 255]), 3, 1, RedFormat));
   ramp.minFilter = ramp.magFilter = NearestFilter;
   ramp.needsUpdate = true;
   const toon = (color: string, extra: MeshToonMaterialParameters = {}) =>
@@ -187,6 +188,25 @@ export function createStage(
   const sfx = (play: () => void) => { if (sfxMode === 'always' || hovering) play(); };
 
   const update = setup({ scene, toon, blob, island, stars, sparkles, glow, own, sfx });
+
+  // Cel outlines, the classic Nintendo trick: every toon-shaded mesh gets a
+  // slightly inflated, back-face-only, dark copy of itself, which shows up as
+  // a thin ink line around the silhouette. Lights, screens and other flat
+  // (MeshBasic) bits are left alone.
+  const width = opts.outline ?? 0.015;
+  if (width > 0) {
+    const ink = new MeshBasicMaterial({ color: '#2b2838', side: BackSide });
+    ink.onBeforeCompile = (sh) => {
+      sh.vertexShader = sh.vertexShader.replace('#include <begin_vertex>', `vec3 transformed = position + normal * ${width.toFixed(4)};`);
+    };
+    ink.customProgramCacheKey = () => `outline-${width}`;
+    const targets: Mesh[] = [];
+    scene.traverse((o: Object3D) => {
+      const m = o as Mesh;
+      if (m.isMesh && m.material instanceof MeshToonMaterial && !m.material.transparent && !m.userData.noOutline) targets.push(m);
+    });
+    for (const m of targets) { const o = new Mesh(m.geometry, ink); o.userData.noOutline = true; m.add(o); }
+  }
 
   // ---------- framing, parallax, loop ----------
   let el: HTMLElement | null = null;

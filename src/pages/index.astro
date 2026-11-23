@@ -172,14 +172,48 @@ const empties = Math.max(0, Math.ceil((items.length + 1) / 6) * 6 - items.length
     // Tabbing onto a tile selects it too.
     tiles.forEach((t, i) => t.addEventListener('focus', () => select(i)));
     document.addEventListener('click', (e) => { if ((e.target as Element).closest('.tile, #proj')) openSound(); });
+
+    // Two "screens". Any small scroll down from the top glides to the
+    // timeline; a small scroll up from the start of the timeline glides back.
+    // Everywhere else scrolls normally. While a glide is running (and while a
+    // trackpad's momentum is still coming in) extra wheel events are eaten, so
+    // you land exactly on the first entry.
+    const xp = document.getElementById('experience')!;
+    let lockUntil = 0;
+    const glide = (y: number) => { lockUntil = performance.now() + 700; scrollTo({ top: y, behavior: 'smooth' }); };
+    const inTop = () => scrollY < xp.offsetTop - 4;
+    const atBoundary = () => scrollY > 4 && scrollY <= xp.offsetTop + 4;
+    function flip(dir: number) {
+      if (dir > 0 && inTop()) { glide(xp.offsetTop); return true; }
+      if (dir < 0 && atBoundary()) { glide(0); return true; }
+      return false;
+    }
+    addEventListener('wheel', (e) => {
+      const now = performance.now();
+      if (now < lockUntil) { lockUntil = Math.max(lockUntil, now + 160); e.preventDefault(); return; }
+      if (e.ctrlKey || Math.abs(e.deltaY) < 1.5 || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
+      if (flip(Math.sign(e.deltaY))) e.preventDefault();
+    }, { passive: false });
+    addEventListener('keydown', (e) => {
+      if ((e.target as Element).closest('input, textarea') || e.metaKey || e.ctrlKey || e.altKey) return;
+      const down = ['ArrowDown', 'PageDown', ' '].includes(e.key) && !e.shiftKey;
+      const up = ['ArrowUp', 'PageUp'].includes(e.key) || (e.key === ' ' && e.shiftKey);
+      if ((down && flip(1)) || (up && flip(-1))) e.preventDefault();
+    });
+    let ty = 0, decided = false;
+    addEventListener('touchstart', (e) => { ty = e.touches[0].clientY; decided = false; }, { passive: true });
+    addEventListener('touchmove', (e) => {
+      if (decided) return;
+      const dy = ty - e.touches[0].clientY;
+      if (Math.abs(dy) < 14) return;
+      decided = true;
+      if (flip(Math.sign(dy))) e.preventDefault();
+    }, { passive: false });
   </script>
 </Base>
 
 <style>
-  /* Two "screens": the console, then the timeline. A gentle snap settles on
-     whichever is closer; it never traps the scroll. */
-  :global(html:has(body[data-home])) { scroll-snap-type: y proximity; scroll-behavior: smooth; }
-  :global(body[data-home] > header.top) { scroll-snap-align: start; }
+  :global(html:has(body[data-home])) { scroll-behavior: smooth; }
   .first { min-height: calc(100svh - 62px); display: grid; grid-template-rows: 1fr auto; }
   .console { display: flex; flex-direction: column; justify-content: center; gap: clamp(24px, 4vh, 44px); min-width: 0; }
 

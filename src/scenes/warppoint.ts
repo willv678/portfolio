@@ -15,7 +15,7 @@ import { sfx } from '../scripts/sound';
 
 const C = {
   ink: '#2a2733', switchBody: '#34323b', joyL: '#2fc2ee', joyR: '#ff5d5d',
-  laptop: '#dcdde3', keys: '#3a3a42', screen: '#9fdcff',
+  laptop: '#d3d5de', keys: '#3a3a42', screen: '#9fdcff',
   saucer: '#efeaff', rim: '#7b6cf6', dome: '#c9f0ff', light: '#ffd66b', save: '#ffe68a', beam: '#8f7dff',
   floppy: '#6a5cf0', alien: '#7fdc8c',
 };
@@ -216,9 +216,10 @@ export const create = () => createStage((kit) => {
     if (passed(prev, t, LAND, LEG)) sparks.burst(t, toPort);
     sparks.update(t);
 
-    // Sound: beam on, save picked up, save landed.
-    if (passed(prev, t, 0.1, LEG) || passed(prev, t, 3.3, LEG)) kit.sfx(sfx.beam);
-    if (passed(prev, t, 1.2, LEG)) kit.sfx(sfx.bloop);
-    if (passed(prev, t, LAND, LEG)) kit.sfx(sfx.chime);
+    // Sound.
+    if (passed(prev, t, 0.3, LEG)) kit.sfx(() => sfx.pull(0.9));     // being sucked up…
+    if (passed(prev, t, 1.2, LEG)) kit.sfx(sfx.pop);                 // …caught
+    if (passed(prev, t, 3.45, LEG)) kit.sfx(() => sfx.lower(0.9));   // lowered down…
+    if (passed(prev, t, LAND, LEG)) kit.sfx(sfx.plink);              // …landed
   };
 });

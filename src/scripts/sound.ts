@@ -77,17 +77,67 @@ function tone(f0: number, f1: number, dur: number, { type = 'sine' as Oscillator
   o.start(t); o.stop(t + dur + 0.02);
 }
 
+// A wobbly hum that slides from f0 to f1: the tractor beam "pulling".
+function warble(f0: number, f1: number, dur: number, vol = 0.014) {
+  if (!on || !unlocked || !ctx || ctx.state !== 'running') return;
+  const t = ctx.currentTime;
+  const out = ctx.createGain();
+  out.gain.setValueAtTime(0.0001, t);
+  out.gain.linearRampToValueAtTime(vol, t + dur * 0.35);
+  out.gain.linearRampToValueAtTime(vol * 0.8, t + dur * 0.85);
+  out.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  out.connect(ctx.destination);
+  // the vibrate: an LFO wobbling the pitch, getting faster as it pulls
+  const lfo = ctx.createOscillator(), depth = ctx.createGain();
+  lfo.frequency.setValueAtTime(7, t); lfo.frequency.linearRampToValueAtTime(13, t + dur);
+  depth.gain.value = f0 * 0.06;
+  lfo.connect(depth);
+  for (const [mult, type, g] of [[1, 'sine', 1], [2, 'triangle', 0.25]] as const) {
+    const o = ctx.createOscillator(), og = ctx.createGain();
+    o.type = type; og.gain.value = g;
+    o.frequency.setValueAtTime(f0 * mult, t);
+    o.frequency.exponentialRampToValueAtTime(f1 * mult, t + dur);
+    depth.connect(o.frequency);
+    o.connect(og).connect(out);
+    o.start(t); o.stop(t + dur + 0.05);
+  }
+  lfo.start(t); lfo.stop(t + dur + 0.05);
+}
+
+// A short burst of filtered noise: fizzles and clunks.
+let noiseBuf: AudioBuffer | undefined;
+function noise(dur: number, from: number, to: number, vol = 0.01) {
+  if (!on || !unlocked || !ctx || ctx.state !== 'running') return;
+  if (!noiseBuf) {
+    noiseBuf = ctx.createBuffer(1, ctx.sampleRate * 0.5, ctx.sampleRate);
+    const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  }
+  const t = ctx.currentTime, src = ctx.createBufferSource(), bp = ctx.createBiquadFilter(), g = ctx.createGain();
+  src.buffer = noiseBuf;
+  bp.type = 'bandpass'; bp.Q.value = 2;
+  bp.frequency.setValueAtTime(from, t); bp.frequency.exponentialRampToValueAtTime(to, t + dur);
+  g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  src.connect(bp).connect(g).connect(ctx.destination);
+  src.start(t); src.stop(t + dur);
+}
+
 export const sfx = {
-  /** tractor beam switching on: a soft rising hum */
-  beam: () => tone(170, 380, 0.5, { type: 'triangle', vol: 0.012 }),
-  /** something small getting picked up */
-  bloop: () => tone(480, 980, 0.11, { vol: 0.022 }),
-  /** something arriving: three quick rising notes */
-  chime: () => { tone(1319, 1319, 0.08, { vol: 0.014 }); tone(1760, 1760, 0.08, { vol: 0.012, delay: 0.07 }); tone(2093, 2093, 0.12, { vol: 0.01, delay: 0.14 }); },
+  /** tractor beam sucking something up: a wobbly hum rising in pitch */
+  pull: (dur = 1.0) => warble(150, 360, dur),
+  /** ...and lowering it down */
+  lower: (dur = 1.0) => warble(340, 150, dur),
+  /** the UFO catching the save: a soft pop */
+  pop: () => { tone(620, 180, 0.07, { vol: 0.03 }); noise(0.03, 3000, 1500, 0.006); },
+  /** something arriving: one soft plink */
+  plink: () => { tone(1568, 1568, 0.18, { vol: 0.016 }); tone(3136, 3136, 0.1, { vol: 0.004 }); },
   /** approved */
   ding: () => { tone(880, 880, 0.07, { vol: 0.016 }); tone(1319, 1319, 0.11, { vol: 0.014, delay: 0.07 }); },
-  /** rejected */
-  buzz: () => tone(260, 130, 0.2, { type: 'square', vol: 0.006 }),
+  /** rejected: a little "nuh-uh" plus a fizzle */
+  nuhuh: () => { tone(440, 420, 0.09, { type: 'triangle', vol: 0.016 }); tone(330, 300, 0.12, { type: 'triangle', vol: 0.016, delay: 0.12 }); noise(0.28, 4000, 600, 0.008); },
   /** little toy-car horn */
   beep: () => { tone(660, 660, 0.05, { type: 'square', vol: 0.005 }); tone(660, 660, 0.05, { type: 'square', vol: 0.005, delay: 0.09 }); },
+  /** blocks falling apart */
+  clunk: () => { tone(170, 70, 0.14, { type: 'triangle', vol: 0.02 }); noise(0.08, 900, 300, 0.008); },
+  /** signal light turning green */
+  bip: () => tone(1046, 1046, 0.06, { vol: 0.01 }),
 };
