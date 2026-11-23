@@ -97,7 +97,9 @@ const empties = Math.max(0, Math.ceil((items.length + 1) / 6) * 6 - items.length
       banner.style.background = p.bg;
       banner.innerHTML = p.kind === 'post'
         ? `<div class="post-title"></div>`
-        : `<div class="banner-ico">${tile.querySelector('.ico')!.innerHTML}</div>`;
+        : `<div class="banner-ico">${tile.querySelector('.ico')!.innerHTML
+            .replace(/id="([^"]+)"/g, 'id="$1-panel"')
+            .replace(/url\(#([^)]+)\)/g, 'url(#$1-panel)')}</div>`;
       if (p.kind === 'post') banner.firstElementChild!.textContent = p.title;
       $('ptitle').textContent = p.title;
       $('pblurb').textContent = p.blurb;

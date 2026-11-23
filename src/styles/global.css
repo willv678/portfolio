@@ -40,12 +40,17 @@ html:active-view-transition-type(prev)::view-transition-new(root) { animation: .
   75% { transform: scale(.98, 1.02); }
 }
 @keyframes ufo-bob { 50% { transform: translateY(-.7px); } }
+/* The beam's top follows the ship while its bottom stays on the ground:
+   0.7 units of lift over a 5.5-unit beam = scaleY(1.127) from the bottom. */
+@keyframes beam-stretch { 50% { transform: scaleY(1.127); } }
 @keyframes beam-on { from { transform: scaleY(0); opacity: 0; } }
 @keyframes beam-flicker { 50% { opacity: .55; } }
-.icon .ufo, .icon .beam { transform-box: fill-box; }
+.icon .ufo, .icon .beam, .icon .beam-wrap { transform-box: fill-box; }
 .icon .beam { transform-origin: 50% 0; }
+.icon .beam-wrap { transform-origin: 50% 100%; }
 :is(.tile.on, html:not(.kbd) a.tile:hover, .nav-tile:hover) .icon.hop { animation: hop .5s cubic-bezier(.3,.7,.4,1); transform-origin: 50% 90%; }
 :is(.tile.on, html:not(.kbd) a.tile:hover, .nav-tile:hover, .banner) .icon .ufo { animation: ufo-bob 1.3s ease-in-out infinite; }
+:is(.tile.on, html:not(.kbd) a.tile:hover, .nav-tile:hover, .banner) .icon .beam-wrap { animation: beam-stretch 1.3s ease-in-out infinite; }
 :is(.tile.on, html:not(.kbd) a.tile:hover, .nav-tile:hover, .banner) .icon .beam { animation: beam-on .35s cubic-bezier(.3,1.4,.5,1), beam-flicker 1.6s .35s ease-in-out infinite; }
 /* Keyboard mode: an arrow key hides the cursor and turns hover off until the
    mouse really moves, so a resting cursor can't fight the keyboard. */
