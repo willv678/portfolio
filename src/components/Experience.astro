@@ -5,15 +5,15 @@
 // the *active* entry instead of the page: each entry gets an equal slice of
 // scroll, entries appear one by one, the line draws down to the active dot,
 // and the 3D viewer on the right (which never moves) shows the active one.
-// The "earlier" list and links are the final stop, so the page ends right
-// there instead of leaving a screen of empty space.
+// The "earlier" list and links appear together with the last entry, so the
+// page ends right there.
 // Phones: a normal list that reveals as you scroll; no viewer.
 import { experience } from '../data/experience';
 const major = experience.filter((e) => !e.minor);
 const minor = experience.filter((e) => e.minor);
 const when = (e: (typeof experience)[number]) => (e.end ? `${e.start} – ${e.end}` : e.start);
 ---
-<section id="experience" class="exp" style={`--n:${major.length + 1}`} aria-labelledby="exp-h">
+<section id="experience" class="exp" style={`--n:${major.length}`} aria-labelledby="exp-h">
   <div class="pin">
     <div class="inner">
       <div class="col">
@@ -30,6 +30,7 @@ const when = (e: (typeof experience)[number]) => (e.end ? `${e.start} – ${e.en
             </li>
           ))}
         </ol>
+        <div class="more mono" id="xp-more" aria-hidden="true"><span class="mouse"><i></i></span>scroll</div>
         <div class="tail" id="xp-tail">
           <h4 class="mono earlier">earlier</h4>
     <ul class="minor">
@@ -47,7 +48,6 @@ const when = (e: (typeof experience)[number]) => (e.end ? `${e.start} – ${e.en
         </div>
         </div>
         </div>
-        <div class="more mono" id="xp-more" aria-hidden="true"><span class="mouse"><i></i></span>scroll</div>
       </div>
       <aside class="viewer" aria-hidden="true">
         <div class="box" id="xp-stage"></div>
@@ -113,21 +113,29 @@ const when = (e: (typeof experience)[number]) => (e.end ? `${e.start} – ${e.en
       // rests on it; in the second half it glides to the next one.
       const top = sec.offsetTop, range = sec.offsetHeight - innerHeight;
       const p = Math.min(0.9999, Math.max(0, (scrollY - top) / range));
-      // Stops: every entry, then the "earlier" tail.
-      const stops = [...entries, tail], last = stops.length - 1;
-      const f = p * stops.length, base = Math.min(last, Math.floor(f)), frac = f - Math.floor(f);
+      const last = entries.length - 1;
+      const f = p * entries.length, base = Math.min(last, Math.floor(f)), frac = f - Math.floor(f);
       const glide = base < last ? smooth(Math.max(0, (frac - 0.45) / 0.55)) : 0;
       const pos = base + glide;                                      // 0 … last, fractional while gliding
-      const i = Math.min(entries.length - 1, Math.round(pos));       // the tail keeps the last entry active
+      const i = Math.round(pos);
+      const end = pos > last - 0.5;
       entries.forEach((e, j) => e.classList.toggle('in', j <= i));
-      tail.classList.toggle('in', pos > last - 0.5);
+      tail.classList.toggle('in', end);                               // "earlier" + links arrive with the last entry
+      win.classList.toggle('end', end);
+      more.classList.toggle('done', end);
       setActive(i);
+      // where the list sits for stop k: that entry at the reading line; the
+      // last stop rides higher if needed so the tail fits on screen too
       const tTop = track.getBoundingClientRect().top;
-      const y = (k: number) => stops[k].getBoundingClientRect().top - tTop;
-      const at = y(base) + (base < last ? (y(base + 1) - y(base)) * glide : 0);
-      track.style.setProperty('--shift', `${win.clientHeight * 0.22 - at}px`);
+      const y = (el: Element) => el.getBoundingClientRect().top - tTop;
+      const read = win.clientHeight * 0.22;
+      const shiftFor = (k: number) => {
+        const sh = read - y(entries[k]);
+        return k < last ? sh : Math.min(sh, win.clientHeight - 16 - (y(tail) + tail.offsetHeight));
+      };
+      const sh = shiftFor(base) + (base < last ? (shiftFor(base + 1) - shiftFor(base)) * glide : 0);
+      track.style.setProperty('--shift', `${sh}px`);
       tl.style.setProperty('--fill', `${dotY(i)}px`);
-      more.classList.toggle('done', pos > last - 0.5);
     } else {
       // phones: plain list; active = nearest the middle of the screen
       const mid = innerHeight * 0.45;
@@ -160,6 +168,7 @@ const when = (e: (typeof experience)[number]) => (e.end ? `${e.start} – ${e.en
     height: calc(100svh - 300px); overflow: hidden; margin-left: -8px; padding-left: 8px;
     mask-image: linear-gradient(transparent, #000 9%, #000 78%, transparent);
   }
+  .window:global(.end) { mask-image: linear-gradient(transparent, #000 9%); }
   .track { --shift: 0px; transform: translateY(var(--shift)); }
   .tl { list-style: none; padding: 0 0 0 30px; position: relative; --fill: 0px; }
   .tail { padding: 8px 0 0 30px; }
@@ -189,7 +198,7 @@ const when = (e: (typeof experience)[number]) => (e.end ? `${e.start} – ${e.en
   :global(.xp-anim) .entry:not(:global(.in)) .dot { opacity: .45; transform: scale(.75); }
   .entry:global(.on) .dot { background: var(--ink); border-color: var(--ink); transform: scale(1.25); }
 
-  .more { display: flex; align-items: center; gap: 10px; color: var(--muted); margin: 4px 0 0 -2px; transition: opacity .4s; }
+  .more { display: flex; align-items: center; gap: 10px; color: var(--muted); margin: 2px 0 0 -2px; height: 0; overflow: visible; transition: opacity .4s; }
   .more.done { opacity: 0; }
   .mouse { width: 15px; height: 22px; border: 1.5px solid var(--muted); border-radius: 8px; display: grid; justify-items: center; padding-top: 4px; }
   .mouse i { width: 2px; height: 5px; border-radius: 1px; background: var(--muted); animation: wheel 1.6s ease-in-out infinite; }
