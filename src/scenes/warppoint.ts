@@ -8,7 +8,7 @@
 // (no model files), flat "toon" shading, ~10s loop.
 
 import {
-  AdditiveBlending, CanvasTexture, Sprite, SpriteMaterial, Clock, Color, CylinderGeometry, DataTexture, DirectionalLight, DoubleSide, Group, HemisphereLight, MathUtils, Mesh, MeshBasicMaterial, MeshToonMaterial, NearestFilter, PerspectiveCamera, PlaneGeometry, RedFormat, Scene, ShaderMaterial, SphereGeometry, TorusGeometry, Vector3, WebGLRenderer,
+  AdditiveBlending, BufferGeometry, Float32BufferAttribute, Points, SRGBColorSpace, CanvasTexture, Sprite, SpriteMaterial, Clock, Color, CylinderGeometry, DataTexture, DirectionalLight, DoubleSide, Group, HemisphereLight, MathUtils, Mesh, MeshBasicMaterial, MeshToonMaterial, NearestFilter, PerspectiveCamera, PlaneGeometry, RedFormat, Scene, ShaderMaterial, SphereGeometry, TorusGeometry, Vector3, WebGLRenderer,
   type MeshToonMaterialParameters,
 } from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
@@ -17,6 +17,7 @@ const C = {
   ink: '#2a2733', switchBody: '#34323b', joyL: '#2fc2ee', joyR: '#ff5d5d',
   laptop: '#dcdde3', keys: '#3a3a42', screen: '#9fdcff', screenOff: '#1d1b26',
   saucer: '#efeaff', rim: '#7b6cf6', dome: '#c9f0ff', light: '#ffd66b', save: '#ffe68a', beam: '#cfc6ff', floppy: '#6a5cf0',
+  face: '#1d1b33', alien: '#8ee89a', islandTop: '#b9afff', islandSide: '#6d5fe6',
 };
 
 // ---------- small helpers ----------
@@ -74,6 +75,77 @@ export function create(): SceneHandle | null {
     return m;
   };
 
+  // ---------- faces on the screens ----------
+  // Each screen is a little canvas face. It's only redrawn when the expression
+  // or where the eyes point actually changes.
+  type Mood = 'idle' | 'blink' | 'wow' | 'happy';
+  const faceTextures: CanvasTexture[] = [];
+  function makeFace() {
+    const c = document.createElement('canvas'); c.width = 256; c.height = 150;
+    const g = c.getContext('2d')!;
+    const tex = new CanvasTexture(c); tex.colorSpace = SRGBColorSpace; faceTextures.push(tex);
+    let key = '';
+    function set(mood: Mood, lookX: number, lookY: number) {
+      const k = `${mood}${Math.round(lookX * 6)}${Math.round(lookY * 6)}`;
+      if (k === key) return;
+      key = k;
+      const ex = 46, ey = 62, px = lookX * 9, py = lookY * 7;
+      g.fillStyle = C.screen; g.fillRect(0, 0, 256, 150);
+      g.fillStyle = g.strokeStyle = C.face; g.lineCap = 'round'; g.lineWidth = 7;
+      const smile = () => { g.beginPath(); g.arc(128, 90, 13, Math.PI * 0.15, Math.PI * 0.85); g.stroke(); };
+      if (mood === 'happy') {
+        for (const d of [-1, 1]) { g.beginPath(); g.arc(128 + d * ex, ey + 8, 14, Math.PI * 1.15, Math.PI * 1.85); g.stroke(); }
+        g.fillStyle = 'rgba(255,120,150,.55)';
+        for (const d of [-1, 1]) { g.beginPath(); g.ellipse(128 + d * 80, 94, 16, 9, 0, 0, Math.PI * 2); g.fill(); }
+        g.fillStyle = C.face; g.beginPath(); g.arc(128, 88, 19, 0, Math.PI); g.closePath(); g.fill();
+        g.fillStyle = '#ff7a8a'; g.beginPath(); g.arc(128, 98, 8, 0, Math.PI); g.fill();
+      } else if (mood === 'blink') {
+        for (const d of [-1, 1]) { g.beginPath(); g.moveTo(128 + d * ex - 12 + px, ey + py); g.lineTo(128 + d * ex + 12 + px, ey + py); g.stroke(); }
+        smile();
+      } else {
+        const big = mood === 'wow' ? 1.22 : 1;
+        for (const d of [-1, 1]) {
+          g.fillStyle = C.face; g.beginPath(); g.ellipse(128 + d * ex + px, ey + py, 12 * big, 17 * big, 0, 0, Math.PI * 2); g.fill();
+          g.fillStyle = '#fff'; g.beginPath(); g.arc(128 + d * ex + px - 4, ey + py - 7, 4.5, 0, Math.PI * 2); g.fill();
+        }
+        g.fillStyle = C.face;
+        if (mood === 'wow') { g.beginPath(); g.ellipse(128, 104, 9, 11, 0, 0, Math.PI * 2); g.fill(); } else smile();
+      }
+      tex.needsUpdate = true;
+    }
+    set('idle', 0, 0);
+    return { tex, set };
+  }
+  const swFace = makeFace(), lapFace = makeFace();
+
+  // ---------- the floating island they sit on ----------
+  const island = new Mesh(new CylinderGeometry(3.55, 3.25, 0.34, 72),
+    [toon(C.islandSide), toon(C.islandTop), toon(C.islandSide)]);
+  island.scale.z = 0.5;
+  island.position.y = -0.17;
+  scene.add(island);
+
+  // ---------- twinkling stars behind everything ----------
+  const starGeo = new BufferGeometry(), N = 70, sp: number[] = [], ph: number[] = [];
+  for (let i = 0; i < N; i++) {
+    sp.push((Math.random() - 0.5) * 18, 0.4 + Math.random() * 5.5, -4.5 - Math.random() * 3);
+    ph.push(Math.random() * 6.283);
+  }
+  starGeo.setAttribute('position', new Float32BufferAttribute(sp, 3));
+  starGeo.setAttribute('phase', new Float32BufferAttribute(ph, 1));
+  const starMat = new ShaderMaterial({
+    transparent: true, depthWrite: false,
+    uniforms: { uTime: { value: 0 }, uPR: { value: Math.min(devicePixelRatio, 2) } },
+    vertexShader: `attribute float phase; uniform float uTime, uPR; varying float vA;
+      void main(){ vA = .25 + .75 * (.5 + .5 * sin(uTime * 1.6 + phase * 3.));
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.);
+        gl_PointSize = (1.6 + 2.2 * fract(phase)) * uPR; }`,
+    fragmentShader: `varying float vA;
+      void main(){ float d = length(gl_PointCoord - .5); if (d > .5) discard;
+        gl_FragColor = vec4(1., .97, .9, vA * smoothstep(.5, .1, d)); }`,
+  });
+  scene.add(new Points(starGeo, starMat));
+
   // ---------- the Switch (left) ----------
   const sw = new Group();
   const swTilt = new Group();                     // leaning back on its kickstand
@@ -81,7 +153,7 @@ export function create(): SceneHandle | null {
   swTilt.position.y = 0.5;
   sw.add(swTilt);
   swTilt.add(new Mesh(new RoundedBoxGeometry(1.5, 0.88, 0.12, 4, 0.04), toon(C.switchBody)));
-  const swScreenMat = new MeshBasicMaterial({ color: C.screen });
+  const swScreenMat = new MeshBasicMaterial({ map: swFace.tex });
   const swScreen = new Mesh(new PlaneGeometry(1.2, 0.68), swScreenMat);
   swScreen.position.z = 0.061;
   swTilt.add(swScreen);
@@ -94,7 +166,7 @@ export function create(): SceneHandle | null {
     stick.position.set(side * 0.92, side < 0 ? 0.2 : -0.08, 0.09);
     swTilt.add(stick);
   }
-  sw.add(blob(2.6, 1.2));
+  const swBlob = blob(2.6, 1.2); swBlob.position.x = -2.1; scene.add(swBlob);
   sw.position.set(-2.1, 0, 0);
   sw.rotation.y = 0.32;
   scene.add(sw);
@@ -114,11 +186,11 @@ export function create(): SceneHandle | null {
   const lid = new Mesh(new RoundedBoxGeometry(1.9, 1.22, 0.05, 3, 0.03), toon(C.laptop));
   lid.position.y = 0.61;
   hinge.add(lid);
-  const lapScreenMat = new MeshBasicMaterial({ color: C.screen });
+  const lapScreenMat = new MeshBasicMaterial({ map: lapFace.tex });
   const lapScreen = new Mesh(new PlaneGeometry(1.7, 1.02), lapScreenMat);
   lapScreen.position.set(0, 0.62, 0.027);
   hinge.add(lapScreen);
-  lap.add(blob(2.8, 2));
+  const lapBlob = blob(2.8, 2); lapBlob.position.x = 2.1; scene.add(lapBlob);
   lap.position.set(2.1, 0, 0);
   lap.rotation.y = -0.32;
   scene.add(lap);
@@ -138,8 +210,8 @@ export function create(): SceneHandle | null {
   rim.rotation.x = Math.PI / 2;
   hull.add(rim);
   const dome = new Mesh(
-    new SphereGeometry(0.33, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2),
-    toon(C.dome, { transparent: true, opacity: 0.92 }),
+    new SphereGeometry(0.36, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2),
+    toon(C.dome, { transparent: true, opacity: 0.42, depthWrite: false }),
   );
   dome.position.y = 0.1;
   hull.add(dome);
@@ -150,6 +222,23 @@ export function create(): SceneHandle | null {
     s.position.set(Math.cos(a) * 0.55, -0.03, Math.sin(a) * 0.55);
     hull.add(s); lights.push(m);
   }
+  // The pilot: sits in the dome but doesn't spin with the hull.
+  const pilot = new Group();
+  pilot.position.y = 0.2;
+  ufo.add(pilot);
+  const head = new Mesh(new SphereGeometry(0.15, 24, 16), toon(C.alien));
+  head.scale.set(1, 0.92, 1);
+  pilot.add(head);
+  for (const d of [-1, 1]) {
+    const eye = new Mesh(new SphereGeometry(0.036, 12, 8), new MeshBasicMaterial({ color: C.face }));
+    eye.position.set(d * 0.058, 0.02, 0.128); eye.scale.set(1, 1.45, 0.6);
+    pilot.add(eye);
+  }
+  const stalk = new Mesh(new CylinderGeometry(0.009, 0.009, 0.08, 6), toon(C.alien));
+  stalk.position.y = 0.16;
+  const bulb = new Mesh(new SphereGeometry(0.026, 12, 8), new MeshBasicMaterial({ color: C.light }));
+  bulb.position.y = 0.205;
+  pilot.add(stalk, bulb);
   scene.add(ufo);
   const ufoBlob = blob(1.6, 1.6);
   scene.add(ufoBlob);
@@ -197,6 +286,23 @@ export function create(): SceneHandle | null {
   scene.add(glow);                                      // follows the floppy, but doesn't spin with it
   scene.add(save);
 
+  // ---------- sparkles when the save lands ----------
+  const sparkTex = (() => {
+    const c = document.createElement('canvas'); c.width = c.height = 64;
+    const g = c.getContext('2d')!;
+    g.fillStyle = '#fff';
+    g.beginPath();
+    // 4-point star: curve in toward the middle between each tip
+    g.moveTo(32, 2); g.quadraticCurveTo(36, 28, 62, 32); g.quadraticCurveTo(36, 36, 32, 62);
+    g.quadraticCurveTo(28, 36, 2, 32); g.quadraticCurveTo(28, 28, 32, 2); g.fill();
+    return new CanvasTexture(c);
+  })();
+  const sparks = Array.from({ length: 9 }, (_, i) => {
+    const m = new SpriteMaterial({ map: sparkTex, color: i % 3 ? C.save : '#ffffff', transparent: true, depthWrite: false, blending: AdditiveBlending });
+    const sp = new Sprite(m); sp.visible = false; scene.add(sp);
+    return { sp, m, a: (i / 9) * Math.PI * 2 + 0.3, r: 0.75 + (i % 3) * 0.2 };
+  });
+
   // ---------- the loop ----------
   // One leg = pick up at A, fly, drop at B. Two legs = A→B→A.
   const LEG = 5.4, CRUISE = 2.35;
@@ -204,7 +310,7 @@ export function create(): SceneHandle | null {
 
   function pose(t: number) {
     const k = Math.floor(t / LEG) % 2, u = t % LEG;
-    const [fromPort, toPort, toScreen] = k === 0 ? [swPort, lapPort, lapScreenMat] : [lapPort, swPort, swScreenMat];
+    const [fromPort, toPort] = k === 0 ? [swPort, lapPort] : [lapPort, swPort];
     const A = hoverOver(fromPort), B = hoverOver(toPort);
 
     const fly = ease(seg(u, 1.5, 3.2));
@@ -232,11 +338,12 @@ export function create(): SceneHandle | null {
       s = new Vector3().lerpVectors(pos.clone().add(under), toPort, r);
       scale = 1 - seg(u, 4.15, 4.35);
     }
-    const flash = Math.max(0, 1 - Math.abs(u - 4.45) / 0.35);   // target screen blinks on arrival
-    return { pos, tilt: -dir * speed * 0.28, on, s, scale, toScreen, flash };
+    return { pos, tilt: -dir * speed * 0.28, dir, flying: speed, on, s, scale, k, u, toPort };
   }
 
-  const screenBase = new Color(C.screen), white = new Color('#ffffff');
+  const SW = { group: sw, face: swFace, x: -2.1, blink: 0.0 };
+  const LAP = { group: lap, face: lapFace, x: 2.1, blink: 1.7 };
+  const LAND = 4.35;                                    // when the save reaches the device
   const parallax = { x: 0, y: 0, tx: 0, ty: 0 };
   const onMove = (e: PointerEvent) => {
     const r = el!.getBoundingClientRect();
@@ -280,9 +387,46 @@ export function create(): SceneHandle | null {
     glow.position.copy(p.s);
     glow.scale.setScalar(Math.max(0.001, p.scale) * (0.85 + 0.12 * Math.sin(t * 6)));
 
-    swScreenMat.color.copy(screenBase);
-    lapScreenMat.color.copy(screenBase);
-    p.toScreen.color.copy(screenBase).lerp(white, p.flash);
+    // The devices: eyes follow the UFO; the sender looks surprised as its save
+    // is beamed up (and shivers a bit); the receiver watches it come, then
+    // hops with a happy face when it lands.
+    const from = p.k === 0 ? SW : LAP, to = p.k === 0 ? LAP : SW, u = p.u;
+    for (const d of [SW, LAP]) {
+      const look = Math.max(-1, Math.min(1, (ufo.position.x - d.x) / 2.2));
+      let mood: Mood = (t + d.blink) % 3.4 < 0.13 ? 'blink' : 'idle';
+      if (d === from && u > 0.1 && u < 1.35) mood = 'wow';
+      if (d === to && u > 3.3 && u < LAND) mood = 'wow';
+      if (d === to && u >= LAND) mood = 'happy';
+      d.face.set(mood, look, -0.7);
+      const h = d === to ? u - LAND : -1;
+      const hop = h >= 0 && h < 0.45 ? Math.sin((Math.PI * h) / 0.45) : 0;
+      const sq = h >= 0 && h < 0.7 ? Math.sin((2 * Math.PI * h) / 0.7) * 0.08 * (1 - h / 0.7) : 0;
+      d.group.position.y = hop * 0.24;
+      d.group.scale.set(1 - sq, 1 + sq, 1 - sq);
+      d.group.rotation.z = d === from && u > 0.35 && u < 1.2 ? Math.sin(t * 40) * 0.02 : 0;
+    }
+    // the laptop flaps its lid when it's happy
+    const lh = to === LAP ? u - LAND : -1;
+    hinge.rotation.x = -0.22 - (lh >= 0 && lh < 0.6 ? Math.sin((Math.PI * lh) / 0.6) * 0.28 : 0);
+
+    // sparkles burst out of the receiver
+    const sk = (u - LAND) / 0.9;
+    for (const { sp, m, a, r: rr } of sparks) {
+      sp.visible = sk >= 0 && sk < 1;
+      if (!sp.visible) continue;
+      const out = 1 - Math.pow(1 - sk, 3);
+      sp.position.set(p.toPort.x + Math.cos(a) * rr * out, p.toPort.y + 0.15 + Math.sin(a) * rr * 0.8 * out, p.toPort.z + 0.4);
+      sp.scale.setScalar(0.3 * (1 - sk) + 0.05);
+      m.opacity = 1 - sk;
+      m.rotation = sk * 3;
+    }
+
+    // the pilot looks where it's going, and down while the beam is on
+    pilot.rotation.z = p.tilt;
+    pilot.rotation.y = p.dir * 0.7 * p.flying;
+    pilot.rotation.x = p.on * 0.35;
+    pilot.position.y = 0.2 + Math.sin(t * 5) * 0.008;
+    starMat.uniforms.uTime.value = t;
 
     parallax.x += (parallax.tx - parallax.x) * 0.05;
     parallax.y += (parallax.ty - parallax.y) * 0.05;
@@ -344,7 +488,8 @@ export function create(): SceneHandle | null {
         m.geometry?.dispose();
         (Array.isArray(m.material) ? m.material : m.material ? [m.material] : []).forEach((x) => x.dispose());
       });
-      ramp.dispose(); blobTex.dispose(); glowTex.dispose();
+      ramp.dispose(); blobTex.dispose(); glowTex.dispose(); sparkTex.dispose();
+      faceTextures.forEach((x) => x.dispose());
       renderer.dispose();
       renderer.forceContextLoss();
     },
