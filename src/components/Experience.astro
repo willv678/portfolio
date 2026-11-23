@@ -22,7 +22,7 @@ const when = (e: (typeof experience)[number]) => (e.end ? `${e.start} – ${e.en
         <div class="track" id="xp-track">
         <ol class="tl" id="tl">
           {major.map((e, i) => (
-            <li class="entry" data-i={i} data-model={e.model} data-org={e.org} data-when={when(e)}>
+            <li class="entry" data-i={i} data-model={e.model} data-org={e.short ?? e.org} data-when={when(e)}>
               <span class="dot" aria-hidden="true" />
               <span class="when mono">{when(e)}</span>
               <h3>{e.href ? <a href={e.href} data-blip="880">{e.role}</a> : e.role}<span class="org">{e.org}</span></h3>
@@ -127,7 +127,7 @@ const when = (e: (typeof experience)[number]) => (e.end ? `${e.start} – ${e.en
       // last stop rides higher if needed so the tail fits on screen too
       const tTop = track.getBoundingClientRect().top;
       const y = (el: Element) => el.getBoundingClientRect().top - tTop;
-      const read = win.clientHeight * 0.22;
+      const read = win.clientHeight * 0.1;
       const shiftFor = (k: number) => {
         const sh = read - y(entries[k]);
         return k < last ? sh : Math.min(sh, win.clientHeight - 16 - (y(tail) + tail.offsetHeight));
@@ -184,7 +184,7 @@ const when = (e: (typeof experience)[number]) => (e.end ? `${e.start} – ${e.en
     mask-image: linear-gradient(transparent, #000 9%, #000 78%, transparent);
   }
   .window:global(.end) { mask-image: linear-gradient(transparent, #000 9%); }
-  .tail { padding-top: 28px; }
+  .tail { padding-top: 22px; }
   .track { --shift: 0px; transform: translateY(var(--shift)); }
   .tl { list-style: none; padding: 0 0 0 30px; position: relative; --fill: 0px; }
   .tail { padding: 8px 0 0 30px; }
@@ -207,13 +207,13 @@ const when = (e: (typeof experience)[number]) => (e.end ? `${e.start} – ${e.en
   .entry p { color: var(--muted); margin-top: 3px; max-width: 58ch; }
 
   /* entries appear one by one; the active one is in full ink */
-  :global(.xp-anim) .entry > :not(.dot) { opacity: 0; transform: translateY(12px); transition: opacity .45s ease, transform .45s cubic-bezier(.2,.8,.3,1); }
+  :global(.xp-anim) .entry > :not(.dot) { opacity: .2; transform: none; transition: opacity .45s ease, transform .45s cubic-bezier(.2,.8,.3,1); }
   :global(.xp-anim) .entry:global(.in) > :not(.dot) { opacity: .42; transform: none; }
   :global(.xp-anim) .entry:global(.in.on) > :not(.dot) { opacity: 1; }
   :global(.xp-anim) .entry:not(:global(.in)) .dot { opacity: .45; transform: scale(.75); }
   .entry:global(.on) .dot { background: var(--ink); border-color: var(--ink); transform: scale(1.25); }
 
-  .more { display: flex; align-items: center; gap: 10px; color: var(--muted); margin: 2px 0 0 -2px; height: 0; overflow: visible; transition: opacity .4s; }
+  .more { display: flex; align-items: center; gap: 10px; color: var(--muted); margin: 6px 0 0 -2px; transition: opacity .4s; }
   .more.done { opacity: 0; }
   .mouse { width: 15px; height: 22px; border: 1.5px solid var(--muted); border-radius: 8px; display: grid; justify-items: center; padding-top: 4px; }
   .mouse i { width: 2px; height: 5px; border-radius: 1px; background: var(--muted); animation: wheel 1.6s ease-in-out infinite; }
