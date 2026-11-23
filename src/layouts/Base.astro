@@ -49,7 +49,9 @@ const here = (p: string) => (path.startsWith(p) ? 'page' : undefined);
     {home ? <span /> : <a class="back" href="/" data-blip="700" title="Home (esc)"><span class="arr" aria-hidden="true">←</span>Will Varner</a>}
     <nav>
       <a href="/#experience" data-blip="820">experience</a>
-      {hasWriting && <a href="/writing/" aria-current={here('/writing')} data-blip="860">writing</a>}
+      {hasWriting
+        ? <a href="/writing/" aria-current={here('/writing')} data-blip="860">writing</a>
+        : <span class="soon" tabindex="0" aria-disabled="true">writing<span class="tip" role="tooltip">coming soon</span></span>}
       <a href="/CSResume.pdf" target="_blank" rel="noopener" data-blip="900">resume ↗</a>
       <AvatarEditor />
       <button id="snd" class="snd" aria-pressed="true" title="Sound on">
@@ -97,6 +99,15 @@ const here = (p: string) => (path.startsWith(p) ? 'page' : undefined);
   /* The top bar holds still while pages slide underneath it. */
   .top { view-transition-name: topbar; position: relative; z-index: 40; }   /* above the page, so the avatar editor isn't covered */
   nav { display: flex; gap: 20px; align-items: center; }
+  /* "writing" before the first post exists: greyed, with a small "coming soon" on hover */
+  .soon { position: relative; opacity: .45; cursor: default; }
+  .soon .tip {
+    position: absolute; top: calc(100% + 8px); left: 50%; translate: -50% 0; white-space: nowrap; pointer-events: none;
+    background: var(--ink); color: var(--panel); font-size: 10.5px; padding: 3px 8px; border-radius: 99px;
+    opacity: 0; transform: translateY(-3px); transition: opacity .15s, transform .15s;
+  }
+  .soon:hover, .soon:focus-visible { opacity: .7; }
+  .soon:hover .tip, .soon:focus-visible .tip { opacity: 1; transform: none; }
   .snd { background: none; border: 0; color: inherit; cursor: pointer; padding: 4px; display: flex; }
   .snd:hover { color: var(--ink); }
   @media (max-width: 720px) { nav { gap: 12px; } .top { padding-top: 14px; padding-bottom: 14px; } }

@@ -6,6 +6,7 @@ const all = await posts();
 <Base title="Writing">
   <main class="page">
     <h1>Writing</h1>
+    {all.length === 0 && <p class="empty">Nothing here yet. The first posts are on the way.</p>}
     <ul>
       {all.map((p) => (
         <li>
@@ -22,6 +23,7 @@ const all = await posts();
 <style>
   .page { width: min(760px, 100% - 2 * var(--gutter)); margin: 24px auto 80px; }
   h1 { font-family: var(--serif); font-weight: 500; font-size: clamp(34px, 5vw, 48px); letter-spacing: -.015em; margin-bottom: 24px; }
+  .empty { color: var(--muted); }
   ul { list-style: none; padding: 0; }
   li a { display: grid; gap: 2px; padding: 18px 0; border-top: 1px solid var(--line); text-decoration: none; }
   .d, .b { color: var(--muted); }
