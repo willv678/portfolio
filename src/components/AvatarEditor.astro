@@ -90,7 +90,7 @@
   const open = (on: boolean) => {
     ed.hidden = !on; btn.setAttribute('aria-expanded', String(on));
     document.documentElement.classList.toggle('editing', on);
-    if (on) { nudge.hidden = true; const say = document.getElementById('me-say'); if (say) say.hidden = true; renderGrid(); }
+    if (on) { nudge.hidden = true; const say = document.getElementById('me-say'); if (say && !say.hidden) { say.hidden = true; dispatchEvent(new Event('avatar-point-end')); } btn.classList.remove('ring'); renderGrid(); }
     // the big preview is a live 3D render (the flat drawing shows until it's ready)
     if (on) getScene('preview').then((s) => { if (s && !ed.hidden) { preview3d = s; s.attach($('ed-preview')); } });
     else { preview3d?.detach(); }
@@ -114,11 +114,15 @@
       try { localStorage.setItem('avatar-nudges', String(shown + 1)); sessionStorage.setItem('avatar-nudged', '1'); } catch {}
       // On the home page your avatar says it; elsewhere, a small bubble under the button.
       const say = document.getElementById('me-say'), fig = document.getElementById('me-fig');
-      const bubble = say && fig && fig.offsetParent ? say : nudge;
-      (bubble === say ? fig! : btn).classList.add(bubble === say ? 'hop' : 'wiggle');
+      const onHome = !!(say && fig && fig.offsetParent);
+      const bubble = onHome ? say! : nudge;
+      // your avatar turns, looks up and points at the button while it talks…
+      if (onHome) dispatchEvent(new Event('avatar-point'));
       bubble.hidden = false; blip(880, 0.05, 0.02); setTimeout(() => blip(1180, 0.06, 0.02), 90);
-      setTimeout(() => { btn.classList.remove('wiggle'); fig?.classList.remove('hop'); }, 1200);
-      setTimeout(() => (bubble.hidden = true), 8000);
+      // …and the button rings like a phone, twice
+      btn.classList.add('ring');
+      setTimeout(() => btn.classList.remove('ring'), 3400);
+      setTimeout(() => { bubble.hidden = true; dispatchEvent(new Event('avatar-point-end')); }, 8000);
     }, 3000);
   }
 </script>
@@ -129,6 +133,13 @@
   .face :global(svg) { width: 100%; height: 100%; }
   .who:hover .face { transform: scale(1.12); }
   .who:global(.wiggle) .face { animation: wiggle 1.1s ease-in-out; }
+  /* phone-style ring: a quick buzz, a pause, again */
+  .who:global(.ring) .face { animation: ring 1.6s ease-in-out .3s 2; }
+  @keyframes ring {
+    0%, 36%, 100% { transform: none; }
+    3%, 11%, 19%, 27% { transform: rotate(-11deg) scale(1.12); }
+    7%, 15%, 23%, 31% { transform: rotate(11deg) scale(1.12); }
+  }
   @keyframes wiggle { 10%, 30%, 50%, 70% { transform: rotate(-12deg) scale(1.15); } 20%, 40%, 60%, 80% { transform: rotate(12deg) scale(1.15); } }
 
   .nudge {

@@ -18,8 +18,17 @@ export const create = () => createStage((kit) => {
     holder.add(fig.g);
   });
 
+  // "point at the button" (while the speech bubble shows): turn toward the top
+  // right, look up, raise an arm. Eases in and out.
+  let pointing = false, pointK = 0;
+  addEventListener('avatar-point', () => (pointing = true));
+  addEventListener('avatar-point-end', () => (pointing = false));
+
   const L = 8;
+  let prevT = 0;
   return (t) => {
+    const dt = Math.min(0.05, t - prevT); prevT = t;
+    pointK += ((pointing ? 1 : 0) - pointK) * Math.min(1, dt * 5);
     const u = t % L;
     // idle: a soft bob and a little sway
     holder.position.y = Math.abs(Math.sin(t * 2.2)) * 0.015;
@@ -36,5 +45,14 @@ export const create = () => createStage((kit) => {
       holder.rotation.y += ease(h) * Math.PI * 2;
     }
     shadow.scale.setScalar(1 - Math.sin(Math.PI * h) * 0.3);
+    if (pointK > 0.001) {
+      const p = pointK, mix = (a: number, b: number) => a + (b - a) * p;
+      holder.rotation.y = mix(holder.rotation.y, 0.65);                 // turn toward the top-right
+      holder.position.y = mix(holder.position.y, Math.abs(Math.sin(t * 6)) * 0.02);
+      fig.head.rotation.x = mix(0, -0.35);                              // look up
+      fig.head.rotation.z = mix(fig.head.rotation.z, -0.12);
+      fig.right.rotation.z = mix(fig.right.rotation.z, 2.55 + Math.sin(t * 5) * 0.08);   // point up at it
+      fig.right.rotation.x = mix(0, -0.35);
+    } else { fig.head.rotation.x = 0; fig.right.rotation.x = 0; }
   };
 }, { lookAt: new Vector3(0, 0.62, 0), minSpan: 1.15, minHeight: 1.3, outline: 0.008 });

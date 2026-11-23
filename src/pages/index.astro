@@ -21,12 +21,12 @@ const empties = Math.max(0, Math.ceil((items.length + 1) / 6) * 6 - items.length
   <!-- Don't paint until the shelf exists, so the banner → tile morph always has a target. -->
   <link slot="head" rel="expect" href="#shelf" blocking="render" />
   <section class="first" id="top">
+  <button class="say mono" id="me-say" hidden>make your own character!</button>
   <main class="console">
     <section class="stage">
       <div class="screen" id="screen">
         <div class="view me" id="home">
           <button class="me-fig" id="me-fig" aria-label="Customize your character" data-blip="760"></button>
-          <button class="say mono" id="me-say" hidden>make your own character!</button>
           <img src="/me.jpg" alt="Will Varner" width="480" height="480" />
           <div>
             <h1>Will Varner</h1>
@@ -119,6 +119,15 @@ const empties = Math.max(0, Math.ceil((items.length + 1) / 6) * 6 - items.length
     showMe(true);
     meFig.addEventListener('click', () => document.getElementById('who')?.click());
     $('me-say').addEventListener('click', () => document.getElementById('who')?.click());
+    // Place the bubble just above your avatar's head, growing out to the right
+    // (past the panel's edge, toward the top-right button).
+    const placeSay = () => {
+      const say = $('me-say'), f = meFig.getBoundingClientRect(), box = $('top').getBoundingClientRect();
+      say.style.left = `${f.left - box.left + f.width * 0.5}px`;
+      say.style.top = `${f.top - box.top + f.height * 0.06}px`;
+    };
+    addEventListener('avatar-point', placeSay);
+    addEventListener('resize', () => { if (!$('me-say').hidden) placeSay(); });
     let playing: { detach(): void } | null = null, token = 0;
     const dropScene = () => { token++; playing?.detach(); playing = null; };
 
@@ -268,7 +277,7 @@ const empties = Math.max(0, Math.ceil((items.length + 1) / 6) * 6 - items.length
 
 <style>
   :global(html:has(body[data-home])) { scroll-behavior: smooth; }
-  .first { min-height: calc(100svh - 62px); display: grid; grid-template-rows: 1fr auto; }
+  .first { position: relative; min-height: calc(100svh - 62px); display: grid; grid-template-rows: 1fr auto; }
   .console { display: flex; flex-direction: column; justify-content: center; gap: clamp(24px, 4vh, 44px); min-width: 0; }
 
   /* ---------- top screen ---------- */
@@ -295,13 +304,13 @@ const empties = Math.max(0, Math.ceil((items.length + 1) / 6) * 6 - items.length
   @keyframes me-hop { 40% { transform: translateY(-10px); } 70% { transform: translateY(2px); } }
   /* the avatar's speech bubble (first visits, while you still have the default avatar) */
   .say {
-    position: absolute; right: clamp(40px, 9vw, 120px); top: 9%; z-index: 2; cursor: pointer;
+    position: absolute; z-index: 5; cursor: pointer; transform-origin: 0 100%; translate: 0 -100%; white-space: nowrap;
     background: var(--panel); color: var(--ink); border: 1.5px solid var(--ink); border-radius: 14px;
-    padding: 8px 12px; font-size: 12px; box-shadow: var(--shadow);
+    padding: 8px 13px; font-size: 12px; box-shadow: var(--shadow);
     animation: say-in .35s cubic-bezier(.3,1.5,.5,1), say-bob 2s ease-in-out .35s infinite;
   }
-  .say::after { /* the tail, pointing down at the character */
-    content: ""; position: absolute; left: 62%; bottom: -8px; width: 12px; height: 12px; background: var(--panel);
+  .say::after { /* the tail, at the bottom-left, pointing down at the character */
+    content: ""; position: absolute; left: 14px; bottom: -8px; width: 12px; height: 12px; background: var(--panel);
     border-right: 1.5px solid var(--ink); border-bottom: 1.5px solid var(--ink); transform: rotate(45deg);
   }
   .say[hidden] { display: none; }
