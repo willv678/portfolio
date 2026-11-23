@@ -184,10 +184,9 @@ const when = (e: (typeof experience)[number]) => (e.end ? `${e.start} – ${e.en
     mask-image: linear-gradient(transparent, #000 9%, #000 78%, transparent);
   }
   .window:global(.end) { mask-image: linear-gradient(transparent, #000 9%); }
-  .tail { padding-top: 22px; }
   .track { --shift: 0px; transform: translateY(var(--shift)); }
   .tl { list-style: none; padding: 0 0 0 30px; position: relative; --fill: 0px; }
-  .tail { padding: 8px 0 0 30px; }
+  .tail { padding: 22px 0 0 30px; }
 
   .tl::before, .tl::after { content: ""; position: absolute; left: 5px; top: 10px; width: 1.5px; border-radius: 1px; }
   .tl::before { bottom: 10px; background: var(--line); }
