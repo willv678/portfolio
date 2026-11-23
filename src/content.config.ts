@@ -7,7 +7,7 @@ const shelfFields = {
   title: z.string(),
   blurb: z.string(),                       // 1–3 sentences; the home panel clamps at 4 lines
   status: z.string(),                      // small mono line above the title, e.g. "2026 · in progress"
-  tags: z.array(z.string()).max(2).default([]),
+  tags: z.array(z.string()).max(3).default([]),
   pinned: z.boolean().default(false),      // show on the home shelf
   order: z.number().default(100),         // lower = further left on the shelf
   draft: z.boolean().default(false),       // drafts show in `npm run dev` only

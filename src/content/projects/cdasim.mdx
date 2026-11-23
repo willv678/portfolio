@@ -2,9 +2,10 @@
 title: CDASim
 blurb: Moved USDOT's open-source cooperative-driving stack from ROS 1 to ROS 2 and rebuilt its bridge to the CARLA simulator, so the two co-simulate directly.
 status: 2025 · Leidos × UGA MSC Lab
-tags: [ROS 2, C++]
+tags: [Python, ROS 2, CARLA]
 color: "#14868c"
 icon: cdasim
+scene: cdasim
 pinned: true
 order: 3
 links:
@@ -21,7 +22,7 @@ I worked on that connection for Leidos, through UGA's Mobility Systems Control L
 ## What I did
 
 - **ROS 1 → ROS 2.** Ported 15+ bridge nodes to ROS 2 (the robotics framework both sides speak): new build system, launch files rewritten in Python, every node moved onto the ROS 2 client libraries.
-- **A new bridge.** CARLA 0.10 dropped the piece that used to tell ROS where the car and its sensors are. I wrote a C++/Python bridge that publishes those transforms (map → vehicle → each sensor), which CARMA needs before it can localize or plan a route. It cut out the old middleware, and the two sides now talk directly with under 5 ms of latency.
+- **A new bridge.** CARLA 0.10 dropped the piece that used to tell ROS where the car and its sensors are. I wrote a Python/C++ bridge that publishes those transforms (map → vehicle → each sensor), which CARMA needs before it can localize or plan a route. It cut out the old middleware, and the two sides now talk directly with under 5 ms of latency.
 - **Making the car actually drive.** Once everything was connected, the car still wouldn't follow its route. Two causes: the steering controller needed retuning, and CARLA (built on Unreal) uses a left-handed coordinate system while ROS uses a right-handed one, so some directions were quietly mirrored.
 
 ## What I took from it

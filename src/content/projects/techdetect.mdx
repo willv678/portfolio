@@ -21,7 +21,7 @@ The summer before my senior year of high school I interned at the Georgia Tech R
 
 **Enrolling a student.** A setup script opens the webcam and takes 75 photos of your face. Each one is converted to grayscale and shrunk, which throws away detail the recognizer doesn't need and makes matching faster.
 
-<Figure src="/projects/techdetect/ME.png" alt="A grid of small grayscale photos of my face, taken during enrollment" caption="me in 2022, seventy-five times" />
+<Figure src="/projects/techdetect/me-2022.jpg" alt="A grid of small grayscale photos of my face, taken during enrollment" caption="me in 2022, seventy-five times" />
 
 **Recognizing faces.** On every frame, a Haar cascade (OpenCV's classic fast face finder) draws a box around each face. The box gets handed to an LBPH recognizer, which compares the texture of that face to everyone it was trained on. If it's confident enough, you're checked in; if not, it says *unknown* instead of guessing.
 

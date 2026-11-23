@@ -1,9 +1,9 @@
-// TechDetect: a classroom door and a webcam on a little tripod. Students come
-// through the door one at a time; the camera locks scan brackets onto each
-// face and pops a check when it knows them. The last one raises a hand, and
+// TechDetect: a classroom door and the teacher's laptop. Students come through
+// the door one at a time; the webcam locks scan brackets onto each face, pops
+// a check when it knows them, and the attendance list on screen fills in. The last one raises a hand, and
 // the camera brackets the hand too, because it knows *who* has a question.
 
-import { CapsuleGeometry, CylinderGeometry, Group, Mesh, MeshBasicMaterial, BoxGeometry, SphereGeometry, Vector3 } from 'three';
+import { BoxGeometry, CanvasTexture, CapsuleGeometry, CylinderGeometry, Group, Mesh, MeshBasicMaterial, PlaneGeometry, SphereGeometry, SRGBColorSpace, Vector3 } from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { createStage, seg, ease, easeIn, passed } from './kit';
 import { sfx } from '../scripts/sound';
@@ -11,7 +11,7 @@ import { sfx } from '../scripts/sound';
 const backOut = (x: number) => 1 + 2.7 * Math.pow(x - 1, 3) + 1.7 * Math.pow(x - 1, 2);
 const C = {
   floor: '#e9dcc3', wall: '#f4f1ea', wood: '#b98b5e', skin: '#f1c9a5',
-  cam: '#2a2d35', lens: '#1b1d23', tripod: '#8d939c', amber: '#f0a020', green: '#2f9e5b',
+  amber: '#f0a020', green: '#2f9e5b',
   shirts: ['#5b8def', '#e2463c', '#7c6cf6'],
 };
 
@@ -37,31 +37,45 @@ export const create = () => createStage((kit) => {
     const l = new Mesh(new BoxGeometry(w, 0.025, 0.01), chalk); l.position.set(x + w / 2 - 0.2, y, -0.795); scene.add(l);
   }
 
-  // the webcam on a tripod, aimed at the spot in front of the door
-  const cam = new Group(); cam.position.set(1.35, 0, 0.55);
-  const stick = (a: Vector3, b: Vector3, r: number, color: string) => {
-    const m = new Mesh(new CylinderGeometry(r, r, a.distanceTo(b), 6), toon(color));
-    m.position.copy(a).add(b).multiplyScalar(0.5);
-    m.quaternion.setFromUnitVectors(new Vector3(0, 1, 0), b.clone().sub(a).normalize());
-    return m;
-  };
-  const apex = new Vector3(0, 0.82, 0);
-  for (let i = 0; i < 3; i++) {
-    const a = (i / 3) * Math.PI * 2 + 0.5;
-    cam.add(stick(apex, new Vector3(Math.cos(a) * 0.26, 0, Math.sin(a) * 0.26), 0.016, C.tripod));
+  // the teacher's desk with a laptop: its webcam watches the door, and its
+  // screen shows the attendance list filling in
+  const DESK = new Vector3(1.45, 0, 0.35);
+  const desk = new Group(); desk.position.copy(DESK); scene.add(desk);
+  const top = new Mesh(new RoundedBoxGeometry(1.15, 0.06, 0.62, 2, 0.02), toon(C.wood)); top.position.y = 0.66; desk.add(top);
+  for (const [x, z] of [[-0.5, -0.24], [0.5, -0.24], [-0.5, 0.24], [0.5, 0.24]]) {
+    const leg = new Mesh(new CylinderGeometry(0.025, 0.025, 0.64, 8), toon('#8a6a4a')); leg.position.set(x, 0.32, z); desk.add(leg);
   }
-  cam.add(stick(apex, new Vector3(0, 0.95, 0), 0.02, C.tripod));
-  const head = new Group(); head.position.y = 1.06; cam.add(head);
-  head.add(new Mesh(new RoundedBoxGeometry(0.42, 0.28, 0.26, 3, 0.07), toon(C.cam)));
-  const lensGeo = new CylinderGeometry(0.095, 0.095, 0.1, 20); lensGeo.rotateX(Math.PI / 2);
-  const lens = new Mesh(lensGeo, toon(C.lens)); lens.position.z = 0.17; head.add(lens);
-  const glass = new Mesh(new SphereGeometry(0.06, 12, 8), new MeshBasicMaterial({ color: '#4b6cb7' })); glass.scale.z = 0.3; glass.position.z = 0.22; head.add(glass);
-  const led = new MeshBasicMaterial({ color: '#ff5d5d' });
-  const ledM = new Mesh(new SphereGeometry(0.026, 8, 6), led); ledM.position.set(0.14, 0.09, 0.13); head.add(ledM);
-  scene.add(cam);
-  const camShadow = blob(0.7, 0.55); camShadow.position.set(1.35, 0.004, 0.55); scene.add(camShadow);
+  const deskShadow = blob(1.4, 0.9); deskShadow.position.set(DESK.x, 0.004, DESK.z); scene.add(deskShadow);
+  const lap = new Group(); lap.position.set(0, 0.69, 0);
+  // aim the screen between the students' spot and the viewer, so both can "see" it
+  lap.rotation.y = Math.atan2(-0.35 - DESK.x, 3 - DESK.z);
+  desk.add(lap);
+  lap.add(new Mesh(new RoundedBoxGeometry(0.62, 0.03, 0.42, 2, 0.012), toon('#d3d5de')));
+  const hinge = new Group(); hinge.position.set(0, 0.02, -0.2); hinge.rotation.x = -0.25; lap.add(hinge);
+  const lid = new Mesh(new RoundedBoxGeometry(0.62, 0.42, 0.025, 2, 0.012), toon('#d3d5de')); lid.position.y = 0.21; hinge.add(lid);
+  const sc = document.createElement('canvas'); sc.width = 256; sc.height = 160;
+  const sg = sc.getContext('2d')!;
+  const screenTex = kit.own(new CanvasTexture(sc)); screenTex.colorSpace = SRGBColorSpace;
+  const screen = new Mesh(new PlaneGeometry(0.54, 0.34), new MeshBasicMaterial({ map: screenTex })); screen.position.set(0, 0.215, 0.014); hinge.add(screen);
+  const led = new MeshBasicMaterial({ color: '#f0a020' });
+  const ledM = new Mesh(new SphereGeometry(0.013, 8, 6), led); ledM.position.set(0, 0.4, 0.015); hinge.add(ledM);
+  let drawn = -1;
+  const drawScreen = (n: number) => {
+    if (n === drawn) return; drawn = n;
+    sg.fillStyle = '#f7f6f2'; sg.fillRect(0, 0, 256, 160);
+    sg.fillStyle = '#d9820f'; sg.fillRect(0, 0, 256, 26);
+    sg.fillStyle = '#fff'; sg.font = '600 15px ui-monospace, monospace'; sg.fillText('attendance', 12, 18);
+    C.shirts.forEach((shirt, i) => {
+      const y = 46 + i * 36;
+      sg.fillStyle = shirt; sg.beginPath(); sg.arc(22, y, 8, 0, Math.PI * 2); sg.fill();
+      sg.fillStyle = '#c9ccd6'; sg.fillRect(40, y - 5, 120, 10);
+      if (i < n) { sg.strokeStyle = '#2f9e5b'; sg.lineWidth = 5; sg.lineCap = 'round'; sg.beginPath(); sg.moveTo(206, y); sg.lineTo(214, y + 8); sg.lineTo(230, y - 8); sg.stroke(); }
+    });
+    screenTex.needsUpdate = true;
+  };
+  drawScreen(0);
+  const cam = { position: DESK };                           // where the "camera" is, for aiming
   const SPOT = new Vector3(-0.35, 0, 0.15);                 // where each student stops to be seen
-  head.rotation.y = Math.atan2(SPOT.x - cam.position.x, SPOT.z - cam.position.z);
 
   // scan brackets and a check mark (flat, always facing the camera)
   const bracket = (size: number, color: string) => {
@@ -141,6 +155,7 @@ export const create = () => createStage((kit) => {
       if (passed(prev, t, i * GAP + 1.95, L)) kit.sfx(sfx.plink);
       if (i === students.length - 1 && passed(prev, t, i * GAP + 2.0, L)) kit.sfx(sfx.pop);
     });
-    led.color.set(anyOk ? '#5be38a' : Math.sin(t * 6) > 0 ? '#ff5d5d' : '#7a3434');
+    led.color.set(anyOk ? '#5be38a' : '#f0a020');
+    drawScreen(students.filter((_, i) => u - i * GAP > 1.95).length);
   };
 }, { lookAt: new Vector3(0, 0.85, 0), minSpan: 6.0, minHeight: 3.0, outline: 0.012 });

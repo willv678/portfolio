@@ -12,31 +12,13 @@ import {
   PlaneGeometry, RingGeometry, SphereGeometry, SRGBColorSpace, TorusGeometry, Vector3,
 } from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
-import { createStage, seg, ease, easeIn, passed, type SceneHandle, type Kit } from './kit';
+import { createStage, seg, ease, easeIn, passed, toyCar, type SceneHandle } from './kit';
 import { sfx } from '../scripts/sound';
 
 // A mesh placed at (x, y, z). (position is read-only, so it can't be Object.assign'ed.)
 const at = <T extends Mesh>(m: T, x: number, y: number, z: number) => (m.position.set(x, y, z), m);
 
 const backOut = (x: number) => 1 + 2.7 * Math.pow(x - 1, 3) + 1.7 * Math.pow(x - 1, 2);
-
-// The toy car, shared by two scenes.
-function toyCar(kit: Kit, color = '#ff8a3d') {
-  const { toon } = kit;
-  const car = new Group(), body = new Group(); car.add(body);
-  const hull = new Mesh(new RoundedBoxGeometry(0.56, 0.16, 0.32, 3, 0.06), toon(color)); hull.position.y = 0.15;
-  const cabin = new Mesh(new RoundedBoxGeometry(0.3, 0.15, 0.28, 3, 0.06), toon('#bfe6ff')); cabin.position.set(-0.03, 0.29, 0);
-  const roof = new Mesh(new RoundedBoxGeometry(0.31, 0.04, 0.29, 2, 0.02), toon('#ffffff')); roof.position.set(-0.03, 0.37, 0);
-  body.add(hull, cabin, roof);
-  for (const z of [-0.1, 0.1]) {
-    const h = new Mesh(new SphereGeometry(0.026, 10, 8), new MeshBasicMaterial({ color: '#fff1a8' })); h.position.set(0.28, 0.17, z); body.add(h);
-  }
-  const wheelGeo = new CylinderGeometry(0.075, 0.075, 0.06, 16); wheelGeo.rotateX(Math.PI / 2);
-  const wheels = [[0.18, 0.165], [0.18, -0.165], [-0.18, 0.165], [-0.18, -0.165]].map(([x, z]) => {
-    const w = new Mesh(wheelGeo, toon('#25252b')); w.position.set(x, 0.075, z); car.add(w); return w;
-  });
-  return { car, body, wheels };
-}
 
 export function create(): (SceneHandle & { show(name: string): void }) | null {
   let want = '', shownAt = -1, current = '';
