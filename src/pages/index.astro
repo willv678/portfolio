@@ -78,7 +78,7 @@ const empties = Math.max(0, Math.ceil((items.length + 1) / 6) * 6 - items.length
 
   <script>
     import { blip, openSound } from '../scripts/sound';
-    import { mountScene } from '../scripts/scenes';
+    import { getScene, preloadScenes } from '../scripts/scenes';
 
     type Item = { title: string; blurb: string; status: string; tags: string[]; bg: string; kind: 'project' | 'post'; href: string; scene?: string };
     const P: Item[] = JSON.parse(document.getElementById('shelf-data')!.textContent!);
@@ -86,10 +86,12 @@ const empties = Math.max(0, Math.ceil((items.length + 1) / 6) * 6 - items.length
     const $ = (id: string) => document.getElementById(id)!;
     const home = $('home'), proj = $('proj') as HTMLAnchorElement;
     let cur = -1;
-    // A selected project with a 3D scene mounts it into the panel; changing
-    // the selection tears it down (one WebGL context at a time).
-    let unmount: (() => void) | undefined, token = 0;
-    const dropScene = () => { token++; unmount?.(); unmount = undefined; };
+    // A selected project with a 3D scene plays it in the panel. Scenes are
+    // built once (preloaded while idle on desktop) and just paused when you
+    // move on, so re-selecting is instant and idle costs nothing.
+    preloadScenes([...new Set(P.map((p) => p.scene).filter((s): s is string => !!s))]);
+    let playing: { detach(): void } | null = null, token = 0;
+    const dropScene = () => { token++; playing?.detach(); playing = null; };
 
     function select(i: number) {
       if (i === cur) return;
@@ -109,7 +111,7 @@ const empties = Math.max(0, Math.ceil((items.length + 1) / 6) * 6 - items.length
       if (p.kind === 'post') banner.firstElementChild!.textContent = p.title;
       if (p.scene) {
         const mine = ++token;
-        mountScene(p.scene, banner).then((u) => { if (mine === token) unmount = u; else u(); });
+        getScene(p.scene).then((s) => { if (s && mine === token) { s.attach(banner); playing = s; } });
       }
       $('ptitle').textContent = p.title;
       $('pblurb').textContent = p.blurb;

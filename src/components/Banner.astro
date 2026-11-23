@@ -10,12 +10,12 @@ const { bg, icon, vt, image, scene } = Astro.props;
   {image ? <img class="art" src={image} alt="" /> : <div class="logo" set:html={icon} />}
 </div>
 <script>
-  import { mountScene } from '../scripts/scenes';
+  import { getScene } from '../scripts/scenes';
   document.querySelectorAll<HTMLElement>('.banner[data-scene]').forEach((el) => {
     const io = new IntersectionObserver(([e]) => {
       if (!e.isIntersecting) return;
       io.disconnect();
-      mountScene(el.dataset.scene!, el);
+      getScene(el.dataset.scene!).then((s) => s?.attach(el));
     });
     io.observe(el);
   });

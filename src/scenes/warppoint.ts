@@ -2,8 +2,10 @@
 // glowing save file from one to the other, then back. It's the product in one
 // loop: your save is already on the other device.
 //
-// mount(el) draws into `el` and returns a cleanup function. Everything is
-// built from primitives (no model files), flat "toon" shading, ~10s loop.
+// create() builds the scene once (no drawing yet); attach(el) plays it inside
+// `el`, detach() pauses it and takes the canvas out. Building once and reusing
+// is what makes the home panel instant. Everything is built from primitives
+// (no model files), flat "toon" shading, ~10s loop.
 
 import {
   AdditiveBlending, CanvasTexture, Sprite, SpriteMaterial, Clock, Color, CylinderGeometry, DataTexture, DirectionalLight, DoubleSide, Group, HemisphereLight, MathUtils, Mesh, MeshBasicMaterial, MeshToonMaterial, NearestFilter, PerspectiveCamera, PlaneGeometry, RedFormat, Scene, ShaderMaterial, SphereGeometry, TorusGeometry, Vector3, WebGLRenderer,
@@ -23,17 +25,23 @@ const seg = (t: number, a: number, b: number) => clamp01((t - a) / (b - a));
 const ease = (x: number) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
-export function mount(el: HTMLElement): () => void {
+export interface SceneHandle {
+  attach(el: HTMLElement): void;   // start playing inside el (from the top of the loop)
+  detach(): void;                  // pause and remove the canvas; cheap to re-attach
+  dispose(): void;                 // free everything
+}
+
+export function create(): SceneHandle | null {
   let renderer: WebGLRenderer;
   try {
     renderer = new WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'low-power' });
   } catch {
-    return () => {};                                    // no WebGL: the SVG banner stays
+    return null;                                        // no WebGL: the SVG banner stays
   }
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
   const canvas = renderer.domElement;
   canvas.className = 'scene-canvas';
-  el.appendChild(canvas);
+  let el: HTMLElement | null = null;
 
   const scene = new Scene();
   const camera = new PerspectiveCamera(28, 1, 0.1, 100);
@@ -231,34 +239,24 @@ export function mount(el: HTMLElement): () => void {
   const screenBase = new Color(C.screen), white = new Color('#ffffff');
   const parallax = { x: 0, y: 0, tx: 0, ty: 0 };
   const onMove = (e: PointerEvent) => {
-    const r = el.getBoundingClientRect();
+    const r = el!.getBoundingClientRect();
     parallax.tx = ((e.clientX - r.left) / r.width - 0.5) * 0.8;
     parallax.ty = ((e.clientY - r.top) / r.height - 0.5) * 0.4;
   };
-  el.addEventListener('pointermove', onMove);
-  el.addEventListener('pointerleave', () => { parallax.tx = parallax.ty = 0; });
+  const onLeave = () => { parallax.tx = parallax.ty = 0; };
 
   function resize() {
-    const w = el.clientWidth, h = el.clientHeight;
+    const w = el?.clientWidth ?? 0, h = el?.clientHeight ?? 0;
     if (!w || !h) return;
     renderer.setSize(w, h, false);
     camera.aspect = w / h;
     // Fit ~7.8 units of width, and enough height for the UFO, at any aspect.
     const span = Math.max(7.8, 4.5 * camera.aspect);
-    const dist = span / (2 * Math.tan(MathUtils.degToRad(camera.fov / 2)) * camera.aspect);
-    camera.userData.dist = dist;
+    camera.userData.dist = span / (2 * Math.tan(MathUtils.degToRad(camera.fov / 2)) * camera.aspect);
     camera.updateProjectionMatrix();
   }
-  const ro = new ResizeObserver(resize);
-  ro.observe(el);
-  resize();
 
-  const clock = new Clock();
-  let raf = 0, visible = true, shown = false;
-
-  function frame() {
-    raf = requestAnimationFrame(frame);
-    const t = clock.getElapsedTime();
+  function draw(t: number) {
     const p = pose(t);
     const bob = Math.sin(t * 2.4) * 0.06;
 
@@ -288,38 +286,67 @@ export function mount(el: HTMLElement): () => void {
 
     parallax.x += (parallax.tx - parallax.x) * 0.05;
     parallax.y += (parallax.ty - parallax.y) * 0.05;
-    camera.position.copy(lookAt).addScaledVector(camDir, camera.userData.dist);
+    camera.position.copy(lookAt).addScaledVector(camDir, camera.userData.dist ?? 12);
     camera.position.x += parallax.x;
     camera.position.y -= parallax.y;
     camera.lookAt(lookAt);
 
     renderer.render(scene, camera);
-    if (!shown) { shown = true; el.classList.add('scene-on'); }
   }
 
-  // Only animate while on screen and while the tab is visible.
-  const run = () => { if (!raf && visible && !document.hidden) { clock.start(); frame(); } };
-  const stop = () => { cancelAnimationFrame(raf); raf = 0; clock.stop(); };
-  const io = new IntersectionObserver(([e]) => { visible = e.isIntersecting; visible ? run() : stop(); });
-  io.observe(el);
-  const onVis = () => (document.hidden ? stop() : run());
-  document.addEventListener('visibilitychange', onVis);
-  run();
+  // Compile every shader now (while idle), so the first real frame doesn't stutter.
+  renderer.setSize(2, 2, false);
+  renderer.compile(scene, camera);
+  draw(0);
 
-  return () => {
-    stop();
-    io.disconnect(); ro.disconnect();
-    document.removeEventListener('visibilitychange', onVis);
-    el.removeEventListener('pointermove', onMove);
-    el.classList.remove('scene-on');
-    scene.traverse((o) => {
-      const m = o as Mesh;   // (sprites have geometry/material too)
-      m.geometry?.dispose();
-      (Array.isArray(m.material) ? m.material : m.material ? [m.material] : []).forEach((x) => x.dispose());
-    });
-    ramp.dispose(); blobTex.dispose(); glowTex.dispose();
-    renderer.dispose();
-    renderer.forceContextLoss();
-    canvas.remove();
+  const clock = new Clock(false);
+  let raf = 0, visible = false;
+  const frame = () => { raf = requestAnimationFrame(frame); draw(clock.getElapsedTime()); };
+
+  // Only animate while attached, on screen, and the tab is visible.
+  const run = () => { if (!raf && el && visible && !document.hidden) { if (!clock.running) clock.start(); frame(); } };
+  const pause = () => { cancelAnimationFrame(raf); raf = 0; };
+  const ro = new ResizeObserver(resize);
+  const io = new IntersectionObserver(([e]) => { visible = e.isIntersecting; visible ? run() : pause(); });
+  const onVis = () => (document.hidden ? pause() : run());
+  document.addEventListener('visibilitychange', onVis);
+
+  return {
+    attach(target) {
+      if (el) this.detach();
+      el = target;
+      el.appendChild(canvas);
+      el.addEventListener('pointermove', onMove);
+      el.addEventListener('pointerleave', onLeave);
+      ro.observe(el); io.observe(el);
+      resize();
+      clock.start();                                    // restart from the pickup
+      visible = true;
+      frame();
+      el.classList.add('scene-on');
+    },
+    detach() {
+      pause();
+      if (!el) return;
+      ro.unobserve(el); io.unobserve(el);
+      el.removeEventListener('pointermove', onMove);
+      el.removeEventListener('pointerleave', onLeave);
+      el.classList.remove('scene-on');
+      canvas.remove();
+      el = null;
+    },
+    dispose() {
+      this.detach();
+      io.disconnect(); ro.disconnect();
+      document.removeEventListener('visibilitychange', onVis);
+      scene.traverse((o) => {
+        const m = o as Mesh;   // (sprites have geometry/material too)
+        m.geometry?.dispose();
+        (Array.isArray(m.material) ? m.material : m.material ? [m.material] : []).forEach((x) => x.dispose());
+      });
+      ramp.dispose(); blobTex.dispose(); glowTex.dispose();
+      renderer.dispose();
+      renderer.forceContextLoss();
+    },
   };
 }
