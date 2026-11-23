@@ -1,0 +1,25 @@
+---
+// The project banner: background layer + logo layer, so it crops cleanly at any
+// aspect ratio. Shares a view-transition name with the home tile, so the tile
+// grows into it when you click through.
+interface Props { bg: string; icon: string; vt: string; image?: string }
+const { bg, icon, vt, image } = Astro.props;
+---
+<div class="banner" style={`background:${bg};view-transition-name:${vt}`}>
+  {image ? <img class="art" src={image} alt="" /> : <div class="logo" set:html={icon} />}
+</div>
+<style>
+  .banner {
+    position: relative; width: 100%; aspect-ratio: 16 / 7; border-radius: 18px; overflow: hidden;
+    display: grid; place-items: center; border: 1px solid var(--line); box-shadow: var(--shadow);
+  }
+  .banner::after { /* faint scanline-ish grain, very subtle */
+    content: ""; position: absolute; inset: 0; pointer-events: none; opacity: .5;
+    background: radial-gradient(rgba(255,255,255,.08) 1px, transparent 1px) 0 0 / 6px 6px;
+  }
+  .logo { width: clamp(90px, 16%, 160px); color: #fff; animation: float 6s ease-in-out infinite; }
+  .logo :global(svg) { width: 100%; height: auto; }
+  .art { width: 100%; height: 100%; object-fit: cover; }
+  @keyframes float { 50% { transform: translateY(-6px); } }
+  @media (max-width: 720px) { .banner { aspect-ratio: 16 / 9; border-radius: 14px; } }
+</style>

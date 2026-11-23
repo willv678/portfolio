@@ -1,0 +1,76 @@
+---
+import '../styles/global.css';
+import { posts } from '../lib';
+
+interface Props {
+  title?: string;
+  description?: string;
+  accent?: string;
+  home?: boolean;   // the home page has no top-left name (it's in the panel)
+}
+const { title, description, accent, home = false } = Astro.props;
+const fullTitle = title ? `${title} · Will Varner` : 'Will Varner';
+const desc = description ?? 'Will Varner builds systems that find where AI breaks. Self-driving research at UGA, agents at Roblox, Abridge in 2027.';
+const hasWriting = (await posts()).length > 0;
+const path = Astro.url.pathname;
+const here = (p: string) => (path.startsWith(p) ? 'page' : undefined);
+---
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{fullTitle}</title>
+  <meta name="description" content={desc} />
+  <meta property="og:title" content={fullTitle} />
+  <meta property="og:description" content={desc} />
+  <meta property="og:image" content={new URL('/me.jpg', Astro.site)} />
+  <link rel="canonical" href={new URL(path, Astro.site)} />
+  <link rel="icon" href="/favicon.ico" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500&family=IBM+Plex+Mono:wght@400&family=IBM+Plex+Sans:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet" />
+</head>
+<body style={accent ? `--accent:${accent}` : undefined} data-home={home ? '' : undefined}>
+  <header class="top mono">
+    {home ? <span /> : <a class="name" href="/" data-blip="700">Will Varner</a>}
+    <nav>
+      <a href="/experience/" aria-current={here('/experience')} data-blip="820">experience</a>
+      {hasWriting && <a href="/writing/" aria-current={here('/writing')} data-blip="860">writing</a>}
+      <a href="/CSResume.pdf" target="_blank" rel="noopener" data-blip="900">resume ↗</a>
+      <button id="snd" class="snd" aria-pressed="true" title="Sound on">
+        <span class="sr-only">Toggle sound</span>
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M2 6h3l4-3v10L5 10H2z" /><path class="wave" d="M11.5 5.5a3.5 3.5 0 0 1 0 5" /></svg>
+      </button>
+    </nav>
+  </header>
+
+  <slot />
+
+  <script>
+    import { initSoundButton, initHoverBlips } from '../scripts/sound';
+    initSoundButton();
+    initHoverBlips();
+    // Esc is the B button: back to the home screen from anywhere else.
+    if (!document.body.hasAttribute('data-home')) {
+      addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && !(e.target as Element).closest('input,textarea')) location.href = '/';
+      });
+    }
+  </script>
+</body>
+</html>
+
+<style>
+  .top {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 18px var(--gutter); color: var(--muted);
+  }
+  .top a { text-decoration: none; }
+  .top a:hover, .top a[aria-current] { color: var(--ink); }
+  .name { font-family: var(--sans); font-size: 14px; font-weight: 500; color: var(--ink); letter-spacing: 0; }
+  nav { display: flex; gap: 20px; align-items: center; }
+  .snd { background: none; border: 0; color: inherit; cursor: pointer; padding: 4px; display: flex; }
+  .snd:hover { color: var(--ink); }
+  @media (max-width: 720px) { nav { gap: 14px; } }
+</style>

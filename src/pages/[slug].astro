@@ -1,0 +1,65 @@
+---
+// One page per project, at the root: willvarner.me/warppoint
+import Base from '../layouts/Base.astro';
+import Banner from '../components/Banner.astro';
+import Buttons from '../components/Buttons.astro';
+import NextApp from '../components/NextApp.astro';
+import Figure from '../components/Figure.astro';
+import YouTube from '../components/YouTube.astro';
+import Note from '../components/Note.astro';
+import { render } from 'astro:content';
+import { projects, iconSvg } from '../lib';
+import '../styles/prose.css';
+
+export async function getStaticPaths() {
+  const all = await projects();
+  return all.map((p, i) => ({ params: { slug: p.id }, props: { p, next: all[(i + 1) % all.length] } }));
+}
+const { p, next } = Astro.props;
+const d = p.data;
+const { Content } = await render(p);
+---
+<Base title={d.title} description={d.blurb} accent={d.color}>
+  <main class="page">
+    <Banner bg={d.bg} icon={iconSvg(d.icon, d.glyph)} vt={`vt-${p.id}`} />
+
+    <header class="head">
+      <div>
+        <span class="mono status">{d.status}</span>
+        <h1>{d.title}</h1>
+        <p class="lede">{d.blurb}</p>
+      </div>
+      <div class="side">
+        {d.tags.length > 0 && <div class="tags mono">{d.tags.map((t) => <span>{t}</span>)}</div>}
+        <Buttons links={d.links} />
+      </div>
+    </header>
+
+    <article class="prose">
+      <Content components={{ Figure, YouTube, Note }} />
+    </article>
+
+    {next.id !== p.id && (
+      <NextApp href={`/${next.id}/`} title={next.data.title} color={next.data.color} icon={iconSvg(next.data.icon, next.data.glyph)} />
+    )}
+  </main>
+</Base>
+
+<style>
+  .page { width: min(980px, 100% - 2 * var(--gutter)); margin: 8px auto 64px; }
+  .head { display: grid; grid-template-columns: 1fr auto; gap: 32px; align-items: end; margin: 36px 0 8px; padding-bottom: 28px; border-bottom: 1px solid var(--line); }
+  .status { color: var(--muted); }
+  h1 { font-family: var(--serif); font-weight: 500; font-size: clamp(34px, 5vw, 52px); letter-spacing: -.015em; line-height: 1.1; margin-top: 6px; }
+  .lede { color: var(--muted); font-size: 17px; max-width: 56ch; margin-top: 12px; }
+  .side { display: grid; gap: 14px; justify-items: end; }
+  .tags { display: flex; gap: 6px; }
+  .tags span { border: 1px solid var(--line); border-radius: 99px; padding: 1px 9px; color: var(--muted); }
+  article { max-width: 68ch; margin: 36px auto 0; }
+  /* Figures and videos get a little wider than the text. */
+  article :global(.fig), article :global(.yt) { margin-left: clamp(-80px, -6vw, 0px); margin-right: clamp(-80px, -6vw, 0px); }
+  @media (max-width: 720px) {
+    .head { grid-template-columns: 1fr; gap: 18px; }
+    .side { justify-items: start; }
+    article :global(.fig), article :global(.yt) { margin-left: 0; margin-right: 0; }
+  }
+</style>

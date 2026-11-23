@@ -1,0 +1,33 @@
+---
+title: TechDetect
+blurb: Face-recognition attendance for classrooms. Built solo in high school during a GTRI internship; won the 2022 Congressional App Challenge for Georgia's 5th district.
+status: 2022 · Congressional App Challenge winner
+tags: [Python, OpenCV]
+color: "#2b8a3e"
+bg: "radial-gradient(120% 90% at 50% 110%, #8bd17c 0%, #2b6a2a 45%, #10240f 100%)"
+glyph: TD
+pinned: true
+order: 3
+links:
+  - { label: GitHub, href: "https://github.com/willv678/TechDetect" }
+---
+
+I built TechDetect the summer before senior year of high school, during the STEM@GTRI internship at the Georgia Tech Research Institute. The idea: a camera at the classroom door that takes attendance by itself.
+
+<YouTube id="pS-RZ7sxLiQ" title="TechDetect demo" />
+
+## How it works
+
+- **Enroll:** a script captures 75 photos of your face, converts them to grayscale and shrinks them so they're easier to match.
+- **Recognize:** OpenCV watches the camera feed and labels each face it's confident about. Below a set confidence it says *unknown* rather than guessing.
+- **Track:** sign-ins and sign-outs go to a MySQL database, and a small Flask site behind a login shows the day's attendance.
+
+<Figure src="/projects/techdetect/ME.png" alt="Grid of grayscale photos of my face used for training" caption="the photos it took of me while enrolling" />
+
+It also used Google's MediaPipe to track hands, so it could tell when someone raised one, and whose hand it was.
+
+<Figure src="/projects/techdetect/Attendance.png" alt="TechDetect's attendance web page" caption="the attendance page" />
+
+## What came of it
+
+TechDetect won the 2022 Congressional App Challenge for Georgia's 5th district, and I got to meet Rep. Nikema Williams. Looking back, the code is very high school. But it's the first thing I built that worked end to end and that other people cared about.

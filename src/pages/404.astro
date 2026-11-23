@@ -1,0 +1,17 @@
+---
+import Base from '../layouts/Base.astro';
+---
+<Base title="Not found">
+  <main class="nf">
+    <div class="tile mono">?</div>
+    <h1>Nothing in this slot.</h1>
+    <p class="mono"><a href="/">back to the home screen</a> · <kbd>esc</kbd></p>
+  </main>
+</Base>
+<style>
+  .nf { min-height: 70vh; display: grid; place-content: center; justify-items: center; gap: 16px; text-align: center; }
+  .tile { width: 92px; height: 92px; border-radius: 22px; border: 1.5px dashed var(--line); display: grid; place-items: center; font-size: 28px; color: var(--muted); }
+  h1 { font-family: var(--serif); font-weight: 500; font-size: 28px; }
+  p { color: var(--muted); }
+  kbd { font: inherit; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 5px; padding: 0 5px; background: var(--panel); }
+</style>

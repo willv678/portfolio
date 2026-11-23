@@ -1,0 +1,14 @@
+---
+// A quiet aside. <Note>text</Note> or <Note label="status">text</Note>
+interface Props { label?: string }
+const { label = 'note' } = Astro.props;
+---
+<aside class="note"><span class="mono lbl">{label}</span><div><slot /></div></aside>
+<style>
+  .note {
+    margin: 1.8em 0; padding: 14px 18px; border-radius: 12px; display: grid; gap: 4px;
+    background: color-mix(in srgb, var(--accent) 7%, var(--panel)); border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--line));
+  }
+  .lbl { color: var(--accent); text-transform: lowercase; }
+  .note :global(p) { margin: 0; }
+</style>

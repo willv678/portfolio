@@ -1,24 +1,19 @@
 {
-  "name": "portfolio",
-  "version": "0.1.0",
-  "private": true,
+  "name": "willvarner-me",
+  "type": "module",
+  "version": "0.0.1",
+  "engines": {
+    "node": ">=22.23.4"
+  },
   "scripts": {
-    "dev": "next dev",
-    "start": "next start",
-    "lint": "next lint",
-    "export": "next export",
-    "build": "next build && next export"
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "astro": "astro"
   },
   "dependencies": {
-    "gray-matter": "^4.0.3",
-    "next": "12.3.1",
-    "react": "18.2.0",
-    "react-dom": "18.2.0",
-    "react-markdown": "^8.0.5",
-    "react-responsive": "^9.0.2"
-  },
-  "devDependencies": {
-    "eslint": "8.25.0",
-    "eslint-config-next": "^13.1.1"
+    "@astrojs/markdown-satteri": "^0.4.10",
+    "@astrojs/mdx": "^8.1.6",
+    "astro": "^7.4.13"
   }
 }

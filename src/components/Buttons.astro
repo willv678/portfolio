@@ -1,0 +1,29 @@
+---
+// A row of link buttons. The first one is filled with the page's accent color.
+interface Props { links: { label: string; href: string }[] }
+const { links } = Astro.props;
+const ext = (h: string) => /^https?:/.test(h);
+---
+{links.length > 0 && (
+  <div class="btns">
+    {links.map((l, i) => (
+      <a class:list={['btn', { primary: i === 0 }]} href={l.href} data-blip={940 + i * 40}
+         {...(ext(l.href) ? { target: '_blank', rel: 'noopener' } : {})}>
+        {l.label}<span class="arr" aria-hidden="true">{ext(l.href) ? '↗' : '→'}</span>
+      </a>
+    ))}
+  </div>
+)}
+<style>
+  .btns { display: flex; gap: 10px; flex-wrap: wrap; }
+  .btn {
+    font: 500 13px/1 var(--sans); text-decoration: none; padding: 9px 14px; border-radius: 99px;
+    border: 1px solid var(--line); background: var(--panel); color: var(--ink);
+    display: inline-flex; gap: 6px; align-items: center; box-shadow: var(--shadow);
+    transition: transform .16s cubic-bezier(.3,1.6,.5,1), border-color .16s;
+  }
+  .btn:hover { transform: translateY(-2px); border-color: color-mix(in srgb, var(--accent) 50%, var(--line)); }
+  .btn.primary { background: var(--accent); border-color: transparent; color: #fff; }
+  .arr { opacity: .7; transition: translate .16s; }
+  .btn:hover .arr { translate: 2px 0; }
+</style>

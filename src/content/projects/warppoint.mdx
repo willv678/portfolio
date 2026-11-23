@@ -1,0 +1,39 @@
+---
+title: WarpPoint
+blurb: Pick up your Switch and your emulator save is already there. A paired background link between a homebrewed Switch and a Mac, with plugins riding on top.
+status: 2026 · in progress
+tags: [C++, Swift]
+color: "#5b4bd6"
+bg: "radial-gradient(120% 90% at 50% 110%, #7a6cf0 0%, #3a2f8f 45%, #1b1640 100%)"
+icon: warppoint
+pinned: true
+order: 1
+links: []   # add GitHub / download links here when they're public
+---
+
+Switch emulation on the Mac is good now. You can play Fire Emblem: Three Houses at 4K at your desk. But the Switch is still the thing you take on the train, and the two don't talk to each other: saves live in different places and nothing carries over.
+
+**WarpPoint is the link.** Install it on both sides once. After that, close the game on the Mac, pick up the Switch, and your save is already there. Then go back the other way.
+
+<Note label="the rule">Zero UI when it's working, clear UI when it needs you. No IPs to type, no SD card swaps.</Note>
+
+## How it works
+
+There are two halves:
+
+- **On the Switch,** a small background service (a *sysmodule*, which runs alongside games on homebrewed consoles) announces itself on your Wi-Fi network and handles save reads and writes.
+- **On the Mac,** a C++ daemon finds the Switch, pairs with it once, and decides which way each save should go. A menu-bar app shows what happened.
+
+Sync is the dangerous part, since a bug can eat a save file, so that core stays small and boring. Every write is backed up first, and if both sides changed since the last sync, WarpPoint asks instead of guessing.
+
+## What rides on top
+
+Once the link exists, other features are cheap to add, because they reuse the same connection:
+
+- **Chronicle:** every save you've ever had, labeled with where you were in the game.
+- **Lens:** a game crashes on the Switch, and the explanation is already waiting on your Mac.
+- **Presence:** your Discord shows what you're playing on the Switch.
+
+## Status
+
+Sync is close to its first release. Screenshots and a demo video go here when it ships.

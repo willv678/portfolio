@@ -1,0 +1,30 @@
+---
+import Base from '../../layouts/Base.astro';
+import { posts, fmtDate } from '../../lib';
+const all = await posts();
+---
+<Base title="Writing">
+  <main class="page">
+    <h1>Writing</h1>
+    <ul>
+      {all.map((p) => (
+        <li>
+          <a href={`/writing/${p.id}/`} data-blip="880">
+            <span class="mono d">{fmtDate(p.data.date)}{p.data.draft && ' · draft'}</span>
+            <span class="t">{p.data.title}</span>
+            <span class="b">{p.data.blurb}</span>
+          </a>
+        </li>
+      ))}
+    </ul>
+  </main>
+</Base>
+<style>
+  .page { width: min(760px, 100% - 2 * var(--gutter)); margin: 24px auto 80px; }
+  h1 { font-family: var(--serif); font-weight: 500; font-size: clamp(34px, 5vw, 48px); letter-spacing: -.015em; margin-bottom: 24px; }
+  ul { list-style: none; padding: 0; }
+  li a { display: grid; gap: 2px; padding: 18px 0; border-top: 1px solid var(--line); text-decoration: none; }
+  .d, .b { color: var(--muted); }
+  .t { font-family: var(--serif); font-size: 22px; }
+  li a:hover .t { text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 4px; }
+</style>

@@ -1,0 +1,221 @@
+---
+import Base from '../layouts/Base.astro';
+import { projects, posts, iconSvg } from '../lib';
+
+// The shelf: everything pinned (projects and posts), then empty slots up to a
+// full row of 6, so new work has an obvious place to land.
+const items = [
+  ...(await projects()).filter((p) => p.data.pinned).map((p) => ({
+    kind: 'project' as const, href: `/${p.id}/`, vt: `vt-${p.id}`, ...p.data,
+    icon: iconSvg(p.data.icon, p.data.glyph),
+  })),
+  ...(await posts()).filter((p) => p.data.pinned).map((p) => ({
+    kind: 'post' as const, href: `/writing/${p.id}/`, vt: `vt-w-${p.id}`, ...p.data,
+    color: 'var(--ink)', bg: 'var(--bg)', icon: '',
+  })),
+].sort((a, b) => a.order - b.order);
+const empties = Math.max(0, Math.ceil((items.length + 1) / 6) * 6 - items.length);
+---
+<Base home>
+  <main class="console">
+    <section class="stage">
+      <div class="screen" id="screen">
+        <div class="view me" id="home">
+          <img src="/me.jpg" alt="Will Varner" width="480" height="480" />
+          <div>
+            <h1>Will Varner</h1>
+            <p>I build systems that find where AI breaks, and close the loop. Research on self-driving at UGA, agents at Roblox, joining Abridge in January. On the side: Switch homebrew and how emulators actually work.</p>
+            <div class="links mono">
+              <a href="https://github.com/willv678">github</a>
+              <a href="https://linkedin.com/in/will-varner">linkedin</a>
+              <a href="mailto:willv678@gmail.com">email</a>
+            </div>
+          </div>
+        </div>
+        <a class="view proj" id="proj" hidden tabindex="-1">
+          <div class="banner" id="pbanner"></div>
+          <div class="info">
+            <span class="status mono" id="pstatus"></span>
+            <h2 id="ptitle"></h2>
+            <p id="pblurb"></p>
+            <div class="tags mono" id="ptags"></div>
+          </div>
+        </a>
+      </div>
+    </section>
+
+    <section class="shelf-wrap">
+      <ul class="shelf" id="shelf" aria-label="Projects and writing">
+        {items.map((it, i) => (
+          <li>
+            <a
+              class:list={['tile', it.kind === 'post' && 'post']}
+              href={it.href}
+              data-i={i}
+              style={`--c:${it.color};view-transition-name:${it.vt}`}
+              aria-label={it.title}
+            >
+              {it.kind === 'post'
+                ? <span class="lines" aria-hidden="true"><i /><i /><i /><i /></span>
+                : <span class="ico" set:html={it.icon} />}
+              <span class="label mono" aria-hidden="true">{it.title}</span>
+            </a>
+          </li>
+        ))}
+        {Array.from({ length: empties }).map(() => <li><span class="tile empty" title="coming soon" /></li>)}
+      </ul>
+    </section>
+  </main>
+
+  <footer class="foot mono">
+    <span class="hint">← → to browse · enter to open</span>
+    <span>Atlanta, GA → San Francisco</span>
+  </footer>
+
+  <script is:inline type="application/json" id="shelf-data" set:html={JSON.stringify(items.map(({ title, blurb, status, tags, bg, kind, href }) => ({ title, blurb, status, tags, bg, kind, href })))} />
+
+  <script>
+    import { blip, openSound } from '../scripts/sound';
+
+    type Item = { title: string; blurb: string; status: string; tags: string[]; bg: string; kind: 'project' | 'post'; href: string };
+    const P: Item[] = JSON.parse(document.getElementById('shelf-data')!.textContent!);
+    const tiles = [...document.querySelectorAll<HTMLAnchorElement>('.tile[data-i]')];
+    const $ = (id: string) => document.getElementById(id)!;
+    const home = $('home'), proj = $('proj') as HTMLAnchorElement;
+    let cur = -1;
+
+    function select(i: number) {
+      if (i === cur) return;
+      cur = i;
+      tiles.forEach((t, j) => t.classList.toggle('on', j === i));
+      if (i < 0) { home.hidden = false; proj.hidden = true; return; }
+      const p = P[i], tile = tiles[i];
+      blip(760 + i * 60);
+      const banner = $('pbanner');
+      banner.style.background = p.bg;
+      banner.innerHTML = p.kind === 'post'
+        ? `<div class="post-title"></div>`
+        : `<div class="banner-ico">${tile.querySelector('.ico')!.innerHTML}</div>`;
+      if (p.kind === 'post') banner.firstElementChild!.textContent = p.title;
+      $('ptitle').textContent = p.title;
+      $('pblurb').textContent = p.blurb;
+      $('pstatus').textContent = p.status;
+      $('ptags').replaceChildren(...p.tags.map((t) => Object.assign(document.createElement('span'), { className: 'tag', textContent: t })));
+      proj.href = p.href;
+      home.hidden = true; proj.hidden = false;
+    }
+
+    // Mouse: hovering a tile selects it. The selection holds while the pointer
+    // is on a tile or inside the top panel (so you can read or click it). Only
+    // empty space goes back to the about view, after a short grace period so
+    // the trip from a tile up to the panel doesn't drop the selection.
+    let leave: number | undefined;
+    const later = () => { clearTimeout(leave); leave = window.setTimeout(() => select(-1), 250); };
+    addEventListener('pointerover', (e) => {
+      if (e.pointerType === 'touch') return;          // phones: a tap just opens the page
+      const t = (e.target as Element).closest<HTMLElement>('.tile[data-i]');
+      if (t) { clearTimeout(leave); select(Number(t.dataset.i)); return; }
+      if ((e.target as Element).closest('#screen')) { clearTimeout(leave); return; }
+      if (cur >= 0) later();
+    });
+    document.documentElement.addEventListener('pointerleave', later);
+
+    // Keyboard: arrows browse like a console menu, Enter opens, Esc backs out.
+    addEventListener('keydown', (e) => {
+      if (e.metaKey || e.ctrlKey || e.altKey || !tiles.length) return;
+      if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+        const d = e.key === 'ArrowRight' ? 1 : -1;
+        select(cur < 0 ? 0 : (cur + d + tiles.length) % tiles.length);
+        tiles[cur].focus({ preventScroll: true });
+        e.preventDefault();
+      } else if (e.key === 'Enter' && cur >= 0 && document.activeElement === document.body) {
+        tiles[cur].click();
+      } else if (e.key === 'Escape') {
+        select(-1); (document.activeElement as HTMLElement | null)?.blur();
+      }
+    });
+    // Tabbing onto a tile selects it too.
+    tiles.forEach((t, i) => t.addEventListener('focus', () => select(i)));
+    document.addEventListener('click', (e) => { if ((e.target as Element).closest('.tile, #proj')) openSound(); });
+  </script>
+</Base>
+
+<style>
+  :global(body[data-home]) { display: grid; grid-template-rows: auto 1fr auto; }
+  .console { display: flex; flex-direction: column; justify-content: center; gap: clamp(24px, 4vh, 44px); min-width: 0; }
+
+  /* ---------- top screen ---------- */
+  .stage { display: grid; grid-template-columns: minmax(0, 1fr); justify-items: center; padding: 0 var(--gutter); }
+  .screen {
+    width: min(980px, 100%, calc((100vh - 300px) * 16 / 7)); aspect-ratio: 16 / 7;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 18px;
+    box-shadow: var(--shadow); position: relative; overflow: hidden;
+  }
+  .view {
+    position: absolute; inset: 0; padding: clamp(20px, 4vw, 44px);
+    display: flex; gap: 36px; align-items: center;
+    transition: opacity .28s ease, transform .28s ease;
+  }
+  .view[hidden] { display: flex; opacity: 0; transform: translateY(6px); pointer-events: none; visibility: hidden; transition: opacity .28s, transform .28s, visibility 0s .28s; }
+  .me img { width: clamp(128px, 20vw, 220px); height: auto; aspect-ratio: 1; border-radius: 14px; flex: none; object-fit: cover; }
+  h1, h2 { font-family: var(--serif); font-weight: 500; letter-spacing: -.01em; }
+  h1 { font-size: clamp(28px, 4vw, 40px); line-height: 1.1; }
+  .me p { color: var(--muted); max-width: 52ch; margin-top: 10px; }
+  .links { margin-top: 16px; display: flex; gap: 16px; }
+  .links a { text-decoration: none; border-bottom: 1px solid var(--line); }
+  .links a:hover { border-color: var(--ink); }
+
+  .proj { padding: 0; align-items: stretch; gap: 0; color: inherit; text-decoration: none; cursor: pointer; }
+  .proj .banner { flex: 1.25; display: grid; place-items: center; }
+  .proj :global(.banner-ico) { width: 34%; color: #fff; }
+  .proj :global(.banner-ico svg) { width: 100%; height: auto; }
+  .proj :global(.post-title) { width: 70%; font-family: var(--serif); font-size: clamp(22px, 2.6vw, 30px); line-height: 1.2; }
+  /* Fixed slots: status + title pinned top, tags pinned bottom, blurb clamped
+     between. Nothing moves while you browse. */
+  .proj .info { flex: 1; padding: clamp(24px, 3.4vw, 40px); display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+  .proj h2 { font-size: clamp(24px, 3vw, 34px); line-height: 1.25; padding-bottom: .08em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .proj p { color: var(--muted); display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+  .status { color: var(--muted); }
+  .tags { display: flex; gap: 6px; flex-wrap: wrap; margin-top: auto; }
+  .tags :global(.tag) { border: 1px solid var(--line); border-radius: 99px; padding: 1px 9px; color: var(--muted); }
+
+  /* ---------- bottom screen: the shelf ---------- */
+  .shelf-wrap { padding: 0 var(--gutter) 28px; display: grid; grid-template-columns: minmax(0, 1fr); justify-items: center; }
+  .shelf { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(6, minmax(0, 92px)); gap: 18px; }
+  .tile {
+    display: grid; place-items: center; position: relative; aspect-ratio: 1; width: 100%;
+    border-radius: 22px; border: 1px solid var(--line); background: var(--panel); box-shadow: var(--shadow);
+    color: var(--c); outline: none;
+    transition: transform .18s cubic-bezier(.3, 1.6, .5, 1), box-shadow .18s;
+  }
+  a.tile:hover, .tile:global(.on) { transform: translateY(-4px) scale(1.04); }
+  .tile:global(.on)::after {
+    content: ""; position: absolute; inset: -6px; border-radius: 27px; border: 2px solid var(--sel);
+    animation: pulse 1.6s ease-in-out infinite;
+  }
+  @keyframes pulse { 50% { opacity: .45; } }
+  .ico { width: 56%; display: grid; }
+  .ico :global(svg) { width: 100%; height: auto; }
+  .tile.post { background: var(--bg); }
+  .lines { width: 46%; display: grid; gap: 5px; }
+  .lines i { display: block; height: 3px; border-radius: 2px; background: var(--muted); opacity: .5; }
+  .lines i:first-child { height: 5px; width: 70%; opacity: .9; background: var(--ink); }
+  .lines i:last-child { width: 55%; }
+  .tile.empty { background: transparent; box-shadow: none; border: 1.5px dashed var(--line); }
+  .label {
+    position: absolute; top: calc(100% + 8px); left: 50%; translate: -50% 0; white-space: nowrap;
+    color: var(--muted); opacity: 0; transition: opacity .15s; pointer-events: none;
+  }
+  .tile:global(.on) .label { opacity: 1; }
+
+  .foot { padding: 0 var(--gutter) 18px; color: var(--muted); display: flex; justify-content: space-between; }
+
+  @media (max-width: 720px) {
+    .screen { aspect-ratio: auto; min-height: 440px; }
+    .view { flex-direction: column; align-items: flex-start; gap: 18px; }
+    .shelf { grid-template-columns: repeat(3, minmax(0, 92px)); }
+    .hint { display: none; }
+    .foot { justify-content: flex-end; }
+  }
+  @media (hover: none) { .hint { display: none; } }
+</style>

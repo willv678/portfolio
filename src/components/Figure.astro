@@ -1,0 +1,20 @@
+---
+// An image in a panel, with a small mono caption. `wide` breaks out of the
+// text column. Usage in MDX: <Figure src="/projects/x/shot.png" alt="..." caption="..." />
+interface Props { src: string; alt: string; caption?: string; wide?: boolean; pixel?: boolean }
+const { src, alt, caption, wide = false, pixel = false } = Astro.props;
+---
+<figure class:list={['fig', { wide }]}>
+  <div class="frame"><img src={src} alt={alt} loading="lazy" decoding="async" style={pixel ? 'image-rendering:pixelated' : undefined} /></div>
+  {caption && <figcaption class="mono">{caption}</figcaption>}
+</figure>
+<style>
+  .fig { margin: 2.2em 0; }
+  .frame {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 14px;
+    box-shadow: var(--shadow); padding: 8px; overflow: hidden;
+  }
+  .frame img { width: 100%; height: auto; border-radius: 8px; }
+  figcaption { color: var(--muted); margin-top: 10px; padding-left: 4px; }
+  figcaption::before { content: "↳ "; opacity: .6; }
+</style>
