@@ -12,14 +12,19 @@ export function makeAvatar(kit: Kit, a: Avatar) {
   const skin = OPTIONS.skin[a.skin], hc = OPTIONS.hairColor[a.hairColor], shirt = OPTIONS.shirt[a.shirt];
   const g = new Group();
 
-  // body: small, so the head reads big
+  // body: plain-colored top, dark bottoms; small, so the head reads big
+  const pants = toon('#2b2a30');
   if (OPTIONS.body[a.body] === 'f') {
-    const torso = new Mesh(new CapsuleGeometry(0.12, 0.08, 4, 12), toon(shirt)); torso.position.y = 0.48;
-    const skirt = new Mesh(new CylinderGeometry(0.1, 0.19, 0.34, 20), toon(shirt)); skirt.position.y = 0.2;
-    g.add(torso, skirt);
+    const torso = new Mesh(new CapsuleGeometry(0.12, 0.1, 4, 12), toon(shirt)); torso.position.y = 0.49;
+    const skirt = new Mesh(new CylinderGeometry(0.1, 0.18, 0.3, 20), pants); skirt.position.y = 0.2;
+    const legs = new Mesh(new CapsuleGeometry(0.04, 0.06, 3, 8), pants); legs.position.y = 0.05; legs.scale.x = 2;
+    g.add(torso, skirt, legs);
   } else {
-    const body = new Mesh(new CapsuleGeometry(0.15, 0.24, 4, 12), toon(shirt)); body.position.y = 0.36;
-    g.add(body);
+    const torso = new Mesh(new CapsuleGeometry(0.15, 0.12, 4, 12), toon(shirt)); torso.position.y = 0.45;
+    g.add(torso);
+    for (const d of [-1, 1]) {
+      const leg = new Mesh(new CapsuleGeometry(0.055, 0.14, 4, 8), pants); leg.position.set(d * 0.065, 0.13, 0); g.add(leg);
+    }
   }
 
   // head
@@ -57,24 +62,42 @@ export function makeAvatar(kit: Kit, a: Avatar) {
   const style = OPTIONS.hair[a.hair];
   if (style !== 'none') {
     const top = shape === 'oval' ? 1.12 : 1;
+    const capScale = shape === 'square' ? 1.08 : 1;
     const cap = new Mesh(new SphereGeometry(R * 1.08, 24, 12, 0, Math.PI * 2, 0, Math.PI * 0.5), toon(hc));
-    cap.position.y = HY + (shape === 'square' ? 0.03 : 0.01); cap.scale.set(shape === 'square' ? 1.08 : 1, top, shape === 'square' ? 1.08 : 1);
+    cap.position.y = HY + (shape === 'square' ? 0.03 : 0.01); cap.scale.set(capScale, top, capScale);
     cap.rotation.x = -0.38;
     g.add(cap);
-    if (style === 'long') {
+    const curl = (x: number, y: number, z: number, r: number) => {
+      const c = new Mesh(new SphereGeometry(r, 12, 9), toon(hc)); c.position.set(x * capScale, HY + y * top, z * capScale); g.add(c);
+    };
+    if (style === 'wavy') {
+      // a fluffy mop: curls across the crown, a few falling over the forehead, some over the ears
+      for (const [x, y, z, r] of [
+        [0, 0.17, -0.01, 0.085], [-0.09, 0.15, 0.03, 0.075], [0.09, 0.15, 0.02, 0.078], [-0.05, 0.16, -0.08, 0.075], [0.06, 0.15, -0.09, 0.075],
+        [-0.15, 0.08, -0.02, 0.07], [0.15, 0.08, -0.03, 0.07], [0, 0.11, -0.14, 0.08], [-0.11, 0.06, -0.11, 0.065], [0.11, 0.06, -0.11, 0.065],
+        [-0.165, 0.0, 0.01, 0.055], [0.165, 0.0, 0.0, 0.055],                       // over the ears
+        [-0.07, 0.1, 0.12, 0.052], [0.015, 0.11, 0.135, 0.055], [0.085, 0.095, 0.115, 0.05], // fringe
+      ] as const) curl(x, y, z, r);
+    } else if (style === 'long') {
       const back = new Mesh(new RoundedBoxGeometry(0.36, 0.34, 0.09, 2, 0.04), toon(hc)); back.position.set(0, HY - 0.1, -0.12);
       g.add(back);
     } else if (style === 'bun') {
-      const bun = new Mesh(new SphereGeometry(0.075, 14, 10), toon(hc)); bun.position.set(0, HY + R * top + 0.035, -0.05);
-      g.add(bun);
+      curl(0, R + 0.035, -0.05, 0.075);
     }
   }
 
-  // right arm (pivot at the shoulder, so it can wave / be raised)
-  const arm = new Group(); arm.position.set(a.body === 1 ? 0.15 : 0.18, 0.56, 0);
-  const am = new Mesh(new CapsuleGeometry(0.045, 0.2, 4, 8), toon(shirt)); am.position.y = -0.13; arm.add(am);
-  g.add(arm);
+  // arms with round hands; the right one is a pivot so it can wave / be raised
+  const arm = (side: number) => {
+    const p = new Group(); p.position.set(side * (a.body === 1 ? 0.15 : 0.18), 0.56, 0);
+    p.rotation.z = side * 0.18;                                    // hang slightly out from the body
+    const sleeve = new Mesh(new CapsuleGeometry(0.045, 0.17, 4, 8), toon(shirt)); sleeve.position.y = -0.11;
+    const hand = new Mesh(new SphereGeometry(0.05, 12, 9), toon(skin)); hand.position.y = -0.25;
+    p.add(sleeve, hand); g.add(p);
+    return p;
+  };
+  arm(-1);
+  const right = arm(1);
 
   kit.outline(g);
-  return { g, arm };
+  return { g, arm: right };
 }
