@@ -56,7 +56,7 @@ html:active-view-transition-type(prev)::view-transition-new(root) { animation: .
 @keyframes save-rise { 0% { transform: translateY(6px); opacity: 0; } 25%, 75% { opacity: 1; } 100% { transform: translateY(-6px); opacity: 0; } }
 .icon .save { opacity: 0; }
 :is(.tile.on, .tile.peek, html:not(.kbd) a.tile:hover, .nav-tile:hover, .banner) .icon .save { animation: save-rise 1.4s ease-in .25s infinite; }
-/* SimGate: the car rolls in under the gate as the light flips red → green */
+/* Gate icon: the car rolls in under the gate as the light flips red → green */
 @keyframes car-in { from { transform: translateX(-17px); } to { transform: none; } }
 @keyframes go-light { 0%, 55% { fill: #ff5d5d; } 65%, 100% { fill: #5be38a; } }
 :is(.tile.on, .tile.peek, html:not(.kbd) a.tile:hover, .nav-tile:hover, .banner) .icon .car { animation: car-in 1s cubic-bezier(.2,.8,.3,1); }
