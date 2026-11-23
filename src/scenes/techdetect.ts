@@ -57,8 +57,15 @@ export const create = () => createStage((kit) => {
   const sg = sc.getContext('2d')!;
   const screenTex = kit.own(new CanvasTexture(sc)); screenTex.colorSpace = SRGBColorSpace;
   const screen = new Mesh(new PlaneGeometry(0.54, 0.34), new MeshBasicMaterial({ map: screenTex })); screen.position.set(0, 0.215, 0.014); hinge.add(screen);
+  // a little USB webcam clipped to the top of the lid (no scanning rays, just a camera)
+  const webcam = new Group(); webcam.position.set(0, 0.47, 0.01); webcam.scale.setScalar(1.35); hinge.add(webcam);
+  webcam.add(new Mesh(new RoundedBoxGeometry(0.17, 0.08, 0.08, 3, 0.03), toon('#2a2d35')));
+  const clip = new Mesh(new RoundedBoxGeometry(0.06, 0.05, 0.07, 2, 0.015), toon('#2a2d35')); clip.position.set(0, -0.045, -0.02); webcam.add(clip);
+  const lensGeo = new CylinderGeometry(0.03, 0.03, 0.03, 16); lensGeo.rotateX(Math.PI / 2);
+  const camLens = new Mesh(lensGeo, toon('#15171c')); camLens.position.z = 0.045; webcam.add(camLens);
+  const glint = new Mesh(new SphereGeometry(0.018, 10, 8), new MeshBasicMaterial({ color: '#4b6cb7' })); glint.scale.z = 0.3; glint.position.z = 0.062; webcam.add(glint);
   const led = new MeshBasicMaterial({ color: '#f0a020' });
-  const ledM = new Mesh(new SphereGeometry(0.013, 8, 6), led); ledM.position.set(0, 0.4, 0.015); hinge.add(ledM);
+  const ledM = new Mesh(new SphereGeometry(0.011, 8, 6), led); ledM.position.set(0.06, 0.015, 0.042); webcam.add(ledM);
   let drawn = -1;
   const drawScreen = (n: number) => {
     if (n === drawn) return; drawn = n;
