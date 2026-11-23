@@ -1,0 +1,95 @@
+---
+// "Make yourself": a tiny avatar editor behind the head button in the top bar.
+// Saved in this browser only (localStorage). Your avatar shows up in the 3D
+// scenes (TechDetect's first student, the Abridge patient on the timeline).
+---
+<button class="who" id="who" aria-haspopup="dialog" aria-controls="avatar-ed" title="Make yourself" data-blip="760">
+  <span class="sr-only">Make your avatar</span>
+  <span class="face" id="who-face"></span>
+</button>
+<div class="ed" id="avatar-ed" role="dialog" aria-label="Make your avatar" hidden>
+  <div class="preview" id="ed-preview"></div>
+  <div class="rows" id="ed-rows"></div>
+  <p class="note mono">Saved in this browser only. You'll show up in a couple of the scenes.</p>
+  <div class="actions mono">
+    <button id="ed-random" data-blip="820">shuffle</button>
+    <button id="ed-reset" data-blip="700">reset</button>
+    <button id="ed-done" class="done" data-blip="980">done</button>
+  </div>
+</div>
+
+<script>
+  import { OPTIONS, PARTS, DEFAULT, load, save, clear, svg, type Avatar, type Part } from '../scripts/avatar';
+  import { blip } from '../scripts/sound';
+
+  const LABEL: Record<Part, string> = { skin: 'skin', head: 'head', hair: 'hair', hairColor: 'hair color', eyes: 'eyes', shirt: 'shirt', body: 'body' };
+  const swatch = (p: Part) => p === 'skin' || p === 'hairColor' || p === 'shirt';
+  const btn = document.getElementById('who')!, ed = document.getElementById('avatar-ed')!;
+  const rows = document.getElementById('ed-rows')!, preview = document.getElementById('ed-preview')!, face = document.getElementById('who-face')!;
+  let cur: Avatar = load() ?? { ...DEFAULT };
+
+  function paint() {
+    preview.innerHTML = svg(cur);
+    face.innerHTML = svg(cur, true);
+    rows.querySelectorAll<HTMLButtonElement>('[data-p]').forEach((b) =>
+      b.setAttribute('aria-pressed', String(cur[b.dataset.p as Part] === Number(b.dataset.v))));
+  }
+  rows.innerHTML = PARTS.map((p) => `
+    <div class="row"><span class="mono lbl">${LABEL[p]}</span><span class="opts">${
+      OPTIONS[p].map((o, i) => swatch(p)
+        ? `<button data-p="${p}" data-v="${i}" class="sw" style="--sw:${o}" aria-label="${LABEL[p]} ${i + 1}"></button>`
+        : `<button data-p="${p}" data-v="${i}" class="chip mono">${o}</button>`).join('')
+    }</span></div>`).join('');
+  rows.addEventListener('click', (e) => {
+    const b = (e.target as Element).closest<HTMLButtonElement>('[data-p]');
+    if (!b) return;
+    cur = { ...cur, [b.dataset.p as Part]: Number(b.dataset.v) };
+    save(cur); paint(); blip(700 + Number(b.dataset.v) * 80, 0.04, 0.02);
+  });
+  document.getElementById('ed-random')!.addEventListener('click', () => {
+    cur = Object.fromEntries(PARTS.map((p) => [p, Math.floor(Math.random() * OPTIONS[p].length)])) as Avatar;
+    save(cur); paint();
+  });
+  document.getElementById('ed-reset')!.addEventListener('click', () => { cur = { ...DEFAULT }; clear(); paint(); });
+
+  const open = (on: boolean) => {
+    ed.hidden = !on; btn.setAttribute('aria-expanded', String(on));
+    document.documentElement.classList.toggle('editing', on);
+  };
+  btn.addEventListener('click', () => open(ed.hidden));
+  document.getElementById('ed-done')!.addEventListener('click', () => open(false));
+  addEventListener('keydown', (e) => { if (e.key === 'Escape' && !ed.hidden) { open(false); e.stopImmediatePropagation(); } }, { capture: true });
+  addEventListener('pointerdown', (e) => { if (!ed.hidden && !(e.target as Element).closest('#avatar-ed, #who')) open(false); });
+  paint();
+</script>
+
+<style>
+  .who { background: none; border: 0; padding: 2px; cursor: pointer; display: flex; border-radius: 50%; }
+  .face { width: 22px; height: 22px; display: block; border-radius: 50%; overflow: hidden; background: var(--panel); border: 1px solid var(--line); transition: transform .16s cubic-bezier(.3,1.6,.5,1); }
+  .face :global(svg) { width: 100%; height: 100%; }
+  .who:hover .face { transform: scale(1.12); }
+
+  .ed {
+    position: fixed; top: 54px; right: var(--gutter); z-index: 50; width: min(340px, calc(100vw - 2 * var(--gutter)));
+    background: var(--panel); border: 1px solid var(--line); border-radius: 18px; box-shadow: 0 18px 50px -20px rgba(0,0,0,.35);
+    padding: 16px; display: grid; gap: 12px; color: var(--ink); font-family: var(--sans);
+    animation: pop .22s cubic-bezier(.3,1.5,.5,1);
+  }
+  .ed[hidden] { display: none; }
+  @keyframes pop { from { transform: translateY(-6px) scale(.97); opacity: 0; } }
+  .preview { height: 132px; display: grid; place-items: center; background: var(--bg); border-radius: 12px; border: 1px solid var(--line); }
+  .preview :global(svg) { height: 116px; width: auto; }
+  .rows { display: grid; gap: 8px; }
+  .rows :global(.row) { display: grid; grid-template-columns: 74px 1fr; align-items: center; gap: 8px; }
+  .rows :global(.lbl) { color: var(--muted); }
+  .rows :global(.opts) { display: flex; flex-wrap: wrap; gap: 6px; }
+  .rows :global(.sw) { width: 22px; height: 22px; border-radius: 50%; background: var(--sw); border: 2px solid transparent; outline: 1px solid var(--line); cursor: pointer; padding: 0; }
+  .rows :global(.sw[aria-pressed="true"]) { border-color: var(--panel); outline: 2px solid var(--sel); }
+  .rows :global(.chip) { border: 1px solid var(--line); background: var(--bg); color: var(--muted); border-radius: 99px; padding: 3px 9px; cursor: pointer; }
+  .rows :global(.chip[aria-pressed="true"]) { color: var(--ink); border-color: var(--ink); background: var(--panel); }
+  .note { color: var(--muted); font-size: 11px; line-height: 1.5; }
+  .actions { display: flex; gap: 8px; justify-content: flex-end; }
+  .actions button { border: 1px solid var(--line); background: var(--bg); color: var(--muted); border-radius: 99px; padding: 5px 12px; cursor: pointer; font: inherit; }
+  .actions button:hover { color: var(--ink); }
+  .actions .done { background: var(--ink); color: var(--panel); border-color: var(--ink); }
+</style>

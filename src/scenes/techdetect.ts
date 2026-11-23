@@ -6,13 +6,14 @@
 import { BoxGeometry, CanvasTexture, CapsuleGeometry, CylinderGeometry, Group, Mesh, MeshBasicMaterial, PlaneGeometry, SphereGeometry, SRGBColorSpace, Vector3 } from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { createStage, seg, ease, easeIn, passed } from './kit';
+import { makeAvatar } from './avatar';
+import { load, DEFAULT, OPTIONS, type Avatar } from '../scripts/avatar';
 import { sfx } from '../scripts/sound';
 
 const backOut = (x: number) => 1 + 2.7 * Math.pow(x - 1, 3) + 1.7 * Math.pow(x - 1, 2);
 const C = {
   floor: '#e9dcc3', wall: '#f4f1ea', wood: '#b98b5e', skin: '#f1c9a5',
   amber: '#f0a020', green: '#2f9e5b',
-  shirts: ['#5b8def', '#e2463c', '#7c6cf6'],
 };
 
 export const create = () => createStage((kit) => {
@@ -72,7 +73,7 @@ export const create = () => createStage((kit) => {
     sg.fillStyle = '#f7f6f2'; sg.fillRect(0, 0, 256, 160);
     sg.fillStyle = '#d9820f'; sg.fillRect(0, 0, 256, 26);
     sg.fillStyle = '#fff'; sg.font = '600 15px ui-monospace, monospace'; sg.fillText('attendance', 12, 18);
-    C.shirts.forEach((shirt, i) => {
+    configs.map((c) => OPTIONS.shirt[c.shirt]).forEach((shirt, i) => {
       const y = 46 + i * 36;
       sg.fillStyle = shirt; sg.beginPath(); sg.arc(22, y, 8, 0, Math.PI * 2); sg.fill();
       sg.fillStyle = '#c9ccd6'; sg.fillRect(40, y - 5, 120, 10);
@@ -80,7 +81,6 @@ export const create = () => createStage((kit) => {
     });
     screenTex.needsUpdate = true;
   };
-  drawScreen(0);
   const cam = { position: DESK };                           // where the "camera" is, for aiming
   const SPOT = new Vector3(-0.35, 0, 0.15);                 // where each student stops to be seen
 
@@ -105,17 +105,29 @@ export const create = () => createStage((kit) => {
     return g;
   };
 
-  // students: capsule bodies, no faces
-  const students = C.shirts.map((shirt) => {
-    const g = new Group();
-    const body = new Mesh(new CapsuleGeometry(0.17, 0.32, 4, 12), toon(shirt)); body.position.y = 0.42;
-    const h = new Mesh(new SphereGeometry(0.14, 18, 12), toon(C.skin)); h.position.y = 0.86;
-    const arm = new Group(); arm.position.set(0.2, 0.66, 0);
-    const a = new Mesh(new CapsuleGeometry(0.05, 0.24, 4, 8), toon(shirt)); a.position.y = -0.15; arm.add(a);
-    g.add(body, h, arm);
+  // students: simple toy avatars. The first one is *you*, if you've made an
+  // avatar (the head button in the top bar); the other two are fixed.
+  const PRESETS: Avatar[] = [
+    { ...DEFAULT },
+    { skin: 3, head: 1, hair: 1, hairColor: 0, eyes: 1, shirt: 1, body: 1 },
+    { skin: 0, head: 2, hair: 2, hairColor: 3, eyes: 0, shirt: 3, body: 0 },
+  ];
+  const configs = PRESETS.map((p, i) => (i === 0 ? load() ?? p : p));
+  const students = configs.map((cfg) => {
+    const { g, arm } = makeAvatar(kit, cfg);
     scene.add(g);
     const sh = blob(0.5, 0.36); scene.add(sh);
     return { g, arm, sh, face: bracket(0.42, C.amber), hand: bracket(0.3, C.amber), ok: check() };
+  });
+  // rebuild the first student whenever the visitor edits their avatar
+  addEventListener('avatar-change', (e) => {
+    const cfg = (e as CustomEvent<Avatar | null>).detail ?? PRESETS[0];
+    configs[0] = cfg;
+    scene.remove(students[0].g);
+    const { g, arm } = makeAvatar(kit, cfg);
+    scene.add(g);
+    students[0].g = g; students[0].arm = arm;
+    drawn = -1;                                            // redraw the attendance list colors
   });
 
   const L = 8.4, GAP = 2.5;

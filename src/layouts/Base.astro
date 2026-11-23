@@ -1,6 +1,7 @@
 ---
 import '../styles/global.css';
 import { posts } from '../lib';
+import AvatarEditor from '../components/AvatarEditor.astro';
 
 interface Props {
   title?: string;
@@ -50,6 +51,7 @@ const here = (p: string) => (path.startsWith(p) ? 'page' : undefined);
       <a href="/#experience" data-blip="820">experience</a>
       {hasWriting && <a href="/writing/" aria-current={here('/writing')} data-blip="860">writing</a>}
       <a href="/CSResume.pdf" target="_blank" rel="noopener" data-blip="900">resume ↗</a>
+      <AvatarEditor />
       <button id="snd" class="snd" aria-pressed="true" title="Sound on">
         <span class="sr-only">Toggle sound</span>
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M2 6h3l4-3v10L5 10H2z" /><path class="wave" d="M11.5 5.5a3.5 3.5 0 0 1 0 5" /></svg>
@@ -93,7 +95,7 @@ const here = (p: string) => (path.startsWith(p) ? 'page' : undefined);
   .back .arr { display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 99px; border: 1px solid var(--line); background: var(--panel); box-shadow: var(--shadow); transition: transform .16s cubic-bezier(.3,1.6,.5,1); }
   .back:hover .arr { transform: translateX(-3px); }
   /* The top bar holds still while pages slide underneath it. */
-  .top { view-transition-name: topbar; }
+  .top { view-transition-name: topbar; position: relative; z-index: 40; }   /* above the page, so the avatar editor isn't covered */
   nav { display: flex; gap: 20px; align-items: center; }
   .snd { background: none; border: 0; color: inherit; cursor: pointer; padding: 4px; display: flex; }
   .snd:hover { color: var(--ink); }

@@ -13,6 +13,8 @@ import {
 } from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { createStage, seg, ease, easeIn, passed, toyCar, type SceneHandle } from './kit';
+import { makeAvatar } from './avatar';
+import { load, DEFAULT, type Avatar } from '../scripts/avatar';
 import { sfx } from '../scripts/sound';
 
 // A mesh placed at (x, y, z). (position is read-only, so it can't be Object.assign'ed.)
@@ -264,7 +266,17 @@ export function create(): (SceneHandle & { show(name: string): void }) | null {
         const sh = blob(0.3, 0.2); sh.position.set(x, 0.004, 0.12); g.add(sh);
         return p;
       };
-      const doctor = person('#ffffff', -0.5), patient = person('#5b8def', 0.5);
+      const doctor = person('#ffffff', -0.5);
+      // the patient is the visitor's own avatar (or a default one), at this scene's scale
+      const patient = new Group(); patient.position.set(0.5, 0, 0.12); g.add(patient);
+      const patientShadow = blob(0.3, 0.2); patientShadow.position.set(0.5, 0.004, 0.12); g.add(patientShadow);
+      const dressPatient = (cfg: Avatar) => {
+        patient.clear();
+        const { g: fig } = makeAvatar(kit, cfg); fig.scale.setScalar(0.5); fig.rotation.y = -0.5;
+        patient.add(fig);
+      };
+      dressPatient(load() ?? DEFAULT);
+      addEventListener('avatar-change', (e) => dressPatient((e as CustomEvent<Avatar | null>).detail ?? DEFAULT));
       const clip = new Mesh(new RoundedBoxGeometry(0.13, 0.17, 0.015, 2, 0.01), toon('#a8774f')); clip.position.set(0.11, 0.24, 0.07); clip.rotation.y = 0.5;
       doctor.add(clip);
       // the phone, on a little table between them

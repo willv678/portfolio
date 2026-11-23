@@ -52,6 +52,8 @@ export interface Kit {
   sfx(play: () => void): void;
   /** The element the scene is currently playing in (for HTML overlays), if any. */
   host(): HTMLElement | null;
+  /** Add cel outlines to something built after setup (setup's own meshes get them automatically). */
+  outline(root: Object3D): void;
 }
 
 interface StageOpts {
@@ -191,26 +193,28 @@ export function createStage(
   const sfx = (play: () => void) => { if (sfxMode === 'always' || hovering) play(); };
 
   let el: HTMLElement | null = null;
-  const update = setup({ scene, toon, blob, island, stars, sparkles, glow, own, sfx, host: () => el });
-
   // Cel outlines, the classic Nintendo trick: every toon-shaded mesh gets a
   // slightly inflated, back-face-only, dark copy of itself, which shows up as
   // a thin ink line around the silhouette. Lights, screens and other flat
   // (MeshBasic) bits are left alone.
   const width = opts.outline ?? 0.015;
-  if (width > 0) {
-    const ink = new MeshBasicMaterial({ color: '#2b2838', side: BackSide });
-    ink.onBeforeCompile = (sh) => {
-      sh.vertexShader = sh.vertexShader.replace('#include <begin_vertex>', `vec3 transformed = position + normal * ${width.toFixed(4)};`);
-    };
-    ink.customProgramCacheKey = () => `outline-${width}`;
+  const ink = new MeshBasicMaterial({ color: '#2b2838', side: BackSide });
+  ink.onBeforeCompile = (sh) => {
+    sh.vertexShader = sh.vertexShader.replace('#include <begin_vertex>', `vec3 transformed = position + normal * ${width.toFixed(4)};`);
+  };
+  ink.customProgramCacheKey = () => `outline-${width}`;
+  const outline = (root: Object3D) => {
+    if (width <= 0) return;
     const targets: Mesh[] = [];
-    scene.traverse((o: Object3D) => {
+    root.traverse((o: Object3D) => {
       const m = o as Mesh;
-      if (m.isMesh && m.material instanceof MeshToonMaterial && !m.material.transparent && !m.userData.noOutline) targets.push(m);
+      if (m.isMesh && m.material instanceof MeshToonMaterial && !m.material.transparent && !m.userData.noOutline && !m.userData.outlined) targets.push(m);
     });
-    for (const m of targets) { const o = new Mesh(m.geometry, ink); o.userData.noOutline = true; m.add(o); }
-  }
+    for (const m of targets) { const o = new Mesh(m.geometry, ink); o.userData.noOutline = true; m.userData.outlined = true; m.add(o); }
+  };
+  const update = setup({ scene, toon, blob, island, stars, sparkles, glow, own, sfx, host: () => el, outline });
+  outline(scene);
+
 
   // ---------- framing, parallax, loop ----------
   const parallax = { x: 0, y: 0, tx: 0, ty: 0 };
