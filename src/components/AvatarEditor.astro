@@ -13,7 +13,7 @@
 <div class="scrim" id="avatar-ed" role="dialog" aria-modal="true" aria-label="Customize your character" hidden>
   <div class="card">
     <div class="left">
-      <div class="preview" id="ed-preview"></div>
+      <div class="preview" id="ed-preview"><div class="flat" id="ed-flat"></div></div>
       <div class="sliders">
         <label class="mono">height <input type="range" min="0" max="4" step="1" id="ed-height" /></label>
         <label class="mono">build <input type="range" min="0" max="4" step="1" id="ed-build" /></label>
@@ -35,6 +35,7 @@
 <script>
   import { OPTIONS, DEFAULT, load, save, clear, svg, type Avatar, type Part } from '../scripts/avatar';
   import { blip } from '../scripts/sound';
+  import { getScene } from '../scripts/scenes';
 
   // One screen: each choice is one row; colors sit directly under the row they color.
   const ROWS: Part[] = ['hair', 'hairColor', 'eyes', 'glasses', 'makeup', 'head', 'skin', 'body', 'shirt'];
@@ -45,6 +46,7 @@
   const btn = $('who'), ed = $('avatar-ed'), grid = $('ed-grid');
   const height = $('ed-height') as HTMLInputElement, build = $('ed-build') as HTMLInputElement;
   let cur: Avatar = load() ?? { ...DEFAULT };
+  let preview3d: { attach(el: HTMLElement): void; detach(): void } | null = null;
 
   function renderGrid() {
     grid.innerHTML = ROWS.map((p) => `
@@ -60,7 +62,7 @@
       b.setAttribute('aria-pressed', String(cur[b.dataset.p as Part] === Number(b.dataset.v))));
   }
   function paint() {
-    $('ed-preview').innerHTML = svg(cur);
+    $('ed-flat').innerHTML = svg(cur);
     $('who-face').innerHTML = svg(cur, true);
     height.value = String(cur.height); build.value = String(cur.build);
   }
@@ -85,6 +87,9 @@
     ed.hidden = !on; btn.setAttribute('aria-expanded', String(on));
     document.documentElement.classList.toggle('editing', on);
     if (on) { nudge.hidden = true; renderGrid(); }
+    // the big preview is a live 3D render (the flat drawing shows until it's ready)
+    if (on) getScene('preview').then((s) => { if (s && !ed.hidden) { preview3d = s; s.attach($('ed-preview')); } });
+    else { preview3d?.detach(); }
   };
   btn.addEventListener('click', () => open(ed.hidden));
   $('ed-done').addEventListener('click', () => open(false));
@@ -139,8 +144,13 @@
   }
   @keyframes pop { from { transform: translateY(10px) scale(.97); opacity: 0; } }
   .left { display: grid; gap: 14px; align-content: start; }
-  .preview { height: 300px; display: grid; place-items: center; background: var(--bg); border-radius: 16px; border: 1px solid var(--line); }
+  .preview { position: relative; height: 300px; display: grid; place-items: center; background: var(--bg); border-radius: 16px; border: 1px solid var(--line); overflow: hidden; cursor: grab; touch-action: none; }
+  .preview:active { cursor: grabbing; }
   .preview :global(svg) { height: 270px; width: auto; }
+  .preview :global(.scene-canvas) { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; transition: opacity .3s; }
+  .preview:global(.scene-on) :global(.scene-canvas) { opacity: 1; }
+  .preview:global(.scene-on) .flat { opacity: 0; }
+  .flat { transition: opacity .2s; }
   .sliders { display: grid; gap: 8px; }
   .sliders label { display: grid; grid-template-columns: 56px 1fr; align-items: center; gap: 10px; color: var(--muted); font-size: 12px; }
   .sliders input { accent-color: var(--sel); }
