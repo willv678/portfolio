@@ -23,7 +23,7 @@ export const PARTS = Object.keys(OPTIONS) as Part[];
 
 // The default is Will: fair skin, wavy brown hair, happy eyes, blue top.
 export const DEFAULT: Avatar = {
-  skin: 1, head: 0, hair: 0, hairColor: 2, eyes: 2, glasses: 0, makeup: 0, shirt: 0, body: 0, height: 2, build: 2,
+  skin: 1, head: 0, hair: 0, hairColor: 2, eyes: 2, glasses: 0, makeup: 0, shirt: 0, body: 0, height: 3, build: 1,
 };
 
 /** Height / build as scale factors (index 2 = 1.0). */
