@@ -11,7 +11,7 @@ const items = [
   })),
   ...(await posts()).filter((p) => p.data.pinned).map((p) => ({
     kind: 'post' as const, href: `/writing/${p.id}/`, vt: `vt-w-${p.id}`, ...p.data,
-    color: 'var(--ink)', bg: 'var(--bg)', icon: '',
+    color: 'var(--ink)', bg: 'var(--bg)', icon: '', scene: undefined,
   })),
 ].sort((a, b) => a.order - b.order);
 const empties = Math.max(0, Math.ceil((items.length + 1) / 6) * 6 - items.length);
@@ -74,21 +74,27 @@ const empties = Math.max(0, Math.ceil((items.length + 1) / 6) * 6 - items.length
     <span>Atlanta, GA → San Francisco</span>
   </footer>
 
-  <script is:inline type="application/json" id="shelf-data" set:html={JSON.stringify(items.map(({ title, blurb, status, tags, bg, kind, href }) => ({ title, blurb, status, tags, bg, kind, href })))} />
+  <script is:inline type="application/json" id="shelf-data" set:html={JSON.stringify(items.map(({ title, blurb, status, tags, bg, kind, href, scene }) => ({ title, blurb, status, tags, bg, kind, href, scene })))} />
 
   <script>
     import { blip, openSound } from '../scripts/sound';
+    import { mountScene } from '../scripts/scenes';
 
-    type Item = { title: string; blurb: string; status: string; tags: string[]; bg: string; kind: 'project' | 'post'; href: string };
+    type Item = { title: string; blurb: string; status: string; tags: string[]; bg: string; kind: 'project' | 'post'; href: string; scene?: string };
     const P: Item[] = JSON.parse(document.getElementById('shelf-data')!.textContent!);
     const tiles = [...document.querySelectorAll<HTMLAnchorElement>('.tile[data-i]')];
     const $ = (id: string) => document.getElementById(id)!;
     const home = $('home'), proj = $('proj') as HTMLAnchorElement;
     let cur = -1;
+    // A selected project with a 3D scene mounts it into the panel; changing
+    // the selection tears it down (one WebGL context at a time).
+    let unmount: (() => void) | undefined, token = 0;
+    const dropScene = () => { token++; unmount?.(); unmount = undefined; };
 
     function select(i: number) {
       if (i === cur) return;
       cur = i;
+      dropScene();
       tiles.forEach((t, j) => t.classList.toggle('on', j === i));
       if (i < 0) { home.hidden = false; proj.hidden = true; return; }
       const p = P[i], tile = tiles[i];
@@ -101,6 +107,10 @@ const empties = Math.max(0, Math.ceil((items.length + 1) / 6) * 6 - items.length
             .replace(/id="([^"]+)"/g, 'id="$1-panel"')
             .replace(/url\(#([^)]+)\)/g, 'url(#$1-panel)')}</div>`;
       if (p.kind === 'post') banner.firstElementChild!.textContent = p.title;
+      if (p.scene) {
+        const mine = ++token;
+        mountScene(p.scene, banner).then((u) => { if (mine === token) unmount = u; else u(); });
+      }
       $('ptitle').textContent = p.title;
       $('pblurb').textContent = p.blurb;
       $('pstatus').textContent = p.status;
@@ -182,7 +192,11 @@ const empties = Math.max(0, Math.ceil((items.length + 1) / 6) * 6 - items.length
   .links a:hover { border-color: var(--ink); }
 
   .proj { padding: 0; align-items: stretch; gap: 0; color: inherit; text-decoration: none; cursor: pointer; }
-  .proj .banner { flex: 1.25; display: grid; place-items: center; }
+  .proj .banner { flex: 1.25; display: grid; place-items: center; position: relative; overflow: hidden; }
+  .proj .banner :global(.scene-canvas) { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; transition: opacity .5s ease; }
+  .proj .banner:global(.scene-on) :global(.scene-canvas) { opacity: 1; }
+  .proj .banner :global(.banner-ico) { transition: opacity .4s; }
+  .proj .banner:global(.scene-on) :global(.banner-ico) { opacity: 0; }
   .proj :global(.banner-ico) { width: 34%; color: #fff; }
   .proj :global(.banner-ico svg) { width: 100%; height: auto; }
   .proj :global(.post-title) { width: 70%; font-family: var(--serif); font-size: clamp(22px, 2.6vw, 30px); line-height: 1.2; }

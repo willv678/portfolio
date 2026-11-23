@@ -1,26 +1,42 @@
 ---
 // The project banner: background layer + logo layer, so it crops cleanly at any
 // aspect ratio. Shares a view-transition name with the home tile, so the tile
-// grows into it when you click through.
-interface Props { bg: string; icon: string; vt: string; image?: string }
-const { bg, icon, vt, image } = Astro.props;
+// grows into it when you click through. With `scene`, a 3D version loads on top
+// once the banner is on screen and the flat logo fades out.
+interface Props { bg: string; icon: string; vt: string; image?: string; scene?: string }
+const { bg, icon, vt, image, scene } = Astro.props;
 ---
-<div class="banner" style={`background:${bg};view-transition-name:${vt}`}>
+<div class="banner" style={`background:${bg};view-transition-name:${vt}`} data-scene={scene}>
   {image ? <img class="art" src={image} alt="" /> : <div class="logo" set:html={icon} />}
 </div>
+<script>
+  import { mountScene } from '../scripts/scenes';
+  document.querySelectorAll<HTMLElement>('.banner[data-scene]').forEach((el) => {
+    const io = new IntersectionObserver(([e]) => {
+      if (!e.isIntersecting) return;
+      io.disconnect();
+      mountScene(el.dataset.scene!, el);
+    });
+    io.observe(el);
+  });
+</script>
 <style>
   .banner {
     position: relative; width: 100%; aspect-ratio: 16 / 7; border-radius: 18px; overflow: hidden;
     display: grid; place-items: center; border: 1px solid var(--line); box-shadow: var(--shadow);
   }
-  .banner::after { /* faint scanline-ish grain, very subtle */
+  .banner::after { /* faint dot grain, very subtle */
     content: ""; position: absolute; inset: 0; pointer-events: none; opacity: .5;
     background: radial-gradient(rgba(255,255,255,.08) 1px, transparent 1px) 0 0 / 6px 6px;
   }
-  .logo { width: clamp(90px, 16%, 160px); color: #fff; }
+  .logo { width: clamp(90px, 16%, 160px); color: #fff; transition: opacity .5s, transform .5s; }
   .logo:has(:global(.hop)) { animation: float 6s ease-in-out infinite; }
   .logo :global(svg) { width: 100%; height: auto; }
   .art { width: 100%; height: 100%; object-fit: cover; }
   @keyframes float { 50% { transform: translateY(-6px); } }
+  /* 3D scene: canvas fades in, flat logo fades out */
+  .banner :global(.scene-canvas) { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; transition: opacity .6s ease; }
+  .banner:global(.scene-on) :global(.scene-canvas) { opacity: 1; }
+  .banner:global(.scene-on) .logo { opacity: 0; transform: scale(.9); }
   @media (max-width: 720px) { .banner { aspect-ratio: 16 / 9; border-radius: 14px; } }
 </style>

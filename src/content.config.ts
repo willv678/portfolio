@@ -21,6 +21,7 @@ const projects = defineCollection({
     bg: z.string(),                        // banner background (any CSS background)
     icon: z.string().optional(),           // name of an SVG in src/icons/
     glyph: z.string().optional(),          // fallback: 1–2 letters if there's no icon yet
+    scene: z.string().optional(),          // a 3D banner in src/scenes/<name>.ts (optional)
     links: z.array(z.object({ label: z.string(), href: z.string() })).default([]),
   }),
 });
