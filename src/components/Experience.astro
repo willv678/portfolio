@@ -27,6 +27,7 @@ const when = (e: (typeof experience)[number]) => (e.end ? `${e.start} – ${e.en
             </li>
           ))}
         </ol>
+        <div class="more mono" id="xp-more" aria-hidden="true"><span class="mouse"><i></i></span>scroll</div>
       </div>
       <aside class="viewer" aria-hidden="true">
         <div class="box" id="xp-stage"></div>
@@ -65,6 +66,27 @@ const when = (e: (typeof experience)[number]) => (e.end ? `${e.start} – ${e.en
   const stage = document.getElementById('xp-stage')!;
   const org = document.getElementById('xp-org')!, when = document.getElementById('xp-when')!;
   const pinned = () => matchMedia('(min-width: 821px)').matches;
+  const more = document.getElementById('xp-more')!;
+
+  // Gentle settling: when scrolling stops inside the pinned stretch, glide to
+  // the nearest entry's resting point. A fast fling still passes several
+  // entries; a lazy scroll can't strand you halfway between two.
+  let settleTimer = 0, settling = false;
+  function settleLater() {
+    clearTimeout(settleTimer);
+    if (settling) return;
+    settleTimer = window.setTimeout(() => {
+      const top = sec.offsetTop, slice = (sec.offsetHeight - innerHeight) / entries.length;
+      const rel = scrollY - top;
+      if (rel < 0 || rel > slice * entries.length) return;
+      const i = Math.min(entries.length - 1, Math.floor(rel / slice));
+      const target = top + (i === 0 ? 0 : (i + 0.35) * slice);   // first entry rests at the very top
+      if (Math.abs(target - scrollY) < 3) return;
+      settling = true;
+      scrollTo({ top: target, behavior: 'smooth' });
+      setTimeout(() => (settling = false), 500);
+    }, 140);
+  }
   document.documentElement.classList.add('xp-anim');   // only hide entries when JS can reveal them
 
   // The 3D viewer loads once the section is close to the screen.
@@ -105,7 +127,9 @@ const when = (e: (typeof experience)[number]) => (e.end ? `${e.start} – ${e.en
       // only hide entries that are still ahead (when scrolling back up)
       entries.forEach((e, j) => e.classList.toggle('in', j <= i));
       setActive(i);
-      tl.style.setProperty('--line', `${dotY(i)}px`);
+      tl.style.setProperty('--fill', `${dotY(i)}px`);
+      more.classList.toggle('done', i === entries.length - 1);
+      settleLater();
     } else {
       // phones: plain list; active = nearest the middle of the screen
       const mid = innerHeight * 0.45;
@@ -116,7 +140,7 @@ const when = (e: (typeof experience)[number]) => (e.end ? `${e.start} – ${e.en
         if (d < bestD) { bestD = d; best = j; }
       });
       setActive(best);
-      tl.style.setProperty('--line', `${dotY(best)}px`);
+      tl.style.setProperty('--fill', `${dotY(best)}px`);
     }
   }
   addEventListener('scroll', update, { passive: true });           // cheap: a few rect reads
@@ -127,16 +151,16 @@ const when = (e: (typeof experience)[number]) => (e.end ? `${e.start} – ${e.en
 <style>
   /* Desktop: the section is tall (one viewport + a slice per entry) and its
      content pins to the viewport while you scroll through it. */
-  .exp { position: relative; height: calc(100svh + (var(--n) - 1) * 34svh); border-top: 1px solid var(--line); }
+  .exp { position: relative; height: calc(100svh + (var(--n) - 1) * 46svh); border-top: 1px solid var(--line); }
   .pin { position: sticky; top: 0; height: 100svh; display: grid; align-items: center; padding: 0 var(--gutter); overflow: hidden; }
   .inner { width: min(1040px, 100%); margin: 0 auto; display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 56px; align-items: center; }
   h2 { font-family: var(--serif); font-weight: 500; font-size: clamp(30px, 4.2vw, 42px); letter-spacing: -.015em; margin-bottom: clamp(16px, 3.5vh, 32px); }
 
   /* the line: a faint track, plus an ink line drawn down to the active dot */
-  .tl { list-style: none; padding: 0 0 0 30px; position: relative; --line: 0px; }
+  .tl { list-style: none; padding: 0 0 0 30px; position: relative; --fill: 0px; }
   .tl::before, .tl::after { content: ""; position: absolute; left: 5px; top: 10px; width: 1.5px; border-radius: 1px; }
   .tl::before { bottom: 10px; background: var(--line); }
-  .tl::after { height: calc(var(--line) - 10px); background: var(--ink); transition: height .45s cubic-bezier(.3,.9,.3,1); }
+  .tl::after { height: calc(var(--fill) - 10px); background: var(--ink); transition: height .45s cubic-bezier(.3,.9,.3,1); }
 
   .entry { position: relative; padding: 2px 0 clamp(14px, 3.2vh, 30px); }
   .dot {
@@ -152,10 +176,17 @@ const when = (e: (typeof experience)[number]) => (e.end ? `${e.start} – ${e.en
   .entry p { color: var(--muted); margin-top: 3px; max-width: 58ch; }
 
   /* entries appear one by one; the active one is in full ink */
-  :global(.xp-anim) .entry { opacity: 0; transform: translateY(12px); transition: opacity .45s ease, transform .45s cubic-bezier(.2,.8,.3,1); }
-  :global(.xp-anim) .entry:global(.in) { opacity: .42; transform: none; }
-  :global(.xp-anim) .entry:global(.in.on) { opacity: 1; }
+  :global(.xp-anim) .entry > :not(.dot) { opacity: 0; transform: translateY(12px); transition: opacity .45s ease, transform .45s cubic-bezier(.2,.8,.3,1); }
+  :global(.xp-anim) .entry:global(.in) > :not(.dot) { opacity: .42; transform: none; }
+  :global(.xp-anim) .entry:global(.in.on) > :not(.dot) { opacity: 1; }
+  :global(.xp-anim) .entry:not(:global(.in)) .dot { opacity: .45; transform: scale(.75); }
   .entry:global(.on) .dot { background: var(--ink); border-color: var(--ink); transform: scale(1.25); }
+
+  .more { display: flex; align-items: center; gap: 10px; color: var(--muted); margin: 4px 0 0 -2px; transition: opacity .4s; }
+  .more.done { opacity: 0; }
+  .mouse { width: 15px; height: 22px; border: 1.5px solid var(--muted); border-radius: 8px; display: grid; justify-items: center; padding-top: 4px; }
+  .mouse i { width: 2px; height: 5px; border-radius: 1px; background: var(--muted); animation: wheel 1.6s ease-in-out infinite; }
+  @keyframes wheel { 0% { transform: translateY(0); opacity: 1; } 70% { transform: translateY(6px); opacity: 0; } 100% { opacity: 0; } }
 
   /* the viewer: pinned with the timeline, so it never drifts */
   .viewer { display: grid; gap: 12px; }
@@ -188,7 +219,7 @@ const when = (e: (typeof experience)[number]) => (e.end ? `${e.start} – ${e.en
     .exp { height: auto; }
     .pin { position: static; height: auto; padding: 56px var(--gutter) 8px; }
     .inner { grid-template-columns: 1fr; }
-    .viewer { display: none; }
+    .viewer, .more { display: none; }
     .minor li { grid-template-columns: 1fr; gap: 0; }
   }
 </style>

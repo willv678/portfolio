@@ -1,19 +1,22 @@
 // The little 3D scene beside the active timeline entry, like a 3DS icon
 // preview. One stage, one tiny looping scene per entry; show(name) swaps
 // them with a pop.
-//   abridge → a hospital; a speech bubble floats out and turns into a note
-//   lab     → the lidar test car, with the agent's drone circling and scanning it
+//   abridge → doctor and patient talk, a phone listens, a note writes itself
+//   lab     → a test car bumps a cone, VHS-rewinds, and retries (run 1041, 1042…)
 //   roblox  → a classic blocky avatar: waves, falls to pieces, respawns
 //   leidos  → a car stops at a red light, they talk (V2X), it goes on green
-//   uga     → a graduation cap with a swinging tassel
+//   uga     → a tiny Sanford Stadium, hedges and all, with a football in the air
 
 import {
-  BoxGeometry, CanvasTexture, ConeGeometry, CylinderGeometry, Group, Mesh, MeshBasicMaterial,
+  BoxGeometry, CanvasTexture, CapsuleGeometry, ConeGeometry, GridHelper, CylinderGeometry, Group, Mesh, MeshBasicMaterial,
   PlaneGeometry, RingGeometry, SphereGeometry, SRGBColorSpace, TorusGeometry, Vector3,
 } from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { createStage, seg, ease, easeIn, passed, type SceneHandle, type Kit } from './kit';
 import { sfx } from '../scripts/sound';
+
+// A mesh placed at (x, y, z). (position is read-only, so it can't be Object.assign'ed.)
+const at = <T extends Mesh>(m: T, x: number, y: number, z: number) => (m.position.set(x, y, z), m);
 
 const backOut = (x: number) => 1 + 2.7 * Math.pow(x - 1, 3) + 1.7 * Math.pow(x - 1, 2);
 
@@ -46,19 +49,48 @@ export function create(): (SceneHandle & { show(name: string): void }) | null {
       g.visible = false; scene.add(g); models.set(name, { g, tick, fixed });
     };
 
-    // ---------- UGA: graduation cap ----------
+    // ---------- UGA: a tiny Sanford Stadium ----------
     {
       const g = new Group();
-      const skull = new Mesh(new CylinderGeometry(0.34, 0.37, 0.26, 32), toon('#2a2a30')); skull.position.y = 0.13;
-      const board = new Mesh(new RoundedBoxGeometry(1.0, 0.05, 1.0, 2, 0.015), toon('#33333a')); board.position.y = 0.28; board.rotation.y = Math.PI / 4;
-      const button = new Mesh(new SphereGeometry(0.045, 12, 8), toon('#ba0c2f')); button.position.y = 0.31;
-      const tassel = new Group(); tassel.position.set(0.68, 0.3, 0);
-      const cord = new Mesh(new CylinderGeometry(0.012, 0.012, 0.3, 6), toon('#ba0c2f')); cord.position.y = -0.15;
-      const end = new Mesh(new CylinderGeometry(0.03, 0.05, 0.13, 10), toon('#ba0c2f')); end.position.y = -0.33;
-      tassel.add(cord, end);
-      g.add(skull, board, button, tassel);
-      g.position.y = 0.25;
-      add('uga', g, (t) => { tassel.rotation.z = Math.sin(t * 3) * 0.18; tassel.rotation.x = Math.cos(t * 2.3) * 0.1; });
+      const RX = 1.0, RZ = 0.62;
+      // concrete floor under everything, so there's no gap between field and stands
+      const floor = new Mesh(new CylinderGeometry(1.0, 1.0, 0.02, 56), toon('#cfcabd')); floor.scale.set(0.95 * RX, 1, 0.95 * RZ); floor.position.y = 0.005;
+      g.add(floor);
+      // field + the famous hedges
+      const field = new Mesh(new CylinderGeometry(1, 1, 0.04, 48), toon('#5fbf6a')); field.scale.set(0.78, 1, 0.44); field.position.y = 0.02;
+      g.add(field);
+      for (let i = -3; i <= 3; i++) {
+        const l = new Mesh(new BoxGeometry(0.012, 0.005, 0.6), new MeshBasicMaterial({ color: '#f4f4ef' })); l.position.set(i * 0.17, 0.043, 0); g.add(l);
+      }
+      const hedge = new Mesh(new TorusGeometry(1, 0.035, 8, 64), toon('#2f6b3a')); hedge.rotation.x = Math.PI / 2; hedge.scale.set(0.83, 0.5, 1); hedge.position.y = 0.06;
+      g.add(hedge);
+      // the bowl: tiers of seats, red and black, opening wider as they go up
+      [['#ba0c2f', 0.0], ['#2a2a30', 0.13], ['#ba0c2f', 0.26]].forEach(([c, y], i) => {
+        const r0 = 0.92 + i * 0.12, tier = new Mesh(new CylinderGeometry(r0 + 0.12, r0, 0.13, 56, 1, true), toon(c as string, { side: 2 }));
+        tier.scale.set(RX, 1, RZ); tier.position.y = 0.065 + (y as number);
+        tier.userData.noOutline = true;                                       // open shells don't outline cleanly
+        g.add(tier);
+      });
+      // goalposts (yellow) at each end
+      for (const x of [-0.72, 0.72]) {
+        const post = new Group(); post.position.set(x, 0.04, 0);
+        const up = new Mesh(new CylinderGeometry(0.008, 0.008, 0.14, 6), toon('#ffd23f')); up.position.y = 0.07;
+        const bar = new Mesh(new CylinderGeometry(0.007, 0.007, 0.16, 6), toon('#ffd23f')); bar.rotation.x = Math.PI / 2; bar.position.y = 0.14;
+        const l = new Mesh(new CylinderGeometry(0.006, 0.006, 0.14, 6), toon('#ffd23f')); l.position.set(0, 0.21, -0.08);
+        const r = l.clone(); r.position.z = 0.08;
+        post.add(up, bar, l, r); g.add(post);
+      }
+      // the football, kicked end to end
+      const ball = new Mesh(new SphereGeometry(0.045, 16, 10), toon('#8b4a2b')); ball.scale.set(1.5, 1, 1);
+      g.add(ball);
+      g.scale.setScalar(0.72);
+      g.rotation.x = 0.5;                                                    // tip it toward the camera to show the field
+      g.position.y = 0.3;
+      add('uga', g, (t) => {
+        const L = 2.6, u = (t % L) / L, dir = Math.floor(t / L) % 2 ? -1 : 1;
+        ball.position.set(dir * (-0.62 + 1.24 * u), 0.08 + Math.sin(Math.PI * u) * 0.55, 0);
+        ball.rotation.z = -dir * u * Math.PI * 3;
+      }, true);
     }
 
     // ---------- Leidos: stop at the light, talk to it, go on green ----------
@@ -111,40 +143,59 @@ export function create(): (SceneHandle & { show(name: string): void }) | null {
       }, true);
     }
 
-    // ---------- MSC Lab: the test car, with the agent's drone scanning it ----------
+    // ---------- MSC Lab: run, crash, rewind, retry (stress testing) ----------
     {
       const g = new Group();
+      // a glowing simulation grid instead of a real floor
+      const grid = new GridHelper(2.6, 13, '#2fd0c0', '#2fd0c0');
+      (grid.material as MeshBasicMaterial).transparent = true; (grid.material as MeshBasicMaterial).opacity = 0.35;
+      grid.position.y = 0.002; grid.scale.z = 0.6;
+      g.add(grid);
       const { car, body, wheels } = toyCar(kit);
       const lidar = new Mesh(new CylinderGeometry(0.06, 0.06, 0.06, 16), toon('#2fd0c0')); lidar.position.set(-0.03, 0.42, 0);
       body.add(lidar);
-      car.scale.setScalar(1.5); car.position.y = 0;
+      car.scale.setScalar(1.25);
       g.add(car);
-      const drone = new Group();
-      const dBody = new Mesh(new SphereGeometry(0.13, 20, 14), toon('#eef3f7')); dBody.scale.y = 0.55;
-      const dRim = new Mesh(new TorusGeometry(0.13, 0.018, 8, 28), toon('#2f7d5b')); dRim.rotation.x = Math.PI / 2;
-      const prop = new Mesh(new BoxGeometry(0.34, 0.01, 0.035), toon('#c9d3da')); prop.position.y = 0.1;
-      const led = new MeshBasicMaterial({ color: '#5be38a' });
-      const ledM = new Mesh(new SphereGeometry(0.02, 8, 6), led); ledM.position.set(0, 0, 0.125);
-      drone.add(dBody, dRim, prop, ledM);
-      g.add(drone);
-      const scanMat = new MeshBasicMaterial({ color: '#5be38a', transparent: true, opacity: 0.18, depthWrite: false });
-      const scanGeo = new ConeGeometry(0.32, 1, 24, 1, true); scanGeo.translate(0, -0.5, 0);
-      const scan = new Mesh(scanGeo, scanMat); g.add(scan);
-      add('lab', g, (t) => {
+      const carShadow = blob(0.75, 0.5); g.add(carShadow);
+      const cone = new Group();
+      const cBase = new Mesh(new RoundedBoxGeometry(0.2, 0.025, 0.2, 2, 0.01), toon('#ff7a2f')); cBase.position.y = 0.012;
+      const cTop = new Mesh(new ConeGeometry(0.08, 0.24, 18), toon('#ff7a2f')); cTop.position.y = 0.14;
+      const cBand = new Mesh(new CylinderGeometry(0.047, 0.057, 0.04, 18), toon('#ffffff')); cBand.position.y = 0.14;
+      cone.add(cBase, cTop, cBand); g.add(cone);
+      // the "◀◀ rewind" badge and a run counter, drawn on little canvases
+      const label = (w: number) => {
+        const c = document.createElement('canvas'); c.width = w; c.height = 64;
+        const tex = kit.own(new CanvasTexture(c)); tex.colorSpace = SRGBColorSpace;
+        const m = new Mesh(new PlaneGeometry(w / 256, 0.25), new MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false }));
+        return { m, draw(text: string, color: string) { const x = c.getContext('2d')!; x.clearRect(0, 0, w, 64); x.fillStyle = color; x.font = '600 34px "IBM Plex Mono", ui-monospace, monospace'; x.textBaseline = 'middle'; x.fillText(text, 8, 34); tex.needsUpdate = true; } };
+      };
+      const rew = label(160); rew.draw('◀◀', '#2a2733'); rew.m.position.set(-0.85, 0.95, 0.2); g.add(rew.m);
+      const counter = label(256); counter.m.position.set(0.55, 1.0, 0.2); g.add(counter.m);
+      let shownRun = -1;
+      const L = 4.6, laneZ = [0.0, 0.16, -0.14];
+      add('lab', g, (t, prev) => {
+        const run = Math.floor(t / L), u = t % L;
+        if (run !== shownRun) { shownRun = run; counter.draw(`run ${String(1041 + run).padStart(4, '0')}`, '#6d6b64'); }
+        const cz = laneZ[run % laneZ.length];
+        let x: number, z = 0, tip = 0, jitter = 0;
+        if (u < 1.5) { x = -1.05 + 1.15 * ease(seg(u, 0, 1.5)); }                    // try 1: bump the cone
+        else if (u < 1.8) { x = 0.1; tip = seg(u, 1.5, 1.7); }
+        else if (u < 2.5) { const k = seg(u, 1.8, 2.5); x = 0.1 - 1.15 * ease(k); tip = 1 - k; jitter = Math.sin(t * 90) * 0.02; }  // rewind
+        else if (u < 4.2) { x = -1.05 + 2.2 * ease(seg(u, 2.5, 4.2)); z = Math.sin(Math.PI * seg(u, 2.9, 3.9)) * 0.3 * (cz > 0 ? -1 : 1); }  // retry: swerve past
+        else { x = 1.15; }
+        car.position.set(x + jitter, 0, z);
+        car.rotation.y = u > 2.5 && u < 4.2 ? Math.sin(2 * Math.PI * seg(u, 2.9, 3.9)) * 0.35 * (cz > 0 ? 1 : -1) : 0;
+        car.visible = u < 4.2;
+        carShadow.position.set(car.position.x, 0.004, z); carShadow.visible = car.visible;
+        wheels.forEach((w) => (w.rotation.z = -x * 7));
         lidar.rotation.y = t * 7;
-        body.position.y = Math.abs(Math.sin(t * 16)) * 0.006;
-        wheels.forEach((w) => (w.rotation.z = -t * 6));
-        const a = t * 1.1;
-        drone.position.set(Math.cos(a) * 0.75, 1.12 + Math.sin(t * 2.6) * 0.04, Math.sin(a) * 0.45);
-        drone.rotation.set(0, -a + Math.PI / 2, 0.15);
-        prop.rotation.y = t * 30;
-        // scans for a beat, then the LED flicks green/amber like it's judging
-        const scanning = Math.sin(t * 1.4) > 0.2;
-        scan.visible = scanning;
-        scan.position.copy(drone.position).y -= 0.05;
-        scan.scale.set(1, drone.position.y - 0.25, 1);
-        led.color.set(scanning ? '#5be38a' : '#ffc94d');
-      });
+        cone.position.set(0.42 + jitter, 0, u < 2.5 ? 0 : cz);
+        cone.rotation.z = -tip * 1.25;
+        rew.m.visible = u > 1.8 && u < 2.5 && Math.sin(t * 20) > -0.3;
+        grid.position.x = jitter * 2;
+        if (passed(prev, t, 1.5, L)) kit.sfx(sfx.clunk);
+        if (passed(prev, t, 1.8, L)) kit.sfx(() => sfx.lower(0.6));
+      }, true);
     }
 
     // ---------- Roblox: classic blocky avatar — waves, falls apart, respawns ----------
@@ -207,54 +258,86 @@ export function create(): (SceneHandle & { show(name: string): void }) | null {
       });
     }
 
-    // ---------- Abridge: a conversation becomes a note ----------
+    // ---------- Abridge: a visit becomes a note ----------
+    // A doctor and a patient talk (bubbles take turns), a phone between them
+    // listens, then a note rises out of it, writes itself, and lands on the
+    // doctor's clipboard.
     {
       const g = new Group();
-      const bldg = new Mesh(new RoundedBoxGeometry(0.9, 0.72, 0.55, 3, 0.04), toon('#f2f3f7')); bldg.position.set(-0.32, 0.36, -0.15);
-      const roof = new Mesh(new RoundedBoxGeometry(0.96, 0.06, 0.6, 2, 0.02), toon('#c9ccd6')); roof.position.set(-0.32, 0.74, -0.15);
-      const sign = new Mesh(new RoundedBoxGeometry(0.24, 0.24, 0.06, 3, 0.04), toon('#ffffff')); sign.position.set(-0.32, 0.9, -0.15);
+      // the hospital, set back
+      const H = new Group(); H.position.set(0, 0, -0.62); H.scale.setScalar(0.8);
+      H.add(at(new Mesh(new RoundedBoxGeometry(1.5, 0.72, 0.4, 3, 0.04), toon('#f2f3f7')), 0, 0.36, 0));
+      H.add(at(new Mesh(new RoundedBoxGeometry(1.56, 0.06, 0.45, 2, 0.02), toon('#c9ccd6')), 0, 0.74, 0));
+      H.add(at(new Mesh(new RoundedBoxGeometry(0.24, 0.24, 0.06, 3, 0.04), toon('#ffffff')), 0, 0.9, 0));
       const red = new MeshBasicMaterial({ color: '#e5484d' });
-      const crossA = new Mesh(new BoxGeometry(0.16, 0.05, 0.01), red), crossB = new Mesh(new BoxGeometry(0.05, 0.16, 0.01), red);
-      crossA.position.set(-0.32, 0.9, -0.115); crossB.position.copy(crossA.position);
+      H.add(at(new Mesh(new BoxGeometry(0.16, 0.05, 0.01), red), 0, 0.9, 0.035));
+      H.add(at(new Mesh(new BoxGeometry(0.05, 0.16, 0.01), red), 0, 0.9, 0.035));
       const win = new MeshBasicMaterial({ color: '#9fdcff' });
-      for (const [x, y] of [[-0.6, 0.52], [-0.42, 0.52], [-0.22, 0.52], [-0.04, 0.52], [-0.6, 0.3], [-0.04, 0.3]]) {
-        const w = new Mesh(new PlaneGeometry(0.11, 0.11), win); w.position.set(x, y, 0.131); g.add(w);
-      }
-      const door = new Mesh(new PlaneGeometry(0.16, 0.24), new MeshBasicMaterial({ color: '#2fb5a6' })); door.position.set(-0.32, 0.12, 0.131);
-      g.add(bldg, roof, sign, crossA, crossB, door);
-      // the bubble (front) and the note it turns into (back): one card that flips
-      const card = new Group();
-      const bubble = new Group();
-      bubble.add(new Mesh(new RoundedBoxGeometry(0.5, 0.32, 0.08, 3, 0.1), toon('#ffffff')));
-      const tail = new Mesh(new ConeGeometry(0.05, 0.12, 4), toon('#ffffff')); tail.position.set(-0.14, -0.18, 0); tail.rotation.z = Math.PI + 0.4;
-      bubble.add(tail);
-      const dots = [-0.11, 0, 0.11].map((x) => { const d = new Mesh(new SphereGeometry(0.032, 12, 8), new MeshBasicMaterial({ color: '#5b4bd6' })); d.position.set(x, 0, 0.045); bubble.add(d); return d; });
+      for (const x of [-0.55, -0.35, 0.35, 0.55]) for (const y of [0.32, 0.54]) H.add(at(new Mesh(new PlaneGeometry(0.12, 0.12), win), x, y, 0.201));
+      H.add(at(new Mesh(new PlaneGeometry(0.2, 0.3), new MeshBasicMaterial({ color: '#2fb5a6' })), 0, 0.15, 0.201));
+      g.add(H);
+      // two people (no faces): doctor in a white coat, patient in blue
+      const person = (coat: string, x: number) => {
+        const p = new Group(); p.position.set(x, 0, 0.12);
+        const torso = new Mesh(new CapsuleGeometry(0.09, 0.16, 4, 12), toon(coat)); torso.position.y = 0.2;
+        const head = new Mesh(new SphereGeometry(0.075, 16, 12), toon('#f1c9a5')); head.position.y = 0.42;
+        p.add(torso, head); g.add(p);
+        const sh = blob(0.3, 0.2); sh.position.set(x, 0.004, 0.12); g.add(sh);
+        return p;
+      };
+      const doctor = person('#ffffff', -0.5), patient = person('#5b8def', 0.5);
+      const clip = new Mesh(new RoundedBoxGeometry(0.13, 0.17, 0.015, 2, 0.01), toon('#a8774f')); clip.position.set(0.11, 0.24, 0.07); clip.rotation.y = 0.5;
+      doctor.add(clip);
+      // the phone, on a little table between them
+      const table = new Mesh(new CylinderGeometry(0.1, 0.1, 0.02, 20), toon('#d3d5de')); table.position.set(0, 0.2, 0.15);
+      const leg = new Mesh(new CylinderGeometry(0.015, 0.015, 0.2, 8), toon('#a3a9b1')); leg.position.set(0, 0.1, 0.15);
+      const phone = new Mesh(new RoundedBoxGeometry(0.07, 0.012, 0.13, 2, 0.006), toon('#2a2d35')); phone.position.set(0, 0.217, 0.15);
+      const screen = new MeshBasicMaterial({ color: '#7c6cf6' });
+      const scr = new Mesh(new PlaneGeometry(0.055, 0.11), screen); scr.rotation.x = -Math.PI / 2; scr.position.set(0, 0.224, 0.15);
+      g.add(table, leg, phone, scr);
+      const rings = Array.from({ length: 2 }, () => {
+        const m = new MeshBasicMaterial({ color: '#7c6cf6', transparent: true, depthWrite: false });
+        const r = new Mesh(new RingGeometry(0.06, 0.072, 32), m); r.rotation.x = -Math.PI / 2; r.position.set(0, 0.23, 0.15); g.add(r); return { r, m };
+      });
+      // speech bubbles
+      const bubble = (x: number) => {
+        const b = new Group(); b.position.set(x, 0.66, 0.12);
+        b.add(new Mesh(new RoundedBoxGeometry(0.26, 0.16, 0.05, 3, 0.06), toon('#ffffff')));
+        [-0.06, 0, 0.06].forEach((dx) => { const d = new Mesh(new SphereGeometry(0.017, 8, 6), new MeshBasicMaterial({ color: '#6d6b64' })); d.position.set(dx, 0, 0.03); b.add(d); });
+        g.add(b); return b;
+      };
+      const bDoc = bubble(-0.42), bPat = bubble(0.42);
+      // the note
       const note = new Group();
-      note.add(new Mesh(new RoundedBoxGeometry(0.34, 0.44, 0.03, 2, 0.02), toon('#ffffff')));
-      const header = new Mesh(new PlaneGeometry(0.26, 0.05), new MeshBasicMaterial({ color: '#5b4bd6' })); header.position.set(0, 0.15, 0.017); note.add(header);
-      for (let i = 0; i < 4; i++) {
-        const l = new Mesh(new PlaneGeometry(i === 3 ? 0.14 : 0.24, 0.025), new MeshBasicMaterial({ color: '#c3c6d2' }));
-        l.position.set(i === 3 ? -0.05 : 0, 0.06 - i * 0.07, 0.017); note.add(l);
-      }
-      note.rotation.y = Math.PI;                                              // on the back of the card
-      card.add(bubble, note);
-      g.add(card);
-      // a little stack of finished notes on the right
-      for (let i = 0; i < 2; i++) {
-        const n = new Mesh(new RoundedBoxGeometry(0.34, 0.025, 0.44, 2, 0.01), toon('#ffffff'));
-        n.position.set(0.62, 0.013 + i * 0.028, 0.05); n.rotation.y = 0.15 - i * 0.1; g.add(n);
-      }
-      const L = 4.4;
+      note.add(new Mesh(new RoundedBoxGeometry(0.2, 0.26, 0.012, 2, 0.01), toon('#ffffff')));
+      const hdr = new Mesh(new PlaneGeometry(0.15, 0.03), new MeshBasicMaterial({ color: '#5b4bd6' })); hdr.position.set(0, 0.09, 0.007); note.add(hdr);
+      const lines = [0.04, 0, -0.04, -0.08].map((y, i) => {
+        const l = new Mesh(new PlaneGeometry(i === 3 ? 0.08 : 0.14, 0.014), new MeshBasicMaterial({ color: '#b8bbc8' }));
+        l.position.set(0, y, 0.007); note.add(l); return l;
+      });
+      g.add(note);
+      const L = 5.2;
       add('abridge', g, (t, prev) => {
         const u = t % L;
-        const rise = ease(seg(u, 0, 1.2)), flip = ease(seg(u, 1.4, 1.85)), fly = ease(seg(u, 2.0, 2.9));
-        const start = new Vector3(-0.32, 0.25, 0.25), top = new Vector3(0.05, 1.05, 0.25), stack = new Vector3(0.62, 0.11, 0.05);
-        card.position.lerpVectors(start, top, rise).lerp(stack, fly);
-        card.scale.setScalar(Math.max(0.001, seg(u, 0, 0.3) * (1 - seg(u, 3.4, 3.6))));
-        card.rotation.set(-Math.PI / 2 * fly, Math.PI * flip, 0);                 // flip to the note, then lay it flat
-        dots.forEach((d, i) => (d.position.y = Math.max(0, Math.sin(t * 7 - i * 0.9)) * 0.04));
-        if (passed(prev, t, 2.9, L)) kit.sfx(sfx.plink);
-      });
+        // conversation: doctor, patient, doctor
+        const talk = (b: Group, a: number) => b.scale.setScalar(Math.max(0.001, backOut(seg(u, a, a + 0.25)) * (1 - seg(u, a + 0.65, a + 0.8))));
+        talk(bDoc, 0.1); talk(bPat, 0.9); bDoc.scale.multiplyScalar(u > 1.7 ? 0 : 1); if (u > 1.7) talk(bDoc, 1.7);
+        doctor.rotation.z = Math.sin(t * 8) * 0.03 * (u < 2.5 ? 1 : 0);
+        patient.rotation.z = -Math.sin(t * 7) * 0.03 * (u > 0.9 && u < 1.7 ? 1 : 0);
+        // the phone listens while they talk
+        const listening = u < 2.5;
+        screen.color.set(listening ? '#7c6cf6' : '#b4abff');
+        rings.forEach(({ r, m }, i) => { const k = ((t * 0.9 + i * 0.5) % 1); r.visible = listening; r.scale.setScalar(1 + k * 2); m.opacity = 0.8 * (1 - k); });
+        // the note: rises from the phone, writes itself, flies to the clipboard
+        const up = ease(seg(u, 2.6, 3.1)), fly = ease(seg(u, 3.9, 4.5));
+        const from = new Vector3(0, 0.25, 0.15), mid = new Vector3(0, 0.72, 0.2), to = new Vector3(-0.39, 0.27, 0.2);
+        note.position.lerpVectors(from, mid, up).lerp(to, fly);
+        note.scale.setScalar(Math.max(0.001, seg(u, 2.6, 2.8) * (1 - 0.35 * fly) * (1 - seg(u, 4.9, 5.1))));
+        note.rotation.set(0, 0.5 * fly, Math.sin(t * 3) * 0.05 * (1 - fly));
+        lines.forEach((l, i) => (l.scale.x = Math.max(0.001, seg(u, 3.1 + i * 0.18, 3.3 + i * 0.18))));
+        if (passed(prev, t, 2.6, L)) kit.sfx(sfx.pop);
+        if (passed(prev, t, 4.5, L)) kit.sfx(sfx.plink);
+      }, true);
     }
 
     return (t, prev) => {
