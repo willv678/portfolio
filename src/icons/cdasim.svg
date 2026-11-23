@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
+  <!-- A bridge (ROS 2 ↔ CARLA). Animated on hover: .rider drives across. -->
+  <path d="M6 30 Q24 8 42 30" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+  <rect x="3" y="29" width="42" height="4" rx="2"/>
+  <rect x="9" y="33" width="3.4" height="10" rx="1.2" opacity=".75"/>
+  <rect x="35.6" y="33" width="3.4" height="10" rx="1.2" opacity=".75"/>
+  <path d="M15 22.5 V29 M24 17.5 V29 M33 22.5 V29" stroke="currentColor" stroke-width="2" opacity=".55"/>
+  <g class="rider">
+    <rect x="18" y="23.5" width="11" height="4.2" rx="1.8"/>
+    <rect x="20.2" y="20.6" width="6" height="3.6" rx="1.4" opacity=".7"/>
+  </g>
+</svg>

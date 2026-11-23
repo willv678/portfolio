@@ -42,8 +42,10 @@ const empties = Math.max(0, Math.ceil((items.length + 1) / 6) * 6 - items.length
             <span class="status mono" id="pstatus"></span>
             <h2 id="ptitle"></h2>
             <p id="pblurb"></p>
-            <span class="open mono" aria-hidden="true">open <kbd>↵</kbd></span>
-            <div class="tags mono" id="ptags"></div>
+            <div class="foot-row">
+              <div class="tags mono" id="ptags"></div>
+              <span class="open mono" aria-hidden="true">open <kbd>↵</kbd></span>
+            </div>
           </div>
         </a>
       </div>
@@ -258,14 +260,16 @@ const empties = Math.max(0, Math.ceil((items.length + 1) / 6) * 6 - items.length
   .proj h2 { font-size: clamp(24px, 3vw, 34px); line-height: 1.25; padding-bottom: .08em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .proj p { color: var(--muted); display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
   .status { color: var(--muted); }
+  /* bottom row, same place for every project: tags left, open right */
+  .foot-row { margin-top: auto; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
   .open {
-    align-self: flex-start; margin-top: 8px; display: inline-flex; gap: 8px; align-items: center;
+    flex: none; display: inline-flex; gap: 8px; align-items: center;
     padding: 7px 10px 7px 14px; border-radius: 99px; border: 1px solid var(--line); background: var(--bg); color: var(--ink);
     transition: transform .16s cubic-bezier(.3,1.6,.5,1), border-color .16s;
   }
   .proj:hover .open { transform: translateX(3px); border-color: var(--muted); }
   .open kbd { font: inherit; font-size: 11px; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 5px; padding: 0 5px; background: var(--panel); }
-  .tags { display: flex; gap: 6px; flex-wrap: wrap; margin-top: auto; }
+  .tags { display: flex; gap: 6px; flex-wrap: wrap; }
   .tags :global(.tag) { border: 1px solid var(--line); border-radius: 99px; padding: 1px 9px; color: var(--muted); }
 
   /* ---------- bottom screen: the shelf ---------- */

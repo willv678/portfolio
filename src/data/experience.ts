@@ -19,7 +19,7 @@ export const experience: Entry[] = [
   { start: 'Jun 2026', end: 'Aug 2026', role: 'Software Engineering Intern', org: 'Roblox',
     what: 'Built an LLM agent that writes owner-reviewed behavior catalogs for services. It ran on 60+ services, and owners merged its catalogs into 40+ repos.', model: 'roblox' },
   { start: 'May 2025', end: 'Jan 2026', role: 'Software Engineering Intern', org: 'Leidos',
-    what: "Ported the CARMA–CARLA bridge to ROS 2 so USDOT's open-source cooperative-driving stack co-simulates directly with CARLA.", model: 'leidos' },
+    what: "Ported the CARMA–CARLA bridge to ROS 2 so USDOT's open-source cooperative-driving stack co-simulates directly with CARLA.", href: '/cdasim/', model: 'leidos' },
   { start: 'Aug 2023', end: 'May 2027', role: 'B.S. Computer Science', org: 'University of Georgia',
     what: 'Presidential Scholar and Zell Miller Scholar. Expected to graduate May 2027.', model: 'uga' },
   { start: 'Dec 2023', end: 'Mar 2025', role: 'Co-founder', org: 'Paragon Policy Fellowship',

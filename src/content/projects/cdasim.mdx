@@ -1,0 +1,29 @@
+---
+title: CDASim
+blurb: Moved USDOT's open-source cooperative-driving stack from ROS 1 to ROS 2 and rebuilt its bridge to the CARLA simulator, so the two co-simulate directly.
+status: 2025 · Leidos × UGA MSC Lab
+tags: [ROS 2, C++]
+color: "#14868c"
+icon: cdasim
+pinned: true
+order: 3
+links:
+  - { label: GitHub, href: "https://github.com/usdot-fhwa-stol/carma-carla-integration" }
+  - { label: My bridge fork, href: "https://github.com/willv678/carla-ros2-bridge" }
+---
+
+**CARMA** is the U.S. Department of Transportation's open-source platform for cooperative driving: cars that coordinate with each other and with traffic lights. **CARLA** is an open-source driving simulator. Hooking them together means you can test CARMA's driving logic in a realistic simulated city instead of on a real road.
+
+I worked on that connection for Leidos, through UGA's Mobility Systems Control Lab, from May 2025 to January 2026.
+
+<Figure src="/projects/cdasim/run.jpg" alt="A CARLA simulator camera view of a car at an intersection, above CARMA's lane map with the planned route" caption="a test run: CARLA's camera on top, CARMA's route through the intersection below" wide />
+
+## What I did
+
+- **ROS 1 → ROS 2.** Ported 15+ bridge nodes to ROS 2 (the robotics framework both sides speak): new build system, launch files rewritten in Python, every node moved onto the ROS 2 client libraries.
+- **A new bridge.** CARLA 0.10 dropped the piece that used to tell ROS where the car and its sensors are. I wrote a C++/Python bridge that publishes those transforms (map → vehicle → each sensor), which CARMA needs before it can localize or plan a route. It cut out the old middleware, and the two sides now talk directly with under 5 ms of latency.
+- **Making the car actually drive.** Once everything was connected, the car still wouldn't follow its route. Two causes: the steering controller needed retuning, and CARLA (built on Unreal) uses a left-handed coordinate system while ROS uses a right-handed one, so some directions were quietly mirrored.
+
+## What I took from it
+
+Most of the work was in the seams between systems: two frameworks, two coordinate conventions, one car that wouldn't turn. That's also where I got interested in testing driving stacks at scale, which led straight into [SimGate](/simgate/).
