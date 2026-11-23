@@ -6,7 +6,7 @@
 
 import {
   BoxGeometry, BufferGeometry, CapsuleGeometry, CircleGeometry, CylinderGeometry, DoubleSide, Group, Mesh, MeshBasicMaterial,
-  SphereGeometry, TorusGeometry, Vector3, IcosahedronGeometry, CatmullRomCurve3, TubeGeometry,
+  SphereGeometry, TorusGeometry, Vector3,
 } from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { OPTIONS, heightScale, buildScale, type Avatar } from '../scripts/avatar';
@@ -103,46 +103,16 @@ export function makeHead(kit: Kit, a: Avatar) {
 
   switch (style) {
     case 'wavy': {
-      // Low-poly, after Will's haircut: thin and close on the sides, real
-      // volume on top, and chunky curled strands tumbling over the forehead.
-      const flat = toon(hc, { side: DoubleSide, flatShading: true });
-      const facet = (geo: BufferGeometry, x: number, y: number, z: number) => {
-        const m = new Mesh(geo, flat); m.position.set(x * wide, y * tall, z * wide); g.add(m); return m;
-      };
-      // thin sides + back (low segment count, faceted)
-      const sides = new SphereGeometry(r * 0.97, 18, 12);
-      const sp = sides.attributes.position, v = new Vector3();
-      for (let i = 0; i < sp.count; i++) {
-        v.fromBufferAttribute(sp, i).divideScalar(r * 0.97);
-        const inFace = Math.min(0.42 - v.y, 0.78 - Math.abs(v.x), (v.z - 0.05) * 1.5);
-        const below = (0.0 - 0.36 * smooth(0.1, -0.55, v.z)) - v.y;
-        v.multiplyScalar(1 - 0.22 * Math.max(smooth(-0.04, 0.06, inFace), smooth(-0.04, 0.06, below)));
-        sp.setXYZ(i, v.x * r * 0.97, v.y * r * 0.97, v.z * r * 0.97);
-      }
-      sp.needsUpdate = true; sides.computeVertexNormals();
-      facet(sides, 0, 0, 0).scale.set(wide, tall, wide);
-      // the volume on top, pushed a little forward
-      const top = new IcosahedronGeometry(1, 1);
-      const tm = facet(top, 0.005, 0.15, 0.04); tm.scale.set(0.175 * wide, 0.125 * tall, 0.16 * wide); tm.rotation.set(-0.3, 0.3, 0.05);
-      const top2 = new IcosahedronGeometry(1, 1);
-      const tm2 = facet(top2, -0.01, 0.13, -0.06); tm2.scale.set(0.17 * wide, 0.11 * tall, 0.15 * wide); tm2.rotation.set(0.25, -0.4, 0.1);
-      // chunky curled strands: short curving tubes with few sides
-      const strand = (pts: [number, number, number][], rad: number) => {
-        const curve = new CatmullRomCurve3(pts.map(([x, y, z]) => new Vector3(x * wide, y * tall, z * wide)));
-        const geo = new TubeGeometry(curve, 6, rad, 5, false);
-        const m = new Mesh(geo, flat); g.add(m);
-        const cap = new Mesh(new IcosahedronGeometry(rad * 1.05, 0), flat); cap.position.copy(curve.getPoint(1)); g.add(cap);
-        return m;
-      };
-      // over the forehead (falling forward and curling back up at the tips)
-      strand([[-0.1, 0.17, 0.08], [-0.13, 0.11, 0.16], [-0.1, 0.07, 0.175], [-0.08, 0.09, 0.17]], 0.028);
-      strand([[-0.03, 0.19, 0.08], [-0.05, 0.12, 0.175], [-0.02, 0.08, 0.19], [0.0, 0.1, 0.185]], 0.03);
-      strand([[0.04, 0.19, 0.07], [0.05, 0.12, 0.175], [0.08, 0.085, 0.18], [0.095, 0.105, 0.17]], 0.028);
-      strand([[0.1, 0.16, 0.06], [0.14, 0.1, 0.13], [0.15, 0.06, 0.12]], 0.024);
-      // a few curling across the crown (lying down, not sticking up)
-      strand([[-0.11, 0.23, 0.02], [-0.06, 0.265, -0.03], [-0.01, 0.255, 0.01], [-0.03, 0.235, 0.05]], 0.026);
-      strand([[0.02, 0.255, -0.02], [0.08, 0.255, -0.06], [0.12, 0.225, -0.02], [0.1, 0.215, 0.02]], 0.026);
-      strand([[-0.06, 0.23, -0.1], [-0.01, 0.235, -0.15], [0.05, 0.215, -0.15]], 0.024);
+      // The original wavy style: a smooth cap with clusters of round curls on
+      // the crown, over the forehead and down the sides.
+      const capGeo = new SphereGeometry(R * 1.08, 24, 12, 0, Math.PI * 2, 0, Math.PI * 0.5);
+      const capM = add(capGeo, 0, shape === 'square' ? 0.03 : 0.01, 0); capM.rotation.x = -0.38;
+      for (const [x, y, z, rad] of [
+        [0, 0.17, -0.01, 0.085], [-0.09, 0.15, 0.03, 0.075], [0.09, 0.15, 0.02, 0.078], [-0.05, 0.16, -0.08, 0.075], [0.06, 0.15, -0.09, 0.075],
+        [-0.15, 0.08, -0.02, 0.07], [0.15, 0.08, -0.03, 0.07], [0, 0.11, -0.14, 0.08], [-0.11, 0.06, -0.11, 0.065], [0.11, 0.06, -0.11, 0.065],
+        [-0.165, 0.0, 0.01, 0.055], [0.165, 0.0, 0.0, 0.055],
+        [-0.07, 0.1, 0.12, 0.052], [0.015, 0.11, 0.135, 0.055], [0.085, 0.095, 0.115, 0.05],
+      ] as const) add(new SphereGeometry(rad, 12, 9), x, y, z);
       break;
     }
     case 'short':
