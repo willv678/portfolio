@@ -39,20 +39,22 @@ export const create = () => createStage((kit) => {
     fig.right.rotation.z = 0.18 + w * (2.3 + Math.sin(t * 9) * 0.35);
     fig.left.rotation.z = -0.18;
     // hop and spin, around 5.4–6.4s
-    const h = seg(u, 5.4, 6.4);
+    const h = pointK > 0.01 ? 0 : seg(u, 5.4, 6.4);              // no spinning while pointing at the button
     if (h > 0 && h < 1) {
       holder.position.y += Math.sin(Math.PI * h) * 0.18;
       holder.rotation.y += ease(h) * Math.PI * 2;
     }
     shadow.scale.setScalar(1 - Math.sin(Math.PI * h) * 0.3);
     if (pointK > 0.001) {
+      // body keeps facing you; only the head turns up toward the button, and
+      // the arm on that side points up and out at 45°
       const p = pointK, mix = (a: number, b: number) => a + (b - a) * p;
-      holder.rotation.y = mix(holder.rotation.y, 0.65);                 // turn toward the top-right
-      holder.position.y = mix(holder.position.y, Math.abs(Math.sin(t * 6)) * 0.02);
-      fig.head.rotation.x = mix(0, -0.35);                              // look up
-      fig.head.rotation.z = mix(fig.head.rotation.z, -0.12);
-      fig.right.rotation.z = mix(fig.right.rotation.z, 2.55 + Math.sin(t * 5) * 0.08);   // point up at it
-      fig.right.rotation.x = mix(0, -0.35);
-    } else { fig.head.rotation.x = 0; fig.right.rotation.x = 0; }
+      holder.rotation.y = mix(holder.rotation.y, 0.12);
+      fig.head.rotation.y = mix(0, 0.55);
+      fig.head.rotation.x = mix(0, -0.3);
+      fig.head.rotation.z = mix(fig.head.rotation.z, -0.08);
+      fig.right.rotation.z = mix(fig.right.rotation.z, Math.PI * 0.75 + Math.sin(t * 5) * 0.05);
+      fig.right.rotation.x = 0;
+    } else { fig.head.rotation.x = 0; fig.head.rotation.y = 0; fig.right.rotation.x = 0; }
   };
 }, { lookAt: new Vector3(0, 0.62, 0), minSpan: 1.15, minHeight: 1.3, outline: 0.008 });
