@@ -9,6 +9,8 @@ import {
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { createStage, seg, toyCar } from './kit';
 import { sfx } from '../scripts/sound';
+import { makeHead } from './avatar';
+import { load, DEFAULT, type Avatar } from '../scripts/avatar';
 
 const C = {
   ground: '#e4e2dc', road: '#4a505c', paint: '#f4f1e8', route: '#d63aff',
@@ -51,6 +53,15 @@ export const create = () => createStage((kit) => {
   car.scale.setScalar(1.15);
   scene.add(car);
   const carShadow = blob(0.75, 0.5); scene.add(carShadow);
+  // the driver: the visitor's head (or Will's), leaning out of the window
+  const driver = new Group(); driver.position.set(-0.04, 0.34, 0.16); car.add(driver);
+  const seatDriver = (cfg: Avatar) => {
+    driver.clear();
+    const h = makeHead(kit, cfg); h.scale.setScalar(0.42); h.rotation.set(0.15, 0.5, -0.25);
+    kit.outline(h); driver.add(h);
+  };
+  seatDriver(load() ?? DEFAULT);
+  addEventListener('avatar-change', (e) => seatDriver((e as CustomEvent<Avatar | null>).detail ?? DEFAULT));
 
   // ---------- the map (CARMA's view), floating and tilted toward you ----------
   const map = new Group();
@@ -82,6 +93,7 @@ export const create = () => createStage((kit) => {
     car.rotation.y = Math.atan2(-tan.z, tan.x);
     car.scale.setScalar(1.15 * Math.max(0.001, fade));
     wheels.forEach((w) => (w.rotation.z = -k * 60));
+    driver.rotation.z = Math.sin(t * 9) * 0.04;                 // bobbing in the breeze
     carShadow.position.set(pos.x, 0.004, pos.z); carShadow.scale.setScalar(Math.max(0.001, fade));
     // the map's dot mirrors the car
     dot.position.set(pos.x, 0.08, pos.z); ring.position.copy(dot.position);

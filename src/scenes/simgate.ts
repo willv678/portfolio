@@ -12,6 +12,8 @@ import {
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { createStage, seg, ease, easeIn, passed } from './kit';
 import { sfx } from '../scripts/sound';
+import { makeAvatar } from './avatar';
+import { load, DEFAULT, type Avatar } from '../scripts/avatar';
 
 const C = {
   islandTop: '#a6dcb3', road: '#3d4350', dash: '#f4f1e8',
@@ -123,6 +125,26 @@ export const create = () => createStage((kit) => {
   scene.add(drone);
   const droneShadow = blob(0.7, 0.7); scene.add(droneShadow);
 
+  // ---------- you, at the edge of the track, flying the drone with a controller ----------
+  const pilotSpot = new Vector3(2.55, 0, 1.15);
+  const pilotHolder = new Group(); pilotHolder.position.copy(pilotSpot); scene.add(pilotHolder);
+  const pilotShadow = blob(0.4, 0.3); pilotShadow.position.set(pilotSpot.x, 0.004, pilotSpot.z); scene.add(pilotShadow);
+  let pilotFig: ReturnType<typeof makeAvatar> | null = null;
+  const pad = new Group();
+  pad.add(new Mesh(new RoundedBoxGeometry(0.2, 0.06, 0.1, 2, 0.025), toon('#2a2d35')));
+  for (const d of [-1, 1]) { const st = new Mesh(new CylinderGeometry(0.014, 0.014, 0.03, 8), toon('#5b5f6a')); st.position.set(d * 0.05, 0.04, 0); pad.add(st); }
+  const placePilot = (cfg: Avatar) => {
+    pilotHolder.clear();
+    pilotFig = makeAvatar(kit, cfg);
+    pilotFig.g.scale.setScalar(0.6);
+    pilotFig.left.rotation.set(-1.1, 0, -0.35); pilotFig.right.rotation.set(-1.1, 0, 0.35);   // arms forward, holding the controller
+    const p2 = pad.clone(); p2.position.set(0, 0.42, 0.24); p2.rotation.x = -0.6; pilotFig.g.add(p2);
+    kit.outline(p2);
+    pilotHolder.add(pilotFig.g);
+  };
+  placePilot(load() ?? DEFAULT);
+  addEventListener('avatar-change', (e) => placePilot((e as CustomEvent<Avatar | null>).detail ?? DEFAULT));
+
   // ---------- verdict rings (pulse on the ground where a cone is judged) ----------
   const makeRing = () => {
     const m = new MeshBasicMaterial({ color: C.green, transparent: true, depthWrite: false });
@@ -181,6 +203,10 @@ export const create = () => createStage((kit) => {
     drone.rotation.z = busted;
     drone.rotation.x = 0.12 * Math.sin(t * 1.7);
     prop.rotation.y = t * 30;
+    // you watch the drone, and lean a little when it's caught cheating
+    pilotHolder.rotation.y = Math.atan2(drone.position.x - pilotSpot.x, drone.position.z - pilotSpot.z) * 0.6 - 0.4;
+    pilotHolder.rotation.z = busted * 0.4;
+    pilotHolder.position.y = Math.abs(Math.sin(t * 2.2)) * 0.01;
     droneShadow.position.set(drone.position.x, 0.004, drone.position.z);
     droneShadow.scale.setScalar(0.6 + 0.4 * (2.4 - drone.position.y) / 1.2);
 

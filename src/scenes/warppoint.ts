@@ -12,6 +12,8 @@ import {
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { createStage, seg, ease, passed } from './kit';
 import { sfx } from '../scripts/sound';
+import { makeHead } from './avatar';
+import { load, DEFAULT, type Avatar } from '../scripts/avatar';
 
 const C = {
   ink: '#2a2733', switchBody: '#34323b', joyL: '#2fc2ee', joyR: '#ff5d5d',
@@ -86,8 +88,8 @@ export const create = () => createStage((kit) => {
   const rim = new Mesh(new TorusGeometry(0.68, 0.05, 12, 48), toon(C.rim));
   rim.rotation.x = Math.PI / 2;
   hull.add(rim);
-  const dome = new Mesh(new SphereGeometry(0.36, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2),
-    toon(C.dome, { transparent: true, opacity: 0.42, depthWrite: false }));
+  const dome = new Mesh(new SphereGeometry(0.4, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2),
+    toon(C.dome, { transparent: true, opacity: 0.32, depthWrite: false }));
   dome.position.y = 0.1;
   hull.add(dome);
   const lights: MeshBasicMaterial[] = [];
@@ -97,23 +99,17 @@ export const create = () => createStage((kit) => {
     s.position.set(Math.cos(a) * 0.55, -0.03, Math.sin(a) * 0.55);
     hull.add(s); lights.push(m);
   }
-  // The pilot: a small green head in the dome. Doesn't spin with the hull.
+  // The pilot: the visitor's avatar head (or Will's), in the dome. Doesn't spin with the hull.
   const pilot = new Group();
   pilot.position.y = 0.2;
   ufo.add(pilot);
-  const head = new Mesh(new SphereGeometry(0.15, 24, 16), toon(C.alien));
-  head.scale.set(1, 0.92, 1);
-  pilot.add(head);
-  for (const d of [-1, 1]) {
-    const eye = new Mesh(new SphereGeometry(0.032, 12, 8), new MeshBasicMaterial({ color: C.ink }));
-    eye.position.set(d * 0.055, 0.02, 0.13); eye.scale.set(1, 1.4, 0.6);
-    pilot.add(eye);
-  }
-  const stalk = new Mesh(new CylinderGeometry(0.009, 0.009, 0.08, 6), toon(C.alien));
-  stalk.position.y = 0.16;
-  const bulb = new Mesh(new SphereGeometry(0.026, 12, 8), new MeshBasicMaterial({ color: C.light }));
-  bulb.position.y = 0.205;
-  pilot.add(stalk, bulb);
+  const seat = (cfg: Avatar) => {
+    pilot.clear();
+    const h = makeHead(kit, cfg); h.scale.setScalar(0.68); h.position.y = 0.02;
+    kit.outline(h); pilot.add(h);
+  };
+  seat(load() ?? DEFAULT);
+  addEventListener('avatar-change', (e) => seat((e as CustomEvent<Avatar | null>).detail ?? DEFAULT));
   scene.add(ufo);
   const ufoShadow = blob(1.6, 1.6);
   scene.add(ufoShadow);
@@ -185,7 +181,7 @@ export const create = () => createStage((kit) => {
 
     // Pilot looks where it's going, and down while the beam is on.
     pilot.rotation.set(on * 0.35, dir * 0.7 * speed, hull.rotation.z);
-    pilot.position.y = 0.2 + Math.sin(t * 5) * 0.008;
+    pilot.position.y = 0.22 + Math.sin(t * 5) * 0.008;
 
     // Save: rises A→UFO, rides along, sinks UFO→B.
     const under = pos.clone().add(new Vector3(0, -0.32, 0));

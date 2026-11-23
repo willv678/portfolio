@@ -1,114 +1,192 @@
 ---
-// "Make yourself": a tiny avatar editor behind the head button in the top bar.
-// Saved in this browser only (localStorage). Your avatar shows up in the 3D
-// scenes (TechDetect's first student, the Abridge patient on the timeline).
+// "Customize your character": the avatar editor. A head button in the top
+// bar opens a full-screen editor over a dimmed page: a big preview on the
+// left, a catalog of parts on the right (each tile shows the part on *your*
+// head), and sliders for height and build. Saved in this browser only.
 ---
-<button class="who" id="who" aria-haspopup="dialog" aria-controls="avatar-ed" title="Make yourself" data-blip="760">
-  <span class="sr-only">Make your avatar</span>
+<button class="who" id="who" aria-haspopup="dialog" aria-controls="avatar-ed" title="Customize your character" data-blip="760">
+  <span class="sr-only">Customize your character</span>
   <span class="face" id="who-face"></span>
 </button>
-<div class="nudge mono" id="who-nudge" hidden>make yourself ↑</div>
-<div class="ed" id="avatar-ed" role="dialog" aria-label="Make your avatar" hidden>
-  <div class="preview" id="ed-preview"></div>
-  <div class="rows" id="ed-rows"></div>
-  <p class="note mono">Saved in this browser only. You'll show up in a couple of the scenes (try TechDetect).</p>
-  <div class="actions mono">
-    <button id="ed-random" data-blip="820">shuffle</button>
-    <button id="ed-reset" data-blip="700">reset</button>
-    <button id="ed-done" class="done" data-blip="980">done</button>
+<div class="nudge mono" id="who-nudge" hidden>customize your character ↑</div>
+
+<div class="scrim" id="avatar-ed" role="dialog" aria-modal="true" aria-label="Customize your character" hidden>
+  <div class="card">
+    <div class="left">
+      <div class="preview" id="ed-preview"></div>
+      <div class="sliders">
+        <label class="mono">height <input type="range" min="0" max="4" step="1" id="ed-height" /></label>
+        <label class="mono">build <input type="range" min="0" max="4" step="1" id="ed-build" /></label>
+      </div>
+      <div class="actions mono">
+        <button id="ed-random" data-blip="820">shuffle</button>
+        <button id="ed-reset" data-blip="700">reset</button>
+        <button id="ed-done" class="done" data-blip="980">done</button>
+      </div>
+      <p class="note">saved only in this browser</p>
+    </div>
+    <div class="right">
+      <div class="tabs mono" id="ed-tabs" role="tablist"></div>
+      <div class="grid" id="ed-grid"></div>
+    </div>
+    <button class="close" id="ed-x" aria-label="Close">×</button>
   </div>
 </div>
 
 <script>
-  import { OPTIONS, PARTS, DEFAULT, load, save, clear, svg, type Avatar, type Part } from '../scripts/avatar';
+  import { OPTIONS, DEFAULT, load, save, clear, svg, type Avatar, type Part } from '../scripts/avatar';
   import { blip } from '../scripts/sound';
 
-  const LABEL: Record<Part, string> = { skin: 'skin', head: 'head', hair: 'hair', hairColor: 'hair color', eyes: 'eyes', shirt: 'shirt', body: 'body' };
-  const swatch = (p: Part) => p === 'skin' || p === 'hairColor' || p === 'shirt';
-  const btn = document.getElementById('who')!, ed = document.getElementById('avatar-ed')!;
-  const rows = document.getElementById('ed-rows')!, preview = document.getElementById('ed-preview')!, face = document.getElementById('who-face')!;
-  let cur: Avatar = load() ?? { ...DEFAULT };
+  // tabs → which parts they show; color parts render as swatches, shape parts as head tiles
+  const TABS: { name: string; parts: Part[] }[] = [
+    { name: 'hair', parts: ['hair', 'hairColor'] },
+    { name: 'face', parts: ['eyes', 'brows', 'mouth', 'glasses'] },
+    { name: 'head', parts: ['head', 'skin'] },
+    { name: 'body', parts: ['body', 'shirt'] },
+  ];
+  const COLOR: Part[] = ['skin', 'hairColor', 'shirt'];
+  const LABEL: Partial<Record<Part, string>> = { hairColor: 'hair color', head: 'head shape', body: 'body' };
 
-  function paint() {
-    preview.innerHTML = svg(cur);
-    face.innerHTML = svg(cur, true);
-    rows.querySelectorAll<HTMLButtonElement>('[data-p]').forEach((b) =>
+  const $ = (id: string) => document.getElementById(id)!;
+  const btn = $('who'), ed = $('avatar-ed'), grid = $('ed-grid'), tabs = $('ed-tabs');
+  const height = $('ed-height') as HTMLInputElement, build = $('ed-build') as HTMLInputElement;
+  let cur: Avatar = load() ?? { ...DEFAULT };
+  let tab = 0;
+
+  function renderGrid() {
+    grid.innerHTML = TABS[tab].parts.map((p) => `
+      <section><h4 class="mono">${LABEL[p] ?? p}</h4><div class="${COLOR.includes(p) ? 'swatches' : 'tiles'}">${
+        OPTIONS[p].map((o, i) => COLOR.includes(p)
+          ? `<button data-p="${p}" data-v="${i}" class="sw" style="--sw:${o}" aria-label="${LABEL[p] ?? p} ${i + 1}"></button>`
+          : `<button data-p="${p}" data-v="${i}" class="tile" title="${o}">${p === 'body' ? svg({ ...cur, [p]: i }) : svg({ ...cur, [p]: i }, true)}<span class="mono">${o}</span></button>`).join('')
+      }</div></section>`).join('');
+    mark();
+  }
+  function mark() {
+    grid.querySelectorAll<HTMLButtonElement>('[data-p]').forEach((b) =>
       b.setAttribute('aria-pressed', String(cur[b.dataset.p as Part] === Number(b.dataset.v))));
   }
-  rows.innerHTML = PARTS.map((p) => `
-    <div class="row"><span class="mono lbl">${LABEL[p]}</span><span class="opts">${
-      OPTIONS[p].map((o, i) => swatch(p)
-        ? `<button data-p="${p}" data-v="${i}" class="sw" style="--sw:${o}" aria-label="${LABEL[p]} ${i + 1}"></button>`
-        : `<button data-p="${p}" data-v="${i}" class="chip mono">${o}</button>`).join('')
-    }</span></div>`).join('');
-  rows.addEventListener('click', (e) => {
+  function paint() {
+    $('ed-preview').innerHTML = svg(cur);
+    $('who-face').innerHTML = svg(cur, true);
+    height.value = String(cur.height); build.value = String(cur.build);
+  }
+  const set = (p: Part, v: number) => { cur = { ...cur, [p]: v }; save(cur); paint(); };
+
+  tabs.innerHTML = TABS.map((t, i) => `<button role="tab" data-t="${i}">${t.name}</button>`).join('');
+  const setTab = (i: number) => { tab = i; tabs.querySelectorAll('button').forEach((b, j) => b.setAttribute('aria-selected', String(j === i))); renderGrid(); };
+  tabs.addEventListener('click', (e) => { const b = (e.target as Element).closest<HTMLButtonElement>('[data-t]'); if (b) { setTab(Number(b.dataset.t)); blip(820, 0.04, 0.02); } });
+  grid.addEventListener('click', (e) => {
     const b = (e.target as Element).closest<HTMLButtonElement>('[data-p]');
     if (!b) return;
-    cur = { ...cur, [b.dataset.p as Part]: Number(b.dataset.v) };
-    save(cur); paint(); blip(700 + Number(b.dataset.v) * 80, 0.04, 0.02);
+    set(b.dataset.p as Part, Number(b.dataset.v));
+    renderGrid();                                              // tiles show the new choice on your head
+    blip(700 + Number(b.dataset.v) * 60, 0.04, 0.02);
   });
-  document.getElementById('ed-random')!.addEventListener('click', () => {
-    cur = Object.fromEntries(PARTS.map((p) => [p, Math.floor(Math.random() * OPTIONS[p].length)])) as Avatar;
-    save(cur); paint();
+  height.addEventListener('input', () => set('height', Number(height.value)));
+  build.addEventListener('input', () => set('build', Number(build.value)));
+  $('ed-random').addEventListener('click', () => {
+    cur = Object.fromEntries(Object.entries(OPTIONS).map(([p, o]) => [p, Math.floor(Math.random() * o.length)])) as Avatar;
+    save(cur); paint(); renderGrid();
   });
-  document.getElementById('ed-reset')!.addEventListener('click', () => { cur = { ...DEFAULT }; clear(); paint(); });
+  $('ed-reset').addEventListener('click', () => { cur = { ...DEFAULT }; clear(); paint(); renderGrid(); });
 
   const open = (on: boolean) => {
     ed.hidden = !on; btn.setAttribute('aria-expanded', String(on));
     document.documentElement.classList.toggle('editing', on);
+    if (on) { nudge.hidden = true; setTab(tab); }
   };
   btn.addEventListener('click', () => open(ed.hidden));
-  document.getElementById('ed-done')!.addEventListener('click', () => open(false));
+  $('ed-done').addEventListener('click', () => open(false));
+  $('ed-x').addEventListener('click', () => open(false));
+  ed.addEventListener('pointerdown', (e) => { if (e.target === ed) open(false); });           // click the dimmed backdrop
   addEventListener('keydown', (e) => { if (e.key === 'Escape' && !ed.hidden) { open(false); e.stopImmediatePropagation(); } }, { capture: true });
-  addEventListener('pointerdown', (e) => { if (!ed.hidden && !(e.target as Element).closest('#avatar-ed, #who')) open(false); });
   paint();
 
-  // First visit only: a small "make yourself" bubble under the button for a few seconds.
-  const nudge = document.getElementById('who-nudge')!;
-  let seen = true; try { seen = !!localStorage.getItem('avatar-nudged') || !!load(); } catch {}
-  if (!seen) {
-    setTimeout(() => { if (ed.hidden) nudge.hidden = false; }, 2600);
-    setTimeout(() => (nudge.hidden = true), 9000);
-    try { localStorage.setItem('avatar-nudged', '1'); } catch {}
+  // The nudge: while someone still has the default avatar, a few seconds in
+  // the head button wiggles (with a soft blip) and a quiet bubble appears.
+  // At most three visits, then it stops asking.
+  const nudge = $('who-nudge');
+  let shown = 0; try { shown = Number(localStorage.getItem('avatar-nudges') || 0); } catch {}
+  if (!load() && shown < 3 && !sessionStorage.getItem('avatar-nudged')) {
+    setTimeout(() => {
+      if (!ed.hidden) return;
+      try { localStorage.setItem('avatar-nudges', String(shown + 1)); sessionStorage.setItem('avatar-nudged', '1'); } catch {}
+      btn.classList.add('wiggle'); nudge.hidden = false; blip(880, 0.05, 0.02); setTimeout(() => blip(1180, 0.06, 0.02), 90);
+      setTimeout(() => btn.classList.remove('wiggle'), 1200);
+      setTimeout(() => (nudge.hidden = true), 7000);
+    }, 3000);
   }
-  btn.addEventListener('click', () => (nudge.hidden = true));
 </script>
 
 <style>
   .who { background: none; border: 0; padding: 2px; cursor: pointer; display: flex; border-radius: 50%; }
-  .face { width: 22px; height: 22px; display: block; border-radius: 50%; overflow: hidden; background: var(--panel); border: 1px solid var(--line); transition: transform .16s cubic-bezier(.3,1.6,.5,1); }
+  .face { width: 24px; height: 24px; display: block; border-radius: 50%; overflow: hidden; background: var(--panel); border: 1px solid var(--line); transition: transform .16s cubic-bezier(.3,1.6,.5,1); }
   .face :global(svg) { width: 100%; height: 100%; }
   .who:hover .face { transform: scale(1.12); }
+  .who:global(.wiggle) .face { animation: wiggle 1.1s ease-in-out; }
+  @keyframes wiggle { 10%, 30%, 50%, 70% { transform: rotate(-12deg) scale(1.15); } 20%, 40%, 60%, 80% { transform: rotate(12deg) scale(1.15); } }
 
   .nudge {
-    position: fixed; top: 52px; right: calc(var(--gutter) + 16px); z-index: 45; pointer-events: none;
-    background: var(--ink); color: var(--panel); padding: 6px 10px; border-radius: 99px; font-size: 11px;
+    position: fixed; top: 52px; right: calc(var(--gutter) + 18px); z-index: 45; pointer-events: none;
+    background: var(--ink); color: var(--panel); padding: 6px 11px; border-radius: 99px; font-size: 11px;
     animation: nudge-in .35s cubic-bezier(.3,1.5,.5,1), bob 1.8s ease-in-out .35s infinite;
   }
   .nudge[hidden] { display: none; }
   @keyframes nudge-in { from { transform: translateY(-6px) scale(.9); opacity: 0; } }
   @keyframes bob { 50% { transform: translateY(-3px); } }
-  .ed {
-    position: fixed; top: 54px; right: var(--gutter); z-index: 50; width: min(340px, calc(100vw - 2 * var(--gutter)));
-    background: var(--panel); border: 1px solid var(--line); border-radius: 18px; box-shadow: 0 18px 50px -20px rgba(0,0,0,.35);
-    padding: 16px; display: grid; gap: 12px; color: var(--ink); font-family: var(--sans);
-    animation: pop .22s cubic-bezier(.3,1.5,.5,1);
+
+  /* full-screen editor over a dimmed page */
+  .scrim { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; padding: 20px; background: rgba(20, 18, 28, .42); backdrop-filter: blur(3px); animation: fade .2s ease; }
+  .scrim[hidden] { display: none; }
+  @keyframes fade { from { opacity: 0; } }
+  .card {
+    position: relative; width: min(860px, 100%); max-height: min(640px, 100%); overflow: auto;
+    display: grid; grid-template-columns: 300px 1fr; gap: 24px; padding: 24px;
+    background: var(--panel); color: var(--ink); border-radius: 22px; border: 1px solid var(--line);
+    box-shadow: 0 30px 80px -30px rgba(0,0,0,.5); font-family: var(--sans);
+    animation: pop .28s cubic-bezier(.3,1.4,.5,1);
   }
-  .ed[hidden] { display: none; }
-  @keyframes pop { from { transform: translateY(-6px) scale(.97); opacity: 0; } }
-  .preview { height: 132px; display: grid; place-items: center; background: var(--bg); border-radius: 12px; border: 1px solid var(--line); }
-  .preview :global(svg) { height: 116px; width: auto; }
-  .rows { display: grid; gap: 8px; }
-  .rows :global(.row) { display: grid; grid-template-columns: 74px 1fr; align-items: center; gap: 8px; }
-  .rows :global(.lbl) { color: var(--muted); }
-  .rows :global(.opts) { display: flex; flex-wrap: wrap; gap: 6px; }
-  .rows :global(.sw) { width: 22px; height: 22px; border-radius: 50%; background: var(--sw); border: 2px solid transparent; outline: 1px solid var(--line); cursor: pointer; padding: 0; }
-  .rows :global(.sw[aria-pressed="true"]) { border-color: var(--panel); outline: 2px solid var(--sel); }
-  .rows :global(.chip) { border: 1px solid var(--line); background: var(--bg); color: var(--muted); border-radius: 99px; padding: 3px 9px; cursor: pointer; }
-  .rows :global(.chip[aria-pressed="true"]) { color: var(--ink); border-color: var(--ink); background: var(--panel); }
-  .note { color: var(--muted); font-size: 11px; line-height: 1.5; }
-  .actions { display: flex; gap: 8px; justify-content: flex-end; }
-  .actions button { border: 1px solid var(--line); background: var(--bg); color: var(--muted); border-radius: 99px; padding: 5px 12px; cursor: pointer; font: inherit; }
+  @keyframes pop { from { transform: translateY(10px) scale(.97); opacity: 0; } }
+  .left { display: grid; gap: 14px; align-content: start; }
+  .preview { height: 300px; display: grid; place-items: center; background: var(--bg); border-radius: 16px; border: 1px solid var(--line); }
+  .preview :global(svg) { height: 270px; width: auto; }
+  .sliders { display: grid; gap: 8px; }
+  .sliders label { display: grid; grid-template-columns: 56px 1fr; align-items: center; gap: 10px; color: var(--muted); font-size: 12px; }
+  .sliders input { accent-color: var(--sel); }
+  .actions { display: flex; gap: 8px; }
+  .actions button { flex: 1; border: 1px solid var(--line); background: var(--bg); color: var(--muted); border-radius: 99px; padding: 7px 10px; cursor: pointer; font: inherit; font-size: 12px; }
   .actions button:hover { color: var(--ink); }
   .actions .done { background: var(--ink); color: var(--panel); border-color: var(--ink); }
+  .note { color: var(--muted); font-size: 11px; font-weight: 300; opacity: .7; text-align: center; }
+
+  .right { min-width: 0; display: grid; gap: 14px; align-content: start; }
+  .tabs { display: flex; gap: 6px; padding-right: 36px; }
+  .tabs :global(button) { border: 1px solid var(--line); background: var(--bg); color: var(--muted); border-radius: 99px; padding: 5px 14px; cursor: pointer; font: inherit; font-size: 12px; }
+  .tabs :global(button[aria-selected="true"]) { background: var(--ink); color: var(--panel); border-color: var(--ink); }
+  .grid { display: grid; gap: 16px; }
+  .grid :global(h4) { color: var(--muted); font-weight: 400; font-size: 11px; margin-bottom: 8px; text-transform: lowercase; }
+  .grid :global(.tiles) { display: grid; grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)); gap: 8px; }
+  .grid :global(.tile) {
+    display: grid; justify-items: center; gap: 2px; padding: 6px 4px 5px; border-radius: 14px; cursor: pointer;
+    border: 1px solid var(--line); background: var(--bg); color: var(--muted);
+    transition: transform .14s cubic-bezier(.3,1.6,.5,1), border-color .14s;
+  }
+  .grid :global(.tile svg) { width: 58px; height: 58px; }
+  .grid :global(.tile span) { font-size: 10px; }
+  .grid :global(.tile:hover) { transform: translateY(-2px); }
+  .grid :global(.tile[aria-pressed="true"]) { border-color: var(--sel); box-shadow: 0 0 0 2px var(--sel) inset; color: var(--ink); background: var(--panel); }
+  .grid :global(.swatches) { display: flex; flex-wrap: wrap; gap: 8px; }
+  .grid :global(.sw) { width: 30px; height: 30px; border-radius: 50%; background: var(--sw); border: 2px solid var(--panel); outline: 1px solid var(--line); cursor: pointer; padding: 0; }
+  .grid :global(.sw[aria-pressed="true"]) { outline: 2px solid var(--sel); }
+  .close { position: absolute; top: 16px; right: 16px; width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--line); background: var(--bg); color: var(--muted); font: 20px/1 var(--sans); cursor: pointer; }
+  .close:hover { color: var(--ink); }
+
+  @media (max-width: 720px) {
+    .scrim { padding: 10px; align-items: end; }
+    .card { grid-template-columns: 1fr; max-height: 92svh; padding: 16px; gap: 14px; border-radius: 20px 20px 16px 16px; }
+    .preview { height: 190px; }
+    .preview :global(svg) { height: 170px; }
+    .grid :global(.tiles) { grid-template-columns: repeat(auto-fill, minmax(68px, 1fr)); }
+  }
 </style>
