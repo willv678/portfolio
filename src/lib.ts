@@ -1,6 +1,7 @@
 import { getCollection } from 'astro:content';
 
-const live = (e: { data: { draft: boolean } }) => import.meta.env.DEV || !e.data.draft;
+// Drafts are hidden everywhere; preview them with `PUBLIC_DRAFTS=1 npm run dev`.
+const live = (e: { data: { draft: boolean } }) => !e.data.draft || import.meta.env.PUBLIC_DRAFTS === '1';
 
 export async function projects() {
   return (await getCollection('projects', live)).sort((a, b) => a.data.order - b.data.order);

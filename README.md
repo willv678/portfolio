@@ -4,8 +4,8 @@ Astro, static, deployed to GitHub Pages from `main`.
 
 ```sh
 npm install
-npm run dev      # http://localhost:4321 (drafts visible)
-npm run build    # → dist/ (drafts hidden)
+npm run dev      # http://localhost:4321  (PUBLIC_DRAFTS=1 npm run dev to also show drafts)
+npm run build    # → dist/
 ```
 
 ## Add a project
