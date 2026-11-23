@@ -1,4 +1,4 @@
-// SimGate: a toy car lapping a little track. A drone (the AI agent) drops
+// Agent stress testing (the research project): a toy car lapping a little track. A drone (the AI agent) drops
 // traffic cones to test it, and a checkpoint gate judges every drop.
 //   Test 1 — a fair cone: the gate lights green, the cone lands, the car swerves.
 //   Test 2 — the agent tries to cheat (a cone right under the car's nose, which

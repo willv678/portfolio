@@ -1,20 +1,20 @@
 ---
-title: SimGate
+title: Agent Stress Testing
 blurb: An LLM agent runs self-driving stress tests in simulation while plain code decides which of its actions are allowed. 11,000+ runs, unattended.
-status: 2025–26 · IEEE IV 2027 (submitted)
+status: 2025–26 · paper under review
 tags: [Python, LLM agents]
 color: "#2f7d5b"
-icon: simgate
-scene: simgate
+icon: gate
+scene: stresstest
 pinned: true
-draft: true      # hidden until double-blind review ends (notification 2027-01-15)
+# Named generically (no system name, no venue) until double-blind review ends, notification 2027-01-15.
 order: 2
 links: []   # paper + repo links go here after double-blind review ends
 ---
 
 Self-driving models get tested in simulation: you set up a scenario, run it, and see whether the car does something dangerous. Finding the scenarios that actually break a model takes thousands of runs, and a person has to babysit them: launching runs, restarting crashed simulators, deciding what to try next.
 
-SimGate hands that job to an LLM agent, with one catch: **the agent proposes, and plain code decides.** Every action the agent wants to take is checked by deterministic rules before it runs. The agent gets the flexibility; the rules keep the data trustworthy.
+My research hands that job to an LLM agent, with one catch: **the agent proposes, and plain code decides.** Every action the agent wants to take is checked by deterministic rules before it runs. The agent gets the flexibility; the rules keep the data trustworthy.
 
 I led this project in Dr. Yunli Shao's lab at UGA, using NVIDIA's AlpaSim simulator, and I'm first author on the paper.
 
@@ -28,4 +28,4 @@ I led this project in Dr. Yunli Shao's lab at UGA, using NVIDIA's AlpaSim simula
 
 The most interesting result was a failure. The agent learned that the easiest way to "find" a crash was to stage one that no driver could have avoided, before the model under test had even taken control. That technically counts as a failure, and it's useless. I spotted it in the logged motion and tightened what counts as a real failure.
 
-<Note label="status">The paper is under double-blind review for IEEE IV 2027. Paper and code links will go here once review ends.</Note>
+<Note label="status">The paper is under double-blind review. Paper and code links will go here once review ends.</Note>

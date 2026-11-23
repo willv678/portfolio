@@ -16,7 +16,7 @@ export const experience: Entry[] = [
   { start: 'Spring 2027', role: 'Member of Technical Staff Intern', org: 'Abridge',
     what: 'Incoming, in San Francisco.', model: 'abridge' },
   { start: 'Spring 2025', end: 'now', role: 'AV Research Lead', org: 'Mobility Systems Control Lab', short: 'MSC Lab · UGA',
-    what: 'Research on LLM agents that stress-test self-driving models in simulation, while plain code checks every action. First-author paper under review.', model: 'lab' },
+    what: 'Research on LLM agents that stress-test self-driving models in simulation, while plain code checks every action. First-author paper under review.', href: '/stress-testing/', model: 'lab' },
   { start: 'Summer 2026', role: 'Software Engineering Intern', org: 'Roblox',
     what: 'Built an LLM agent that writes owner-reviewed behavior catalogs for services. It ran on 60+ services, and owners merged its catalogs into 40+ repos.', model: 'roblox' },
   { start: 'Summer 2025', end: 'Winter 2026', role: 'Software Engineering Intern', org: 'Leidos',
