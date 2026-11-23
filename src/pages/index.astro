@@ -42,6 +42,7 @@ const empties = Math.max(0, Math.ceil((items.length + 1) / 6) * 6 - items.length
             <span class="status mono" id="pstatus"></span>
             <h2 id="ptitle"></h2>
             <p id="pblurb"></p>
+            <span class="open mono" aria-hidden="true">open <kbd>↵</kbd></span>
             <div class="tags mono" id="ptags"></div>
           </div>
         </a>
@@ -56,7 +57,7 @@ const empties = Math.max(0, Math.ceil((items.length + 1) / 6) * 6 - items.length
               class:list={['tile', it.kind === 'post' && 'post']}
               href={it.href}
               data-i={i}
-              style={`--c:${it.color};view-transition-name:${it.vt}`}
+              style={`--c:${it.color};--k:${i};view-transition-name:${it.vt}`}
               aria-label={it.title}
             >
               {it.kind === 'post'
@@ -74,7 +75,7 @@ const empties = Math.max(0, Math.ceil((items.length + 1) / 6) * 6 - items.length
   <footer class="foot mono">
     <span class="hint">← → to browse · enter to open</span>
     <a class="cue" href="#experience" data-blip="620">experience <span aria-hidden="true">↓</span></a>
-    <span class="loc">Atlanta, GA → San Francisco</span>
+    <span class="loc">ATL → SF</span>
   </footer>
   </section>
 
@@ -157,6 +158,7 @@ const empties = Math.max(0, Math.ceil((items.length + 1) / 6) * 6 - items.length
     // Keyboard: arrows browse like a console menu, Enter opens, Esc backs out.
     addEventListener('keydown', (e) => {
       if (e.metaKey || e.ctrlKey || e.altKey || !tiles.length) return;
+      if (scrollY > innerHeight * 0.5) return;                   // the shelf is off screen
       if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
         root.classList.add('kbd'); clearTimeout(leave);
         const d = e.key === 'ArrowRight' ? 1 : -1;
@@ -169,6 +171,9 @@ const empties = Math.max(0, Math.ceil((items.length + 1) / 6) * 6 - items.length
         select(-1); (document.activeElement as HTMLElement | null)?.blur();
       }
     });
+    // Say hello once: a little hop runs across the apps, so it's obvious they're there to be picked.
+    setTimeout(() => { if (cur < 0) tiles.forEach((t) => t.classList.add('wave')); setTimeout(() => tiles.forEach((t) => t.classList.remove('wave')), 1400); }, 900);
+
     // Tabbing onto a tile selects it too.
     tiles.forEach((t, i) => t.addEventListener('focus', () => select(i)));
     document.addEventListener('click', (e) => { if ((e.target as Element).closest('.tile, #proj')) openSound(); });
@@ -179,8 +184,8 @@ const empties = Math.max(0, Math.ceil((items.length + 1) / 6) * 6 - items.length
     // trackpad's momentum is still coming in) extra wheel events are eaten, so
     // you land exactly on the first entry.
     const xp = document.getElementById('experience')!;
-    let lockUntil = 0;
-    const glide = (y: number) => { lockUntil = performance.now() + 700; scrollTo({ top: y, behavior: 'smooth' }); };
+    let lockUntil = 0, lockMax = 0;
+    const glide = (y: number) => { const n = performance.now(); lockUntil = n + 650; lockMax = n + 1000; scrollTo({ top: y, behavior: 'smooth' }); };
     const inTop = () => scrollY < xp.offsetTop - 4;
     const atBoundary = () => scrollY > 4 && scrollY <= xp.offsetTop + 4;
     function flip(dir: number) {
@@ -190,7 +195,7 @@ const empties = Math.max(0, Math.ceil((items.length + 1) / 6) * 6 - items.length
     }
     addEventListener('wheel', (e) => {
       const now = performance.now();
-      if (now < lockUntil) { lockUntil = Math.max(lockUntil, now + 160); e.preventDefault(); return; }
+      if (now < lockUntil) { lockUntil = Math.min(lockMax, Math.max(lockUntil, now + 120)); e.preventDefault(); return; }
       if (e.ctrlKey || Math.abs(e.deltaY) < 1.5 || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
       if (flip(Math.sign(e.deltaY))) e.preventDefault();
     }, { passive: false });
@@ -253,12 +258,19 @@ const empties = Math.max(0, Math.ceil((items.length + 1) / 6) * 6 - items.length
   .proj h2 { font-size: clamp(24px, 3vw, 34px); line-height: 1.25; padding-bottom: .08em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .proj p { color: var(--muted); display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
   .status { color: var(--muted); }
+  .open {
+    align-self: flex-start; margin-top: 8px; display: inline-flex; gap: 8px; align-items: center;
+    padding: 7px 10px 7px 14px; border-radius: 99px; border: 1px solid var(--line); background: var(--bg); color: var(--ink);
+    transition: transform .16s cubic-bezier(.3,1.6,.5,1), border-color .16s;
+  }
+  .proj:hover .open { transform: translateX(3px); border-color: var(--muted); }
+  .open kbd { font: inherit; font-size: 11px; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 5px; padding: 0 5px; background: var(--panel); }
   .tags { display: flex; gap: 6px; flex-wrap: wrap; margin-top: auto; }
   .tags :global(.tag) { border: 1px solid var(--line); border-radius: 99px; padding: 1px 9px; color: var(--muted); }
 
   /* ---------- bottom screen: the shelf ---------- */
   .shelf-wrap { padding: 0 var(--gutter) 28px; display: grid; grid-template-columns: minmax(0, 1fr); justify-items: center; }
-  .shelf { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(6, minmax(0, 92px)); gap: 18px; }
+  .shelf { list-style: none; padding: 0 0 22px; display: grid; grid-template-columns: repeat(6, minmax(0, 92px)); gap: 34px 18px; }
   .tile {
     display: grid; place-items: center; position: relative; aspect-ratio: 1; width: 100%;
     border-radius: 22px; border: 1px solid var(--line); background: var(--panel); box-shadow: var(--shadow);
@@ -281,9 +293,13 @@ const empties = Math.max(0, Math.ceil((items.length + 1) / 6) * 6 - items.length
   .tile.empty { background: transparent; box-shadow: none; border: 1.5px dashed var(--line); }
   .label {
     position: absolute; top: calc(100% + 8px); left: 50%; translate: -50% 0; white-space: nowrap;
-    color: var(--muted); opacity: 0; transition: opacity .15s; pointer-events: none;
+    color: var(--muted); opacity: .8; transition: opacity .15s, color .15s; pointer-events: none;
+    font-size: 11px; max-width: 110px; overflow: hidden; text-overflow: ellipsis;
   }
-  .tile:global(.on) .label { opacity: 1; }
+  .tile:global(.on) .label { opacity: 1; color: var(--ink); }
+  /* a one-time "hello" hop across the apps shortly after load */
+  .tile:global(.wave) { animation: hello .5s cubic-bezier(.3,.7,.4,1) both; animation-delay: calc(var(--k) * 70ms); }
+  @keyframes hello { 40% { transform: translateY(-8px) scale(1.03); } 70% { transform: translateY(1px) scale(.99); } }
 
   .foot { padding: 0 var(--gutter) 18px; color: var(--muted); display: grid; grid-template-columns: 1fr auto 1fr; align-items: end; }
   .loc { justify-self: end; }

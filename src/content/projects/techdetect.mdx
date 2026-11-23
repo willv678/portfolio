@@ -1,32 +1,39 @@
 ---
 title: TechDetect
-blurb: Face-recognition attendance for classrooms. Built solo in high school during a GTRI internship; won the 2022 Congressional App Challenge for Georgia's 5th district.
+blurb: A camera at the classroom door that takes attendance by itself, and notices raised hands. Built solo the summer before senior year; won the 2022 Congressional App Challenge for Georgia's 5th district.
 status: 2022 · Congressional App Challenge winner
 tags: [Python, OpenCV]
 color: "#2b8a3e"
-glyph: TD
+icon: techdetect
 pinned: true
 order: 3
 links:
   - { label: GitHub, href: "https://github.com/willv678/TechDetect" }
+  - { label: Demo video, href: "https://www.youtube.com/watch?v=pS-RZ7sxLiQ" }
 ---
 
-I built TechDetect the summer before senior year of high school, during the STEM@GTRI internship at the Georgia Tech Research Institute. The idea: a camera at the classroom door that takes attendance by itself.
+The summer before my senior year of high school I interned at the Georgia Tech Research Institute through STEM@GTRI, and I wanted to build something a teacher would actually use. Taking attendance eats the first few minutes of every class, so: a camera that does it for you.
 
-<YouTube id="pS-RZ7sxLiQ" title="TechDetect demo" />
+<YouTube id="pS-RZ7sxLiQ" title="TechDetect demo" caption="the demo I submitted, summer 2022" />
 
 ## How it works
 
-- **Enroll:** a script captures 75 photos of your face, converts them to grayscale and shrinks them so they're easier to match.
-- **Recognize:** OpenCV watches the camera feed and labels each face it's confident about. Below a set confidence it says *unknown* rather than guessing.
-- **Track:** sign-ins and sign-outs go to a MySQL database, and a small Flask site behind a login shows the day's attendance.
+**Enrolling a student.** A setup script opens the webcam and takes 75 photos of your face. Each one is converted to grayscale and shrunk, which throws away detail the recognizer doesn't need and makes matching faster.
 
-<Figure src="/projects/techdetect/ME.png" alt="Grid of grayscale photos of my face used for training" caption="the photos it took of me while enrolling" />
+<Figure src="/projects/techdetect/ME.png" alt="A grid of small grayscale photos of my face, taken during enrollment" caption="me in 2022, seventy-five times" />
 
-It also used Google's MediaPipe to track hands, so it could tell when someone raised one, and whose hand it was.
+**Recognizing faces.** On every frame, a Haar cascade (OpenCV's classic fast face finder) draws a box around each face. The box gets handed to an LBPH recognizer, which compares the texture of that face to everyone it was trained on. If it's confident enough, you're checked in; if not, it says *unknown* instead of guessing.
 
-<Figure src="/projects/techdetect/Attendance.png" alt="TechDetect's attendance web page" caption="the attendance page" />
+**Keeping the record.** Each day gets its own MySQL table: who arrived, when, and when they left. A small Flask site behind a login shows the day's attendance and the student list, so a teacher never has to open a database tool.
+
+**Raised hands.** Google's MediaPipe tracks hands in the same video feed. TechDetect matches a raised hand to the face next to it, so it knows *who* has a question, which mattered more to me than attendance did.
+
+<Figure src="/projects/techdetect/tech-Detectwhatdoesitdo.png" alt="The camera view: a green box around my face and a tracked skeleton over my raised hand" caption="a face it knows, and a hand it's tracking" />
 
 ## What came of it
 
-TechDetect won the 2022 Congressional App Challenge for Georgia's 5th district, and I got to meet Rep. Nikema Williams. Looking back, the code is very high school. But it's the first thing I built that worked end to end and that other people cared about.
+TechDetect won the 2022 Congressional App Challenge for Georgia's 5th district, and I got to meet Rep. Nikema Williams. It was the first thing I built that worked end to end and that other people cared about.
+
+## Looking back
+
+The code is very high school. If I built it today I'd swap LBPH for modern face embeddings, use parameterized SQL instead of building queries out of strings, and think a lot harder about consent before pointing a camera at a classroom. But the instinct was right: find a small, annoying, everyday problem and make it go away.

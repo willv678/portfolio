@@ -39,10 +39,10 @@ html:active-view-transition-type(prev)::view-transition-new(root) { animation: .
   55% { transform: translateY(0) scale(1.07, .93); }
   75% { transform: scale(.98, 1.02); }
 }
-@keyframes ufo-bob { 50% { transform: translateY(-.7px); } }
+@keyframes ufo-bob { 50% { transform: translateY(-1.8px); } }
 /* The beam's top follows the ship while its bottom stays on the ground:
-   0.7 units of lift over a 5.5-unit beam = scaleY(1.127) from the bottom. */
-@keyframes beam-stretch { 50% { transform: scaleY(1.127); } }
+   1.8 units of lift over a 19-unit beam = scaleY(1.095) from the bottom. */
+@keyframes beam-stretch { 50% { transform: scaleY(1.095); } }
 @keyframes beam-on { from { transform: scaleY(0); opacity: 0; } }
 @keyframes beam-flicker { 50% { opacity: .55; } }
 .icon .ufo, .icon .beam, .icon .beam-wrap { transform-box: fill-box; }
@@ -52,6 +52,22 @@ html:active-view-transition-type(prev)::view-transition-new(root) { animation: .
 :is(.tile.on, html:not(.kbd) a.tile:hover, .nav-tile:hover, .banner) .icon .ufo { animation: ufo-bob 1.3s ease-in-out infinite; }
 :is(.tile.on, html:not(.kbd) a.tile:hover, .nav-tile:hover, .banner) .icon .beam-wrap { animation: beam-stretch 1.3s ease-in-out infinite; }
 :is(.tile.on, html:not(.kbd) a.tile:hover, .nav-tile:hover, .banner) .icon .beam { animation: beam-on .35s cubic-bezier(.3,1.4,.5,1), beam-flicker 1.6s .35s ease-in-out infinite; }
+/* WarpPoint: a tiny save rises up the beam */
+@keyframes save-rise { 0% { transform: translateY(6px); opacity: 0; } 25%, 75% { opacity: 1; } 100% { transform: translateY(-6px); opacity: 0; } }
+.icon .save { opacity: 0; }
+:is(.tile.on, html:not(.kbd) a.tile:hover, .nav-tile:hover, .banner) .icon .save { animation: save-rise 1.4s ease-in .25s infinite; }
+/* SimGate: the car rolls in under the gate as the light flips red → green */
+@keyframes car-in { from { transform: translateX(-17px); } to { transform: none; } }
+@keyframes go-light { 0%, 55% { fill: #ff5d5d; } 65%, 100% { fill: #5be38a; } }
+:is(.tile.on, html:not(.kbd) a.tile:hover, .nav-tile:hover, .banner) .icon .car { animation: car-in 1s cubic-bezier(.2,.8,.3,1); }
+:is(.tile.on, html:not(.kbd) a.tile:hover, .nav-tile:hover, .banner) .icon .lamp { animation: go-light 1s forwards; }
+/* TechDetect: a scan line sweeps the face; the brackets pulse */
+@keyframes scan { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(22px); } }
+@keyframes brk { 50% { transform: scale(1.07); } }
+.icon .brk { transform-box: view-box; transform-origin: center; }
+:is(.tile.on, html:not(.kbd) a.tile:hover, .nav-tile:hover, .banner) .icon .scan { opacity: .75; animation: scan 1.6s ease-in-out infinite; }
+:is(.tile.on, html:not(.kbd) a.tile:hover, .nav-tile:hover, .banner) .icon .brk { animation: brk 1.6s ease-in-out infinite; }
+
 /* Keyboard mode: an arrow key hides the cursor and turns hover off until the
    mouse really moves, so a resting cursor can't fight the keyboard. */
 html.kbd, html.kbd * { cursor: none !important; }

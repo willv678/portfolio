@@ -120,7 +120,6 @@ const when = (e: (typeof experience)[number]) => (e.end ? `${e.start} – ${e.en
       const i = Math.round(pos);
       const end = pos > last - 0.5;
       entries.forEach((e, j) => e.classList.toggle('in', j <= i));
-      tail.classList.toggle('in', end);                               // "earlier" + links arrive with the last entry
       win.classList.toggle('end', end);
       more.classList.toggle('done', end);
       setActive(i);
@@ -149,7 +148,23 @@ const when = (e: (typeof experience)[number]) => (e.end ? `${e.start} – ${e.en
       tl.style.setProperty('--fill', `${dotY(best)}px`);
     }
   }
-  addEventListener('scroll', update, { passive: true });           // cheap: a few rect reads
+  addEventListener('scroll', update, { passive: true });
+
+  // Keyboard: ↓ / ↑ step one entry at a time (Abridge → AV Research → …).
+  // ↑ from the first entry is handled by the home page (back to the top).
+  addEventListener('keydown', (e) => {
+    if (!pinned() || e.metaKey || e.ctrlKey || e.altKey || (e.target as Element).closest('input, textarea')) return;
+    const top = sec.offsetTop, slice = (sec.offsetHeight - innerHeight) / entries.length;
+    if (scrollY < top - 4 || scrollY > top + slice * entries.length + 4) return;   // not in the timeline
+    const down = e.key === 'ArrowDown' || e.key === 'PageDown' || (e.key === ' ' && !e.shiftKey);
+    const up = e.key === 'ArrowUp' || e.key === 'PageUp' || (e.key === ' ' && e.shiftKey);
+    if (!down && !up) return;
+    if (up && scrollY <= top + 4) return;                          // let the home page glide back up
+    const k = Math.max(0, Math.min(entries.length - 1, active + (down ? 1 : -1)));
+    if (down && active === entries.length - 1) return;             // past the end: normal scrolling
+    e.preventDefault();
+    scrollTo({ top: k === 0 ? top : top + (k + 0.2) * slice, behavior: 'smooth' });
+  });           // cheap: a few rect reads
   addEventListener('resize', update);
   update();
 </script>
@@ -169,11 +184,11 @@ const when = (e: (typeof experience)[number]) => (e.end ? `${e.start} – ${e.en
     mask-image: linear-gradient(transparent, #000 9%, #000 78%, transparent);
   }
   .window:global(.end) { mask-image: linear-gradient(transparent, #000 9%); }
+  .tail { padding-top: 28px; }
   .track { --shift: 0px; transform: translateY(var(--shift)); }
   .tl { list-style: none; padding: 0 0 0 30px; position: relative; --fill: 0px; }
   .tail { padding: 8px 0 0 30px; }
-  :global(.xp-anim) .tail { opacity: 0; transform: translateY(12px); transition: opacity .45s ease, transform .45s cubic-bezier(.2,.8,.3,1); }
-  :global(.xp-anim) .tail:global(.in) { opacity: 1; transform: none; }
+
   .tl::before, .tl::after { content: ""; position: absolute; left: 5px; top: 10px; width: 1.5px; border-radius: 1px; }
   .tl::before { bottom: 10px; background: var(--line); }
   .tl::after { height: calc(var(--fill) - 10px); background: var(--ink); transition: height .45s cubic-bezier(.3,.9,.3,1); }
@@ -252,7 +267,6 @@ const when = (e: (typeof experience)[number]) => (e.end ? `${e.start} – ${e.en
     .pin { position: static; height: auto; padding: 56px var(--gutter) 8px; }
     .window { height: auto; overflow: visible; mask-image: none; }
     .track { transform: none; }
-    :global(.xp-anim) .tail { opacity: 1; transform: none; }
     .inner { grid-template-columns: 1fr; }
     .viewer, .more { display: none; }
     .minor li { grid-template-columns: 1fr; gap: 0; }
