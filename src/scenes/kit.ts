@@ -9,7 +9,7 @@
 // primitives: no model files.
 
 import {
-  BackSide, BufferGeometry, CanvasTexture, Group, SphereGeometry, type Object3D, Clock, CylinderGeometry, DataTexture,
+  BackSide, BufferGeometry, CanvasTexture, Group, SphereGeometry, type Object3D, CylinderGeometry, DataTexture,
   DirectionalLight, Float32BufferAttribute, HemisphereLight, MathUtils, Mesh, MeshBasicMaterial,
   MeshToonMaterial, NearestFilter, PerspectiveCamera, PlaneGeometry, Points, RedFormat, Scene,
   ShaderMaterial, Sprite, SpriteMaterial, Texture, Vector3, WebGLRenderer,
@@ -257,7 +257,8 @@ export function createStage(
   draw(0); prev = 0;
   sfxMode = muted;
 
-  const clock = new Clock(false);
+  // a tiny stopwatch (three's Clock is deprecated): seconds since the scene last (re)started
+  const clock = { t0: 0, running: false, start() { this.t0 = performance.now(); this.running = true; }, getElapsedTime() { return (performance.now() - this.t0) / 1000; } };
   let raf = 0, visible = false;
   const frame = () => { raf = requestAnimationFrame(frame); draw(clock.getElapsedTime()); };
   const run = () => { if (!raf && el && visible && !document.hidden) { if (!clock.running) clock.start(); frame(); } };
