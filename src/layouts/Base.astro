@@ -47,7 +47,7 @@ const here = (p: string) => (path.startsWith(p) ? 'page' : undefined);
   <header class="top mono">
     {home ? <span /> : <a class="back" href="/" data-blip="700" title="Home (esc)"><span class="arr" aria-hidden="true">←</span>Will Varner</a>}
     <nav>
-      <a href="/experience/" aria-current={here('/experience')} data-blip="820">experience</a>
+      <a href="/#experience" data-blip="820">experience</a>
       {hasWriting && <a href="/writing/" aria-current={here('/writing')} data-blip="860">writing</a>}
       <a href="/CSResume.pdf" target="_blank" rel="noopener" data-blip="900">resume ↗</a>
       <button id="snd" class="snd" aria-pressed="true" title="Sound on">

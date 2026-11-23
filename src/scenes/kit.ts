@@ -9,7 +9,7 @@
 // primitives: no model files.
 
 import {
-  AdditiveBlending, BufferGeometry, CanvasTexture, Clock, CylinderGeometry, DataTexture,
+  BufferGeometry, CanvasTexture, Clock, CylinderGeometry, DataTexture,
   DirectionalLight, Float32BufferAttribute, HemisphereLight, MathUtils, Mesh, MeshBasicMaterial,
   MeshToonMaterial, NearestFilter, PerspectiveCamera, PlaneGeometry, Points, RedFormat, Scene,
   ShaderMaterial, Sprite, SpriteMaterial, Texture, Vector3, WebGLRenderer,
@@ -109,7 +109,7 @@ export function createStage(
 
   const glow = (color: string) => new Sprite(new SpriteMaterial({
     map: radial([[0, 'rgba(255,255,255,.9)'], [0.4, 'rgba(255,255,255,.35)'], [1, 'rgba(255,255,255,0)']]),
-    color, blending: AdditiveBlending, depthWrite: false, transparent: true,
+    color, depthWrite: false, transparent: true, opacity: 0.55,
   }));
 
   // A floating island (a squashed, slightly tapered puck) to stage things on.
@@ -157,13 +157,13 @@ export function createStage(
   })();
   function sparkles(count = 6) {
     const parts = Array.from({ length: count }, (_, i) => {
-      const m = new SpriteMaterial({ map: sparkTex, transparent: true, depthWrite: false, blending: AdditiveBlending });
+      const m = new SpriteMaterial({ map: sparkTex, transparent: true, depthWrite: false });
       const sp = new Sprite(m); sp.visible = false; scene.add(sp);
       return { sp, m, a: (i / count) * Math.PI * 2 + 0.3, r: 0.5 + (i % 2) * 0.15 };
     });
     let t0 = -99; const at = new Vector3();
     return {
-      burst(t: number, where: Vector3, colors = ['#ffffff', '#ffe68a', '#ffe68a']) {
+      burst(t: number, where: Vector3, colors = ['#f5b70a', '#ffd34d', '#8f7dff']) {
         t0 = t; at.copy(where);
         parts.forEach((p, i) => p.m.color.set(colors[i % colors.length]));
       },

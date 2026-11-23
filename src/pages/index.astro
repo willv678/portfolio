@@ -1,5 +1,6 @@
 ---
 import Base from '../layouts/Base.astro';
+import Experience from '../components/Experience.astro';
 import { projects, posts, iconSvg } from '../lib';
 
 // The shelf: everything pinned (projects and posts), then empty slots up to a
@@ -19,6 +20,7 @@ const empties = Math.max(0, Math.ceil((items.length + 1) / 6) * 6 - items.length
 <Base home>
   <!-- Don't paint until the shelf exists, so the banner → tile morph always has a target. -->
   <link slot="head" rel="expect" href="#shelf" blocking="render" />
+  <section class="first" id="top">
   <main class="console">
     <section class="stage">
       <div class="screen" id="screen">
@@ -71,16 +73,20 @@ const empties = Math.max(0, Math.ceil((items.length + 1) / 6) * 6 - items.length
 
   <footer class="foot mono">
     <span class="hint">← → to browse · enter to open</span>
-    <span>Atlanta, GA → San Francisco</span>
+    <a class="cue" href="#experience" data-blip="620">experience <span aria-hidden="true">↓</span></a>
+    <span class="loc">Atlanta, GA → San Francisco</span>
   </footer>
+  </section>
 
-  <script is:inline type="application/json" id="shelf-data" set:html={JSON.stringify(items.map(({ title, blurb, status, tags, bg, kind, href, scene, banner }) => ({ title, blurb, status, tags, bg, kind, href, scene, banner })))} />
+  <Experience />
+
+  <script is:inline type="application/json" id="shelf-data" set:html={JSON.stringify(items.map(({ title, blurb, status, tags, bg, color, kind, href, scene, banner }) => ({ title, blurb, status, tags, bg, color, kind, href, scene, banner })))} />
 
   <script>
     import { blip, openSound } from '../scripts/sound';
     import { getScene, preloadScenes } from '../scripts/scenes';
 
-    type Item = { title: string; blurb: string; status: string; tags: string[]; bg: string; kind: 'project' | 'post'; href: string; scene?: string; banner?: string };
+    type Item = { title: string; blurb: string; status: string; tags: string[]; bg: string; color: string; kind: 'project' | 'post'; href: string; scene?: string; banner?: string };
     const P: Item[] = JSON.parse(document.getElementById('shelf-data')!.textContent!);
     const tiles = [...document.querySelectorAll<HTMLAnchorElement>('.tile[data-i]')];
     const $ = (id: string) => document.getElementById(id)!;
@@ -102,6 +108,7 @@ const empties = Math.max(0, Math.ceil((items.length + 1) / 6) * 6 - items.length
       const p = P[i], tile = tiles[i];
       blip(760 + i * 60);
       const banner = $('pbanner');
+      banner.style.color = p.color;
       banner.style.background = p.banner ? `center / cover no-repeat url("${p.banner}"), ${p.bg}` : p.bg;
       banner.innerHTML = p.kind === 'post'
         ? `<div class="post-title"></div>`
@@ -169,7 +176,11 @@ const empties = Math.max(0, Math.ceil((items.length + 1) / 6) * 6 - items.length
 </Base>
 
 <style>
-  :global(body[data-home]) { display: grid; grid-template-rows: auto 1fr auto; }
+  /* Two "screens": the console, then the timeline. A gentle snap settles on
+     whichever is closer; it never traps the scroll. */
+  :global(html:has(body[data-home])) { scroll-snap-type: y proximity; scroll-behavior: smooth; }
+  :global(body[data-home] > header.top) { scroll-snap-align: start; }
+  .first { min-height: calc(100svh - 62px); display: grid; grid-template-rows: 1fr auto; }
   .console { display: flex; flex-direction: column; justify-content: center; gap: clamp(24px, 4vh, 44px); min-width: 0; }
 
   /* ---------- top screen ---------- */
@@ -199,7 +210,7 @@ const empties = Math.max(0, Math.ceil((items.length + 1) / 6) * 6 - items.length
   .proj .banner:global(.scene-on) :global(.scene-canvas) { opacity: 1; }
   .proj .banner :global(.banner-ico) { transition: opacity .4s; }
   .proj .banner:global(.scene-on) :global(.banner-ico) { opacity: 0; }
-  .proj :global(.banner-ico) { width: 34%; color: #fff; }
+  .proj :global(.banner-ico) { width: 26%; }
   .proj :global(.banner-ico svg) { width: 100%; height: auto; }
   .proj :global(.post-title) { width: 70%; font-family: var(--serif); font-size: clamp(22px, 2.6vw, 30px); line-height: 1.2; }
   /* Fixed slots: status + title pinned top, tags pinned bottom, blurb clamped
@@ -240,14 +251,20 @@ const empties = Math.max(0, Math.ceil((items.length + 1) / 6) * 6 - items.length
   }
   .tile:global(.on) .label { opacity: 1; }
 
-  .foot { padding: 0 var(--gutter) 18px; color: var(--muted); display: flex; justify-content: space-between; }
+  .foot { padding: 0 var(--gutter) 18px; color: var(--muted); display: grid; grid-template-columns: 1fr auto 1fr; align-items: end; }
+  .loc { justify-self: end; }
+  .cue { color: var(--muted); text-decoration: none; display: grid; justify-items: center; gap: 2px; padding: 6px 10px; }
+  .cue span { animation: nudge 2.4s ease-in-out infinite; }
+  .cue:hover { color: var(--ink); }
+  @keyframes nudge { 50% { transform: translateY(4px); } }
 
   @media (max-width: 720px) {
     .screen { aspect-ratio: auto; min-height: 440px; }
     .view { flex-direction: column; align-items: flex-start; gap: 18px; }
     .shelf { grid-template-columns: repeat(3, minmax(0, 92px)); }
     .hint { display: none; }
-    .foot { justify-content: flex-end; }
+    .foot { grid-template-columns: 1fr; justify-items: center; }
+    .loc { display: none; }
   }
   @media (hover: none) { .hint { display: none; } }
 </style>

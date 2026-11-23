@@ -18,7 +18,7 @@ const projects = defineCollection({
   schema: z.object({
     ...shelfFields,
     color: z.string(),                     // accent: icon tint, links, buttons
-    bg: z.string(),                        // banner background (any CSS background)
+    bg: z.string().default('var(--panel)'), // banner background; flat panel color unless set
     icon: z.string().optional(),           // name of an SVG in src/icons/
     glyph: z.string().optional(),          // fallback: 1–2 letters if there's no icon yet
     banner: z.string().optional(),         // a photo/screenshot banner instead of the icon (path in public/)

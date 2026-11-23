@@ -1,0 +1,166 @@
+---
+// The timeline, second "screen" of the home page. Newest first. As you scroll:
+// the line draws itself down, entries fade in as they arrive, and the entry
+// nearest the middle of the screen becomes active (filled dot, full ink, a
+// quiet tick). A sticky viewer on the right shows a small 3D object for it.
+import { experience } from '../data/experience';
+const major = experience.filter((e) => !e.minor);
+const minor = experience.filter((e) => e.minor);
+const when = (e: (typeof experience)[number]) => (e.end ? `${e.start} – ${e.end}` : e.start);
+---
+<section id="experience" class="exp" aria-labelledby="exp-h">
+  <div class="inner">
+    <div class="col">
+      <h2 id="exp-h">Experience</h2>
+      <ol class="tl" id="tl">
+        {major.map((e, i) => (
+          <li class="entry" data-i={i} data-model={e.model} data-org={e.org} data-when={when(e)}>
+            <span class="dot" aria-hidden="true" />
+            <span class="when mono">{when(e)}</span>
+            <h3>{e.href ? <a href={e.href} data-blip="880">{e.role}</a> : e.role}<span class="org">{e.org}</span></h3>
+            <p>{e.what}</p>
+          </li>
+        ))}
+      </ol>
+
+      <h4 class="mono earlier">earlier</h4>
+      <ul class="minor">
+        {minor.map((e) => (
+          <li>
+            <span class="when mono">{when(e)}</span>
+            <span>{e.href ? <a href={e.href} data-blip="880">{e.role}</a> : e.role}<span class="org">{e.org}</span><span class="what">{e.what}</span></span>
+          </li>
+        ))}
+      </ul>
+
+      <p class="end mono">
+        <a href="/CSResume.pdf" target="_blank" rel="noopener" data-blip="900">full resume (pdf) ↗</a>
+        <a href="#top" data-blip="700">back to top ↑</a>
+      </p>
+    </div>
+
+    <aside class="viewer" aria-hidden="true">
+      <div class="box" id="xp-stage"></div>
+      <div class="cap mono"><span id="xp-org"></span><span id="xp-when"></span></div>
+    </aside>
+  </div>
+</section>
+
+<script>
+  import { blip } from '../scripts/sound';
+  import { getScene } from '../scripts/scenes';
+
+  const tl = document.getElementById('tl')!;
+  const entries = [...tl.querySelectorAll<HTMLElement>('.entry')];
+  const stage = document.getElementById('xp-stage')!;
+  const org = document.getElementById('xp-org')!, when = document.getElementById('xp-when')!;
+  document.documentElement.classList.add('xp-anim');   // only hide entries when JS can reveal them
+
+  // Reveal entries as they scroll in.
+  const reveal = new IntersectionObserver((es) => es.forEach((e) => {
+    if (e.isIntersecting) { e.target.classList.add('in'); reveal.unobserve(e.target); }
+  }), { rootMargin: '0px 0px -12% 0px', threshold: 0.2 });
+  entries.forEach((e) => reveal.observe(e));
+
+  // The 3D viewer loads once the section is close to the screen.
+  type Viewer = { attach(el: HTMLElement, o?: { sfx?: 'always' | 'hover' }): void; show(m: string): void };
+  let viewer: Viewer | null = null, pending = '';
+  new IntersectionObserver(([e], io) => {
+    if (!e.isIntersecting) return;
+    io.disconnect();
+    getScene('experience').then((s) => {
+      if (!s) return;
+      viewer = s as unknown as Viewer;
+      viewer.attach(stage);
+      if (pending) viewer.show(pending);
+    });
+  }, { rootMargin: '100% 0px' }).observe(tl);
+
+  // Active entry = the one nearest a line a little above the middle of the screen.
+  let active = -1, ticking = false;
+  function update() {
+    ticking = false;
+    const mid = innerHeight * 0.45;
+    const r = tl.getBoundingClientRect();
+    tl.style.setProperty('--p', String(Math.min(1, Math.max(0, (mid - r.top) / r.height))));
+    if (r.top > innerHeight || r.bottom < 0) return;
+    let best = 0, bestD = Infinity;
+    entries.forEach((e, i) => {
+      const b = e.getBoundingClientRect(), d = Math.abs(b.top + b.height / 2 - mid);
+      if (d < bestD) { bestD = d; best = i; }
+    });
+    if (best === active) return;
+    active = best;
+    entries.forEach((e, i) => e.classList.toggle('on', i === best));
+    const e = entries[best];
+    org.textContent = e.dataset.org!;
+    when.textContent = e.dataset.when!;
+    blip(520 + best * 70, 0.04, 0.018);
+    pending = e.dataset.model ?? '';
+    viewer?.show(pending);
+  }
+  addEventListener('scroll', () => { if (!ticking) { ticking = true; requestAnimationFrame(update); } }, { passive: true });
+  addEventListener('resize', update);
+  update();
+</script>
+
+<style>
+  .exp { min-height: 100svh; padding: 72px var(--gutter) 96px; scroll-snap-align: start; border-top: 1px solid var(--line); }
+  .inner { width: min(1040px, 100%); margin: 0 auto; display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 56px; }
+  h2 { font-family: var(--serif); font-weight: 500; font-size: clamp(32px, 4.5vw, 44px); letter-spacing: -.015em; margin-bottom: 36px; }
+
+  /* the line: a faint track, plus an ink line that draws down as you scroll */
+  .tl { list-style: none; padding: 0 0 0 30px; position: relative; --p: 0; }
+  .tl::before, .tl::after { content: ""; position: absolute; left: 5px; top: 10px; bottom: 10px; width: 1.5px; border-radius: 1px; }
+  .tl::before { background: var(--line); }
+  .tl::after { background: var(--ink); transform-origin: top; transform: scaleY(var(--p)); }
+
+  .entry { position: relative; padding: 4px 0 34px; }
+  .dot {
+    position: absolute; left: -30px; top: 8px; width: 12px; height: 12px; border-radius: 50%;
+    background: var(--bg); border: 1.5px solid var(--muted); z-index: 1;
+    transition: transform .25s cubic-bezier(.3,1.6,.5,1), background .2s, border-color .2s;
+  }
+  .when { color: var(--muted); }
+  h3 { font-size: 18px; font-weight: 500; line-height: 1.35; margin-top: 2px; display: flex; flex-wrap: wrap; gap: 0 10px; align-items: baseline; }
+  h3 a { text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 3px; }
+  h3 a:hover { text-decoration-color: var(--ink); }
+  .org { font-weight: 400; color: var(--muted); }
+  .entry p { color: var(--muted); margin-top: 4px; max-width: 58ch; }
+
+  /* scroll reveal + focus on the active entry */
+  :global(.xp-anim) .entry { opacity: 0; transform: translateY(14px); transition: opacity .5s ease, transform .5s cubic-bezier(.2,.8,.3,1); }
+  :global(.xp-anim) .entry:global(.in) { opacity: .45; transform: none; }
+  :global(.xp-anim) .entry:global(.in.on) { opacity: 1; }
+  .entry:global(.on) .dot { background: var(--ink); border-color: var(--ink); transform: scale(1.25); }
+
+  .earlier { color: var(--muted); font-weight: 400; margin: 8px 0 10px; }
+  .minor { list-style: none; padding: 0; display: grid; gap: 8px; }
+  .minor li { display: grid; grid-template-columns: 170px 1fr; gap: 12px; color: var(--muted); font-size: 14px; }
+  .minor .when { white-space: nowrap; padding-top: 1px; }
+  .minor li > span:last-child { color: var(--ink); }
+  .minor .org { margin-left: 8px; }
+  .minor .what { display: block; color: var(--muted); }
+  .minor a { text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 3px; }
+  .end { margin-top: 40px; display: flex; gap: 24px; }
+  .end a { color: var(--muted); }
+  .end a:hover { color: var(--ink); }
+
+  /* the sticky viewer */
+  .viewer { position: sticky; top: calc(50vh - 190px); align-self: start; margin-top: 84px; display: grid; gap: 12px; }
+  .box {
+    position: relative; aspect-ratio: 1; border-radius: 22px; background: var(--panel); border: 1px solid var(--line);
+    box-shadow: var(--shadow); overflow: hidden;
+  }
+  .box :global(.scene-canvas) { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; transition: opacity .5s; }
+  .box:global(.scene-on) :global(.scene-canvas) { opacity: 1; }
+  .cap { display: flex; justify-content: space-between; gap: 12px; color: var(--muted); padding: 0 4px; }
+  #xp-when { white-space: nowrap; }
+  #xp-org { color: var(--ink); }
+
+  @media (max-width: 820px) {
+    .inner { grid-template-columns: 1fr; }
+    .viewer { display: none; }
+    .minor li { grid-template-columns: 1fr; gap: 0; }
+  }
+</style>

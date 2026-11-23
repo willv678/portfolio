@@ -14,7 +14,7 @@ import { createStage, seg, ease, easeIn, passed } from './kit';
 import { sfx } from '../scripts/sound';
 
 const C = {
-  islandTop: '#9fd9ae', islandSide: '#2f7d5b', road: '#3d4350', dash: '#f4f1e8',
+  islandTop: '#a6dcb3', road: '#3d4350', dash: '#f4f1e8',
   car: '#ff8a3d', glass: '#bfe6ff', roof: '#ffffff', tire: '#25252b', headlight: '#fff1a8',
   gate: '#f2f0ea', lampBox: '#2a2d35', green: '#5be38a', red: '#ff5d5d', dim: '#4a4f5a',
   cone: '#ff7a2f', drone: '#eef3f7', rim: '#2f7d5b', trunk: '#8a5a3c', leaf: '#5fbf7a',
@@ -28,8 +28,11 @@ const onTrack = (th: number, o = 0) => new Vector3((A + o) * Math.cos(th), 0, (B
 
 export const create = () => createStage((kit) => {
   const { scene, toon, blob } = kit;
-  kit.island({ top: C.islandTop, side: C.islandSide });
-  kit.stars({ count: 55 });
+  // A flat patch of grass just big enough for the car to run onto.
+  const grassShape = new Shape(); grassShape.absellipse(0, 0, A + 0.95, B + 0.8, 0, Math.PI * 2, false);
+  const grass = new Mesh(new ShapeGeometry(grassShape, 96), toon(C.islandTop));
+  grass.rotation.x = -Math.PI / 2; grass.position.y = 0.0005;
+  scene.add(grass);
 
   // ---------- track ----------
   const ring = new Shape(); ring.absellipse(0, 0, A + 0.3, B + 0.3, 0, Math.PI * 2, false);
@@ -47,7 +50,7 @@ export const create = () => createStage((kit) => {
   }
 
   // ---------- a few lollipop trees ----------
-  for (const [x, z, s] of [[-2.95, 0.8, 1], [3.0, -0.75, 1.1], [0.35, -0.2, 0.8], [-0.55, 0.25, 0.65]]) {
+  for (const [x, z, s] of [[-1.9, 1.35, 1], [3.0, -0.75, 1.1], [0.35, -0.2, 0.8], [-0.55, 0.25, 0.65]]) {
     const tree = new Group();
     const trunk = new Mesh(new CylinderGeometry(0.03, 0.04, 0.25, 8), toon(C.trunk)); trunk.position.y = 0.125;
     const crown = new Mesh(new SphereGeometry(0.17, 16, 12), toon(C.leaf)); crown.position.y = 0.32;
@@ -89,6 +92,10 @@ export const create = () => createStage((kit) => {
     const w = new Mesh(wheelGeo, toon(C.tire)); w.position.set(x, 0.075, z); car.add(w); wheels.push(w);
   }
   scene.add(car);
+  const puffs = Array.from({ length: 5 }, () => {
+    const m = new Mesh(new SphereGeometry(1, 10, 8), new MeshBasicMaterial({ color: '#e9e2cf', transparent: true, depthWrite: false }));
+    m.visible = false; scene.add(m); return m;
+  });
   const carShadow = blob(0.8, 0.55); scene.add(carShadow);
 
   // ---------- cones ----------
@@ -135,13 +142,25 @@ export const create = () => createStage((kit) => {
     // Car: laps the track, swerving outward around cone 1.
     const th = theta(t);
     const d1 = Math.atan2(Math.sin(th - Math.PI), Math.cos(th - Math.PI));        // angle to cone 1
-    const swerve = u < 6.3 ? 0.42 * Math.exp(-((d1 / 0.42) ** 2)) : 0;
+    // Off the road and back: a wide swerve onto the grass, with a fishtail.
+    const swerve = u < 6.3 ? 0.72 * Math.exp(-((d1 / 0.5) ** 2)) : 0;
+    const fish = u < 6.3 ? Math.sin(d1 * 9) * 0.35 * Math.exp(-((d1 / 0.45) ** 2)) : 0;
     const p = onTrack(th, swerve);
     const tan = new Vector3(-(A + swerve) * Math.sin(th), 0, (B + swerve) * Math.cos(th));
     car.position.copy(p);
-    car.rotation.y = Math.atan2(-tan.z, tan.x);
+    car.rotation.y = Math.atan2(-tan.z, tan.x) + fish;
     body.position.y = Math.abs(Math.sin(t * 18)) * 0.008;                        // little engine bounce
-    body.rotation.x = -swerve * 0.25 * Math.sign(d1);                            // leans into the swerve
+    body.rotation.x = -swerve * 0.35 * Math.sign(d1);                            // leans into the swerve
+    // Dust kicked up while it's on the grass.
+    for (const [i, pf] of puffs.entries()) {
+      const born = 4.25 + i * 0.1, k = seg(u, born, born + 0.7);
+      pf.visible = k > 0 && k < 1;
+      if (!pf.visible) continue;
+      const th0 = theta(born), d0 = Math.atan2(Math.sin(th0 - Math.PI), Math.cos(th0 - Math.PI));
+      pf.position.copy(onTrack(th0, 0.72 * Math.exp(-((d0 / 0.5) ** 2)) + 0.12)).y = 0.06 + k * 0.18;
+      pf.scale.setScalar(0.05 + k * 0.13);
+      (pf.material as MeshBasicMaterial).opacity = 0.55 * (1 - k);
+    }
     wheels.forEach((w) => (w.rotation.z = -t * 14));
     carShadow.position.set(p.x, 0.004, p.z);
     carShadow.rotation.z = car.rotation.y;

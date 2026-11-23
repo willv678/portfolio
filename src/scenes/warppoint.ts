@@ -16,14 +16,12 @@ import { sfx } from '../scripts/sound';
 const C = {
   ink: '#2a2733', switchBody: '#34323b', joyL: '#2fc2ee', joyR: '#ff5d5d',
   laptop: '#dcdde3', keys: '#3a3a42', screen: '#9fdcff',
-  saucer: '#efeaff', rim: '#7b6cf6', dome: '#c9f0ff', light: '#ffd66b', save: '#ffe68a', beam: '#cfc6ff',
-  floppy: '#6a5cf0', alien: '#8ee89a', islandTop: '#b9afff', islandSide: '#6d5fe6',
+  saucer: '#efeaff', rim: '#7b6cf6', dome: '#c9f0ff', light: '#ffd66b', save: '#ffe68a', beam: '#8f7dff',
+  floppy: '#6a5cf0', alien: '#7fdc8c',
 };
 
 export const create = () => createStage((kit) => {
   const { scene, toon, blob } = kit;
-  kit.island({ top: C.islandTop, side: C.islandSide });
-  kit.stars();
 
   // ---------- the Switch (left) ----------
   const sw = new Group();
@@ -131,7 +129,7 @@ export const create = () => createStage((kit) => {
       void main(){
         float fade = smoothstep(0., .85, vUv.y);
         float rings = .65 + .35 * sin(vUv.y * 22. + uTime * 6.);
-        gl_FragColor = vec4(uColor, fade * rings * .55 * uOn);
+        gl_FragColor = vec4(uColor, fade * rings * .5 * uOn);
       }`,
   });
   const beamGeo = new CylinderGeometry(0.22, 0.62, 1, 32, 1, true);
@@ -150,7 +148,7 @@ export const create = () => createStage((kit) => {
     save.add(label, shutter);
   }
   scene.add(save);
-  const glow = kit.glow(C.save);
+  const glow = kit.glow('#ffcf3d');
   scene.add(glow);
   const sparks = kit.sparkles();
 
