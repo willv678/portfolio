@@ -109,7 +109,7 @@ export const create = () => createStage((kit) => {
   // avatar (the head button in the top bar); the other two are fixed.
   const PRESETS: Avatar[] = [
     { ...DEFAULT },
-    { skin: 3, head: 1, hair: 1, hairColor: 0, eyes: 1, shirt: 1, body: 1 },
+    { skin: 3, head: 1, hair: 1, hairColor: 0, eyes: 2, shirt: 1, body: 1 },
     { skin: 0, head: 2, hair: 2, hairColor: 3, eyes: 0, shirt: 3, body: 0 },
   ];
   const configs = PRESETS.map((p, i) => (i === 0 ? load() ?? p : p));

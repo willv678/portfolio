@@ -36,6 +36,7 @@ const empties = Math.max(0, Math.ceil((items.length + 1) / 6) * 6 - items.length
             </div>
           </div>
         </div>
+        <button class="x" id="proj-x" aria-label="Back to about" hidden>×</button>
         <a class="view proj" id="proj" hidden tabindex="-1">
           <div class="banner" id="pbanner"></div>
           <div class="info">
@@ -107,6 +108,7 @@ const empties = Math.max(0, Math.ceil((items.length + 1) / 6) * 6 - items.length
       cur = i;
       dropScene();
       tiles.forEach((t, j) => t.classList.toggle('on', j === i));
+      $('proj-x').hidden = i < 0;
       if (i < 0) { home.hidden = false; proj.hidden = true; return; }
       const p = P[i], tile = tiles[i];
       blip(760 + i * 60);
@@ -148,7 +150,7 @@ const empties = Math.max(0, Math.ceil((items.length + 1) / 6) * 6 - items.length
       root.classList.remove('kbd');
     });
     addEventListener('pointerover', (e) => {
-      if (e.pointerType === 'touch') return;          // phones: a tap just opens the page
+      if (e.pointerType === 'touch') return;          // phones: taps are handled below
       if (root.classList.contains('kbd')) return;
       const t = (e.target as Element).closest<HTMLElement>('.tile[data-i]');
       if (t) { clearTimeout(leave); select(Number(t.dataset.i)); return; }
@@ -178,7 +180,18 @@ const empties = Math.max(0, Math.ceil((items.length + 1) / 6) * 6 - items.length
 
     // Tabbing onto a tile selects it too.
     tiles.forEach((t, i) => t.addEventListener('focus', () => select(i)));
-    document.addEventListener('click', (e) => { if ((e.target as Element).closest('.tile, #proj')) openSound(); });
+    // Touch screens (no hover): the first tap on an app shows its panel, like
+    // highlighting an icon on a 3DS; tapping it again (or "open") goes to the page.
+    const touch = matchMedia('(hover: none)').matches;
+    const x = $('proj-x');
+    tiles.forEach((t, i) => t.addEventListener('click', (e) => {
+      if (!touch || cur === i) return;
+      e.preventDefault();
+      select(i);
+      $('screen').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }));
+    x.addEventListener('click', () => select(-1));
+    document.addEventListener('click', (e) => { if ((e.target as Element).closest('.tile, #proj') && (!touch || cur >= 0)) openSound(); });
 
     // Two "screens". Any small scroll down from the top glides to the
     // timeline; a small scroll up from the start of the timeline glides back.
@@ -312,10 +325,28 @@ const empties = Math.max(0, Math.ceil((items.length + 1) / 6) * 6 - items.length
   .cue:hover { color: var(--ink); }
   @keyframes nudge { 50% { transform: translateY(4px); } }
 
+  .x { display: none; }
   @media (max-width: 720px) {
-    .screen { aspect-ratio: auto; min-height: 440px; }
-    .view { flex-direction: column; align-items: flex-start; gap: 18px; }
-    .shelf { grid-template-columns: repeat(3, minmax(0, 92px)); }
+    /* the two views stack in one grid cell, so the panel is as tall as the taller one */
+    .screen { aspect-ratio: auto; display: grid; }
+    .view { position: relative; inset: auto; grid-area: 1 / 1; flex-direction: column; align-items: stretch; gap: 14px; padding: 20px; }
+    .me img { width: 104px; border-radius: 12px; }
+    h1 { font-size: 30px; }
+    .me p { font-size: 15px; }
+    .proj { padding: 0; }
+    .proj .banner { flex: none; width: 100%; aspect-ratio: 16 / 10; }
+    .proj :global(.banner-ico) { width: 30%; }
+    .proj .info { padding: 18px 20px 20px; }
+    .proj h2 { font-size: 26px; white-space: normal; }
+    .foot-row { margin-top: 6px; }
+    .open { padding: 10px 14px 10px 18px; font-size: 13px; }       /* a comfortable thumb target */
+    .x {
+      display: grid; place-items: center; position: absolute; top: 10px; right: 10px; z-index: 3;
+      width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--line); background: var(--panel);
+      color: var(--muted); font: 22px/1 var(--sans); cursor: pointer; box-shadow: var(--shadow);
+    }
+    .x[hidden] { display: none; }
+    .shelf { grid-template-columns: repeat(3, minmax(0, 92px)); gap: 30px 16px; }
     .hint { display: none; }
     .foot { grid-template-columns: 1fr; justify-items: center; }
     .loc { display: none; }

@@ -1,5 +1,5 @@
-// Visitor avatars: an original, simple toy-figure style (round head, dot
-// eyes, a few hair shapes). This file has no three.js in it: options,
+// Visitor avatars: an original cartoon toy-figure style (big round head,
+// expressive eyes, simple brows and a smile, a few hair shapes). This file has no three.js in it: options,
 // storage (this browser only), and a flat SVG preview for the editor.
 // The 3D version lives in src/scenes/avatar.ts.
 
@@ -8,9 +8,9 @@ export const OPTIONS = {
   head: ['round', 'oval', 'square'],
   hair: ['short', 'long', 'bun', 'none'],
   hairColor: ['#2a2320', '#6b4428', '#e0b25a', '#b5522e'],
-  eyes: ['dots', 'ovals'],
+  eyes: ['big', 'dots', 'happy'],
   shirt: ['#5b8def', '#e2463c', '#4caf6a', '#7c6cf6'],
-  body: ['straight', 'a-line'],
+  body: ['m', 'f'],
 } as const;
 
 export type Part = keyof typeof OPTIONS;
@@ -41,24 +41,30 @@ export function clear() {
 /** Front-view SVG of an avatar (viewBox 100×120). */
 export function svg(a: Avatar, headOnly = false) {
   const skin = OPTIONS.skin[a.skin], hc = OPTIONS.hairColor[a.hairColor], shirt = OPTIONS.shirt[a.shirt];
-  const ink = '#2b2838';
-  const body = OPTIONS.body[a.body] === 'a-line'
-    ? `<path d="M41 60 H59 L73 114 Q50 120 27 114 Z" fill="${shirt}" stroke="${ink}" stroke-width="2.5" stroke-linejoin="round"/>`
-    : `<rect x="30" y="60" width="40" height="56" rx="19" fill="${shirt}" stroke="${ink}" stroke-width="2.5"/>`;
-  const headShape = OPTIONS.head[a.head];
-  const head = headShape === 'oval' ? `<ellipse cx="50" cy="40" rx="18" ry="22" fill="${skin}" stroke="${ink}" stroke-width="2.5"/>`
-    : headShape === 'square' ? `<rect x="31" y="21" width="38" height="38" rx="12" fill="${skin}" stroke="${ink}" stroke-width="2.5"/>`
-    : `<circle cx="50" cy="40" r="20" fill="${skin}" stroke="${ink}" stroke-width="2.5"/>`;
-  const hairStyle = OPTIONS.hair[a.hair];
-  const top = headShape === 'oval' ? 18 : 20;
-  const cap = `<path d="M29 ${top + 21} Q29 ${top - 2} 50 ${top - 1} Q71 ${top - 2} 71 ${top + 21} Q63 ${top + 9} 50 ${top + 9} Q37 ${top + 9} 29 ${top + 21} Z" fill="${hc}" stroke="${ink}" stroke-width="2.5" stroke-linejoin="round"/>`;
-  const hair = hairStyle === 'none' ? ''
-    : hairStyle === 'long' ? `<path d="M28 40 Q27 64 32 70 H41 V46 Z M72 40 Q73 64 68 70 H59 V46 Z" fill="${hc}" stroke="${ink}" stroke-width="2.5" stroke-linejoin="round"/>${cap}`
-    : hairStyle === 'bun' ? `<circle cx="50" cy="${top - 4}" r="8" fill="${hc}" stroke="${ink}" stroke-width="2.5"/>${cap}`
+  const ink = '#2b2838', st = `stroke="${ink}" stroke-width="2.5" stroke-linejoin="round"`;
+  const body = OPTIONS.body[a.body] === 'f'
+    ? `<path d="M41 68 H59 L71 116 Q50 121 29 116 Z" fill="${shirt}" ${st}/>`
+    : `<rect x="32" y="68" width="36" height="48" rx="16" fill="${shirt}" ${st}/>`;
+  const shape = OPTIONS.head[a.head];
+  const cy = 40;
+  const head = shape === 'oval' ? `<ellipse cx="50" cy="${cy}" rx="22" ry="26" fill="${skin}" ${st}/>`
+    : shape === 'square' ? `<rect x="27" y="16" width="46" height="46" rx="15" fill="${skin}" ${st}/>`
+    : `<circle cx="50" cy="${cy}" r="25" fill="${skin}" ${st}/>`;
+  const style = OPTIONS.hair[a.hair];
+  const top = shape === 'oval' ? 13 : 15;
+  const cap = `<path d="M24 ${top + 26} Q23 ${top - 3} 50 ${top - 2} Q77 ${top - 3} 76 ${top + 26} Q70 ${top + 10} 56 ${top + 9} Q50 ${top + 15} 40 ${top + 9} Q30 ${top + 10} 24 ${top + 26} Z" fill="${hc}" ${st}/>`;
+  const hair = style === 'none' ? ''
+    : style === 'long' ? `<path d="M23 40 Q21 70 28 76 H40 V48 Z M77 40 Q79 70 72 76 H60 V48 Z" fill="${hc}" ${st}/>${cap}`
+    : style === 'bun' ? `<circle cx="50" cy="${top - 5}" r="9" fill="${hc}" ${st}/>${cap}`
     : cap;
-  const eyes = OPTIONS.eyes[a.eyes] === 'ovals'
-    ? `<ellipse cx="43" cy="43" rx="2.4" ry="4" fill="${ink}"/><ellipse cx="57" cy="43" rx="2.4" ry="4" fill="${ink}"/>`
-    : `<circle cx="43" cy="43" r="2.7" fill="${ink}"/><circle cx="57" cy="43" r="2.7" fill="${ink}"/>`;
-  const vb = headOnly ? '22 6 56 56' : '0 0 100 120';
-  return `<svg viewBox="${vb}" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">${headOnly ? '' : body}${hairStyle === 'long' ? hair : ''}${head}${hairStyle === 'long' ? '' : hair}${eyes}</svg>`;
+  const eyeStyle = OPTIONS.eyes[a.eyes];
+  const eyes = eyeStyle === 'happy'
+    ? `<path d="M37 45 Q42 38 47 45 M53 45 Q58 38 63 45" fill="none" stroke="${ink}" stroke-width="3" stroke-linecap="round"/>`
+    : eyeStyle === 'dots'
+      ? `<circle cx="42" cy="43" r="2.8" fill="${ink}"/><circle cx="58" cy="43" r="2.8" fill="${ink}"/>`
+      : `<ellipse cx="42" cy="43" rx="3.6" ry="5.4" fill="${ink}"/><ellipse cx="58" cy="43" rx="3.6" ry="5.4" fill="${ink}"/><circle cx="43.2" cy="40.8" r="1.4" fill="#fff"/><circle cx="59.2" cy="40.8" r="1.4" fill="#fff"/>`;
+  const brows = `<path d="M37 34 Q42 31 46 33 M54 33 Q58 31 63 34" fill="none" stroke="${ink}" stroke-width="2.2" stroke-linecap="round" opacity=".8"/>`;
+  const mouth = `<path d="M45 52 Q50 56.5 55 52" fill="none" stroke="${ink}" stroke-width="2.4" stroke-linecap="round"/>`;
+  const vb = headOnly ? '20 6 60 60' : '0 0 100 120';
+  return `<svg viewBox="${vb}" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">${headOnly ? '' : body}${style === 'long' ? hair : ''}${head}${style === 'long' ? '' : hair}${brows}${eyes}${mouth}</svg>`;
 }
