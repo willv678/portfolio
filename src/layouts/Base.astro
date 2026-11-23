@@ -12,7 +12,7 @@ interface Props {
 }
 const { title, description, accent, home = false, prev, next } = Astro.props;
 const fullTitle = title ? `${title} · Will Varner` : 'Will Varner';
-const desc = description ?? 'Will Varner builds systems that find where AI breaks. Self-driving research at UGA, agents at Roblox, Abridge in 2027.';
+const desc = description ?? 'Will Varner finds where things break: AI at work (self-driving research at UGA, agents at Roblox, Abridge in 2027), games for fun.';
 const hasWriting = (await posts()).length > 0;
 const path = Astro.url.pathname;
 const here = (p: string) => (path.startsWith(p) ? 'page' : undefined);
