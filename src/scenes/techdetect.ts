@@ -130,7 +130,7 @@ export const create = () => createStage((kit) => {
     drawn = -1;                                            // redraw the attendance list colors
   });
 
-  const L = 8.4, GAP = 2.5;
+  const GAP = 2.5, WALK = 4.4, L = GAP * 2 + WALK + 0.4;   // the last student fully leaves before it loops
   const DOOR_IN = new Vector3(-1.02, 0, -1.35), DOOR = new Vector3(-1.02, 0, -0.55), OUT = new Vector3(3.6, 0, -0.42);
 
   return (t, prev) => {
@@ -138,7 +138,7 @@ export const create = () => createStage((kit) => {
     let anyOk = false;
     students.forEach((s, i) => {
       const k = u - i * GAP;
-      const on = k >= 0 && k < 4.4;
+      const on = k >= 0 && k < WALK;
       s.g.visible = s.sh.visible = on;
       s.face.g.visible = s.hand.g.visible = s.ok.visible = false;
       if (!on) return;

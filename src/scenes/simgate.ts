@@ -248,5 +248,6 @@ export const create = () => createStage((kit) => {
     if (passed(prev, t, 2.0, T)) kit.sfx(sfx.ding);
     if (passed(prev, t, 8.85, T)) kit.sfx(sfx.nuhuh);
     if (passed(prev, t, 3.95, T)) kit.sfx(sfx.beep);
+    if (passed(prev, t, 4.2, T)) kit.sfx(sfx.screech);                // swerving around the cone
   };
 }, { lookAt: new Vector3(0, 1.0, 0), ground: 0x24584a, outline: 0.011 });

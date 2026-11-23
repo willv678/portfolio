@@ -138,6 +138,8 @@ export const sfx = {
   beep: () => { tone(660, 660, 0.05, { type: 'square', vol: 0.005 }); tone(660, 660, 0.05, { type: 'square', vol: 0.005, delay: 0.09 }); },
   /** blocks falling apart */
   clunk: () => { tone(170, 70, 0.14, { type: 'triangle', vol: 0.02 }); noise(0.08, 900, 300, 0.008); },
+  /** tires squealing around an obstacle: a high, wobbling scrape */
+  screech: () => { noise(0.42, 3400, 2200, 0.009); tone(1900, 1500, 0.38, { type: 'sawtooth', vol: 0.0025 }); },
   /** signal light turning green */
   bip: () => tone(1046, 1046, 0.06, { vol: 0.01 }),
 };
