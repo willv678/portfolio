@@ -15,7 +15,7 @@ const { bg, icon, vt, image, scene } = Astro.props;
     const io = new IntersectionObserver(([e]) => {
       if (!e.isIntersecting) return;
       io.disconnect();
-      getScene(el.dataset.scene!).then((s) => s?.attach(el));
+      getScene(el.dataset.scene!).then((s) => s?.attach(el, { sfx: 'hover' }));
     });
     io.observe(el);
   });

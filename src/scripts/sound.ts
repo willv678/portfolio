@@ -60,3 +60,34 @@ export function initHoverBlips() {
     if (el && el !== from) blip(Number((el as HTMLElement).dataset.blip) || 880);
   });
 }
+
+// ---------- scene sound effects ----------
+// Same rules as the blips: off until the first click/key, respects mute.
+// Deliberately quiet; nothing here should be noticeable over music.
+function tone(f0: number, f1: number, dur: number, { type = 'sine' as OscillatorType, vol = 0.02, delay = 0 } = {}) {
+  if (!on || !unlocked || !ctx || ctx.state !== 'running') return;
+  const o = ctx.createOscillator(), g = ctx.createGain(), t = ctx.currentTime + delay;
+  o.type = type;
+  o.frequency.setValueAtTime(f0, t);
+  o.frequency.exponentialRampToValueAtTime(f1, t + dur);
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.linearRampToValueAtTime(vol, t + 0.012);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(g).connect(ctx.destination);
+  o.start(t); o.stop(t + dur + 0.02);
+}
+
+export const sfx = {
+  /** tractor beam switching on: a soft rising hum */
+  beam: () => tone(170, 380, 0.5, { type: 'triangle', vol: 0.012 }),
+  /** something small getting picked up */
+  bloop: () => tone(480, 980, 0.11, { vol: 0.022 }),
+  /** something arriving: three quick rising notes */
+  chime: () => { tone(1319, 1319, 0.08, { vol: 0.014 }); tone(1760, 1760, 0.08, { vol: 0.012, delay: 0.07 }); tone(2093, 2093, 0.12, { vol: 0.01, delay: 0.14 }); },
+  /** approved */
+  ding: () => { tone(880, 880, 0.07, { vol: 0.016 }); tone(1319, 1319, 0.11, { vol: 0.014, delay: 0.07 }); },
+  /** rejected */
+  buzz: () => tone(260, 130, 0.2, { type: 'square', vol: 0.006 }),
+  /** little toy-car horn */
+  beep: () => { tone(660, 660, 0.05, { type: 'square', vol: 0.005 }); tone(660, 660, 0.05, { type: 'square', vol: 0.005, delay: 0.09 }); },
+};

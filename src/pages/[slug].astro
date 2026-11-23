@@ -27,7 +27,7 @@ const prevSide = side(prev), nextSide = side(next);
 ---
 <Base title={d.title} description={d.blurb} accent={d.color} prev={prevSide?.href} next={nextSide?.href}>
   <main class="page">
-    <Banner bg={d.bg} icon={iconSvg(d.icon, d.glyph)} vt={`vt-${p.id}`} scene={d.scene} />
+    <Banner bg={d.bg} icon={iconSvg(d.icon, d.glyph)} vt={`vt-${p.id}`} image={d.banner} scene={d.scene} />
 
     <div class="col">
       <header class="head">

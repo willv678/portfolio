@@ -4,9 +4,10 @@
 // - preloadScenes(names): on desktop, do that while the browser is idle, so
 //   selecting a tile plays instantly. Skipped on phones, slow connections,
 //   data-saver, and for anyone who asked their OS for reduced motion.
-import type { SceneHandle } from '../scenes/warppoint';
+import type { SceneHandle } from '../scenes/kit';
 
-const loaders = import.meta.glob<{ create: () => SceneHandle | null }>('../scenes/*.ts');
+// Every file in src/scenes/ except the shared kit is a scene.
+const loaders = import.meta.glob<{ create: () => SceneHandle | null }>(['../scenes/*.ts', '!../scenes/kit.ts']);
 const built = new Map<string, Promise<SceneHandle | null>>();
 
 export const motionOK = () => !matchMedia('(prefers-reduced-motion: reduce)').matches;

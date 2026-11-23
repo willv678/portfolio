@@ -11,7 +11,7 @@ const items = [
   })),
   ...(await posts()).filter((p) => p.data.pinned).map((p) => ({
     kind: 'post' as const, href: `/writing/${p.id}/`, vt: `vt-w-${p.id}`, ...p.data,
-    color: 'var(--ink)', bg: 'var(--bg)', icon: '', scene: undefined,
+    color: 'var(--ink)', bg: 'var(--bg)', icon: '', scene: undefined, banner: undefined,
   })),
 ].sort((a, b) => a.order - b.order);
 const empties = Math.max(0, Math.ceil((items.length + 1) / 6) * 6 - items.length);
@@ -74,13 +74,13 @@ const empties = Math.max(0, Math.ceil((items.length + 1) / 6) * 6 - items.length
     <span>Atlanta, GA → San Francisco</span>
   </footer>
 
-  <script is:inline type="application/json" id="shelf-data" set:html={JSON.stringify(items.map(({ title, blurb, status, tags, bg, kind, href, scene }) => ({ title, blurb, status, tags, bg, kind, href, scene })))} />
+  <script is:inline type="application/json" id="shelf-data" set:html={JSON.stringify(items.map(({ title, blurb, status, tags, bg, kind, href, scene, banner }) => ({ title, blurb, status, tags, bg, kind, href, scene, banner })))} />
 
   <script>
     import { blip, openSound } from '../scripts/sound';
     import { getScene, preloadScenes } from '../scripts/scenes';
 
-    type Item = { title: string; blurb: string; status: string; tags: string[]; bg: string; kind: 'project' | 'post'; href: string; scene?: string };
+    type Item = { title: string; blurb: string; status: string; tags: string[]; bg: string; kind: 'project' | 'post'; href: string; scene?: string; banner?: string };
     const P: Item[] = JSON.parse(document.getElementById('shelf-data')!.textContent!);
     const tiles = [...document.querySelectorAll<HTMLAnchorElement>('.tile[data-i]')];
     const $ = (id: string) => document.getElementById(id)!;
@@ -102,16 +102,16 @@ const empties = Math.max(0, Math.ceil((items.length + 1) / 6) * 6 - items.length
       const p = P[i], tile = tiles[i];
       blip(760 + i * 60);
       const banner = $('pbanner');
-      banner.style.background = p.bg;
+      banner.style.background = p.banner ? `center / cover no-repeat url("${p.banner}"), ${p.bg}` : p.bg;
       banner.innerHTML = p.kind === 'post'
         ? `<div class="post-title"></div>`
-        : `<div class="banner-ico">${tile.querySelector('.ico')!.innerHTML
+        : p.banner ? '' : `<div class="banner-ico">${tile.querySelector('.ico')!.innerHTML
             .replace(/id="([^"]+)"/g, 'id="$1-panel"')
             .replace(/url\(#([^)]+)\)/g, 'url(#$1-panel)')}</div>`;
       if (p.kind === 'post') banner.firstElementChild!.textContent = p.title;
       if (p.scene) {
         const mine = ++token;
-        getScene(p.scene).then((s) => { if (s && mine === token) { s.attach(banner); playing = s; } });
+        getScene(p.scene).then((s) => { if (s && mine === token) { s.attach(banner, { sfx: 'always' }); playing = s; } });
       }
       $('ptitle').textContent = p.title;
       $('pblurb').textContent = p.blurb;
