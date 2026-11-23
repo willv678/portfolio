@@ -17,6 +17,7 @@ const when = (e: (typeof experience)[number]) => (e.end ? `${e.start} – ${e.en
     <div class="inner">
       <div class="col">
         <h2 id="exp-h">Experience</h2>
+        <div class="window" id="xp-window">
         <ol class="tl" id="tl">
           {major.map((e, i) => (
             <li class="entry" data-i={i} data-model={e.model} data-org={e.org} data-when={when(e)}>
@@ -27,6 +28,7 @@ const when = (e: (typeof experience)[number]) => (e.end ? `${e.start} – ${e.en
             </li>
           ))}
         </ol>
+        </div>
         <div class="more mono" id="xp-more" aria-hidden="true"><span class="mouse"><i></i></span>scroll</div>
       </div>
       <aside class="viewer" aria-hidden="true">
@@ -67,26 +69,9 @@ const when = (e: (typeof experience)[number]) => (e.end ? `${e.start} – ${e.en
   const org = document.getElementById('xp-org')!, when = document.getElementById('xp-when')!;
   const pinned = () => matchMedia('(min-width: 821px)').matches;
   const more = document.getElementById('xp-more')!;
+  const win = document.getElementById('xp-window')!;
+  const smooth = (x: number) => x * x * (3 - 2 * x);
 
-  // Gentle settling: when scrolling stops inside the pinned stretch, glide to
-  // the nearest entry's resting point. A fast fling still passes several
-  // entries; a lazy scroll can't strand you halfway between two.
-  let settleTimer = 0, settling = false;
-  function settleLater() {
-    clearTimeout(settleTimer);
-    if (settling) return;
-    settleTimer = window.setTimeout(() => {
-      const top = sec.offsetTop, slice = (sec.offsetHeight - innerHeight) / entries.length;
-      const rel = scrollY - top;
-      if (rel < 0 || rel > slice * entries.length) return;
-      const i = Math.min(entries.length - 1, Math.floor(rel / slice));
-      const target = top + (i === 0 ? 0 : (i + 0.35) * slice);   // first entry rests at the very top
-      if (Math.abs(target - scrollY) < 3) return;
-      settling = true;
-      scrollTo({ top: target, behavior: 'smooth' });
-      setTimeout(() => (settling = false), 500);
-    }, 140);
-  }
   document.documentElement.classList.add('xp-anim');   // only hide entries when JS can reveal them
 
   // The 3D viewer loads once the section is close to the screen.
@@ -120,16 +105,22 @@ const when = (e: (typeof experience)[number]) => (e.end ? `${e.start} – ${e.en
     const tr = tl.getBoundingClientRect();
     const dotY = (i: number) => dots[i].getBoundingClientRect().top + 6 - tr.top;
     if (pinned()) {
-      // progress through the pinned stretch → which entry is active
+      // Teleprompter: scroll progress → a continuous position along the list
+      // with "detents": for the first half of each entry's slice the list
+      // rests on it; in the second half it glides to the next one.
       const top = sec.offsetTop, range = sec.offsetHeight - innerHeight;
       const p = Math.min(0.9999, Math.max(0, (scrollY - top) / range));
-      const f = p * entries.length, i = Math.floor(f);
-      // only hide entries that are still ahead (when scrolling back up)
+      const f = p * entries.length, base = Math.floor(f), frac = f - base;
+      const glide = base < entries.length - 1 ? smooth(Math.max(0, (frac - 0.45) / 0.55)) : 0;
+      const pos = base + glide;                                      // 0 … n-1, fractional while gliding
+      const i = Math.min(entries.length - 1, Math.round(pos));
       entries.forEach((e, j) => e.classList.toggle('in', j <= i));
       setActive(i);
+      const y = (k: number) => entries[k].offsetTop;
+      const at = y(base) + (base < entries.length - 1 ? (y(base + 1) - y(base)) * glide : 0);
+      tl.style.setProperty('--shift', `${win.clientHeight * 0.22 - at}px`);
       tl.style.setProperty('--fill', `${dotY(i)}px`);
       more.classList.toggle('done', i === entries.length - 1);
-      settleLater();
     } else {
       // phones: plain list; active = nearest the middle of the screen
       const mid = innerHeight * 0.45;
@@ -157,7 +148,12 @@ const when = (e: (typeof experience)[number]) => (e.end ? `${e.start} – ${e.en
   h2 { font-family: var(--serif); font-weight: 500; font-size: clamp(30px, 4.2vw, 42px); letter-spacing: -.015em; margin-bottom: clamp(16px, 3.5vh, 32px); }
 
   /* the line: a faint track, plus an ink line drawn down to the active dot */
-  .tl { list-style: none; padding: 0 0 0 30px; position: relative; --fill: 0px; }
+  /* the list scrolls inside a window, fading out at the top and bottom edges */
+  .window {
+    height: calc(100svh - 300px); overflow: hidden; margin-left: -8px; padding-left: 8px;
+    mask-image: linear-gradient(transparent, #000 9%, #000 78%, transparent);
+  }
+  .tl { list-style: none; padding: 0 0 0 30px; position: relative; --fill: 0px; --shift: 0px; transform: translateY(var(--shift)); }
   .tl::before, .tl::after { content: ""; position: absolute; left: 5px; top: 10px; width: 1.5px; border-radius: 1px; }
   .tl::before { bottom: 10px; background: var(--line); }
   .tl::after { height: calc(var(--fill) - 10px); background: var(--ink); transition: height .45s cubic-bezier(.3,.9,.3,1); }
@@ -196,6 +192,25 @@ const when = (e: (typeof experience)[number]) => (e.end ? `${e.start} – ${e.en
   }
   .box :global(.scene-canvas) { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; transition: opacity .5s; }
   .box:global(.scene-on) :global(.scene-canvas) { opacity: 1; }
+  /* camcorder-style overlay for the MSC Lab scene: on-screen text + tape lines on rewind */
+  .box[data-osd]::before {
+    content: attr(data-osd); position: absolute; top: 14px; left: 16px; z-index: 2; pointer-events: none;
+    font: 600 13px/1 var(--mono); letter-spacing: .1em; color: var(--ink);
+    text-shadow: 1px 0 0 rgba(255, 40, 90, .55), -1px 0 0 rgba(0, 190, 255, .55);
+  }
+  .box:global(.fail)::before { color: #e5484d; }
+  .box:global(.pass)::before { color: #2f9e5b; }
+  .box:global(.vhs)::after {
+    content: ""; position: absolute; inset: 0; z-index: 1; pointer-events: none;
+    background:
+      repeating-linear-gradient(0deg, rgba(20, 16, 40, .07) 0 1px, transparent 1px 3px),
+      linear-gradient(transparent 0 42%, rgba(255, 255, 255, .7) 46%, rgba(20, 16, 40, .12) 49%, transparent 54%);
+    background-size: 100% 100%, 100% 220%;
+    animation: tracking .45s linear infinite;
+  }
+  .box:global(.vhs) :global(.scene-canvas) { filter: saturate(1.5) contrast(1.06); animation: wobble .12s steps(2) infinite; }
+  @keyframes tracking { from { background-position: 0 0, 0 120%; } to { background-position: 0 0, 0 -120%; } }
+  @keyframes wobble { 50% { transform: translateX(2px); } }
   .cap { display: flex; justify-content: space-between; gap: 12px; color: var(--muted); padding: 0 4px; }
   #xp-org { color: var(--ink); }
   #xp-when { white-space: nowrap; }
@@ -218,6 +233,8 @@ const when = (e: (typeof experience)[number]) => (e.end ? `${e.start} – ${e.en
   @media (max-width: 820px) {
     .exp { height: auto; }
     .pin { position: static; height: auto; padding: 56px var(--gutter) 8px; }
+    .window { height: auto; overflow: visible; mask-image: none; }
+    .tl { transform: none; }
     .inner { grid-template-columns: 1fr; }
     .viewer, .more { display: none; }
     .minor li { grid-template-columns: 1fr; gap: 0; }

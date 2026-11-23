@@ -61,7 +61,7 @@ html.kbd, html.kbd * { cursor: none !important; }
 html { -webkit-text-size-adjust: 100%; }
 body {
   min-height: 100vh; min-height: 100dvh;
-  background: var(--bg) radial-gradient(var(--dot) 1px, transparent 1px) 0 0 / 14px 14px;
+  background: var(--bg) radial-gradient(var(--dot) 1px, transparent 1px) 0 0 / 14px 14px fixed;   /* dots stay still; pages slide over them */
   color: var(--ink);
   font: 15px/1.55 var(--sans);
   -webkit-font-smoothing: antialiased;

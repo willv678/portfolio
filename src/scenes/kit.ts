@@ -49,6 +49,8 @@ export interface Kit {
   own<T extends Texture>(tex: T): T;
   /** Play a sound only if this scene is allowed to make noise right now. */
   sfx(play: () => void): void;
+  /** The element the scene is currently playing in (for HTML overlays), if any. */
+  host(): HTMLElement | null;
 }
 
 interface StageOpts {
@@ -187,7 +189,8 @@ export function createStage(
   let sfxMode: 'always' | 'hover' = 'hover', hovering = false;
   const sfx = (play: () => void) => { if (sfxMode === 'always' || hovering) play(); };
 
-  const update = setup({ scene, toon, blob, island, stars, sparkles, glow, own, sfx });
+  let el: HTMLElement | null = null;
+  const update = setup({ scene, toon, blob, island, stars, sparkles, glow, own, sfx, host: () => el });
 
   // Cel outlines, the classic Nintendo trick: every toon-shaded mesh gets a
   // slightly inflated, back-face-only, dark copy of itself, which shows up as
@@ -209,7 +212,6 @@ export function createStage(
   }
 
   // ---------- framing, parallax, loop ----------
-  let el: HTMLElement | null = null;
   const parallax = { x: 0, y: 0, tx: 0, ty: 0 };
   const onMove = (e: PointerEvent) => {
     const r = el!.getBoundingClientRect();

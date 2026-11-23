@@ -2,10 +2,10 @@
 // preview. One stage, one tiny looping scene per entry; show(name) swaps
 // them with a pop.
 //   abridge → doctor and patient talk, a phone listens, a note writes itself
-//   lab     → a test car bumps a cone, VHS-rewinds, and retries (run 1041, 1042…)
+//   lab     → a stress test: run 1041 fails, VHS rewind, run 1042 passes
 //   roblox  → a classic blocky avatar: waves, falls to pieces, respawns
 //   leidos  → a car stops at a red light, they talk (V2X), it goes on green
-//   uga     → a tiny Sanford Stadium, hedges and all, with a football in the air
+//   uga     → a graduation cap with a swinging tassel
 
 import {
   BoxGeometry, CanvasTexture, CapsuleGeometry, ConeGeometry, GridHelper, CylinderGeometry, Group, Mesh, MeshBasicMaterial,
@@ -49,48 +49,19 @@ export function create(): (SceneHandle & { show(name: string): void }) | null {
       g.visible = false; scene.add(g); models.set(name, { g, tick, fixed });
     };
 
-    // ---------- UGA: a tiny Sanford Stadium ----------
+    // ---------- UGA: graduation cap ----------
     {
       const g = new Group();
-      const RX = 1.0, RZ = 0.62;
-      // concrete floor under everything, so there's no gap between field and stands
-      const floor = new Mesh(new CylinderGeometry(1.0, 1.0, 0.02, 56), toon('#cfcabd')); floor.scale.set(0.95 * RX, 1, 0.95 * RZ); floor.position.y = 0.005;
-      g.add(floor);
-      // field + the famous hedges
-      const field = new Mesh(new CylinderGeometry(1, 1, 0.04, 48), toon('#5fbf6a')); field.scale.set(0.78, 1, 0.44); field.position.y = 0.02;
-      g.add(field);
-      for (let i = -3; i <= 3; i++) {
-        const l = new Mesh(new BoxGeometry(0.012, 0.005, 0.6), new MeshBasicMaterial({ color: '#f4f4ef' })); l.position.set(i * 0.17, 0.043, 0); g.add(l);
-      }
-      const hedge = new Mesh(new TorusGeometry(1, 0.035, 8, 64), toon('#2f6b3a')); hedge.rotation.x = Math.PI / 2; hedge.scale.set(0.83, 0.5, 1); hedge.position.y = 0.06;
-      g.add(hedge);
-      // the bowl: tiers of seats, red and black, opening wider as they go up
-      [['#ba0c2f', 0.0], ['#2a2a30', 0.13], ['#ba0c2f', 0.26]].forEach(([c, y], i) => {
-        const r0 = 0.92 + i * 0.12, tier = new Mesh(new CylinderGeometry(r0 + 0.12, r0, 0.13, 56, 1, true), toon(c as string, { side: 2 }));
-        tier.scale.set(RX, 1, RZ); tier.position.y = 0.065 + (y as number);
-        tier.userData.noOutline = true;                                       // open shells don't outline cleanly
-        g.add(tier);
-      });
-      // goalposts (yellow) at each end
-      for (const x of [-0.72, 0.72]) {
-        const post = new Group(); post.position.set(x, 0.04, 0);
-        const up = new Mesh(new CylinderGeometry(0.008, 0.008, 0.14, 6), toon('#ffd23f')); up.position.y = 0.07;
-        const bar = new Mesh(new CylinderGeometry(0.007, 0.007, 0.16, 6), toon('#ffd23f')); bar.rotation.x = Math.PI / 2; bar.position.y = 0.14;
-        const l = new Mesh(new CylinderGeometry(0.006, 0.006, 0.14, 6), toon('#ffd23f')); l.position.set(0, 0.21, -0.08);
-        const r = l.clone(); r.position.z = 0.08;
-        post.add(up, bar, l, r); g.add(post);
-      }
-      // the football, kicked end to end
-      const ball = new Mesh(new SphereGeometry(0.045, 16, 10), toon('#8b4a2b')); ball.scale.set(1.5, 1, 1);
-      g.add(ball);
-      g.scale.setScalar(0.72);
-      g.rotation.x = 0.5;                                                    // tip it toward the camera to show the field
-      g.position.y = 0.3;
-      add('uga', g, (t) => {
-        const L = 2.6, u = (t % L) / L, dir = Math.floor(t / L) % 2 ? -1 : 1;
-        ball.position.set(dir * (-0.62 + 1.24 * u), 0.08 + Math.sin(Math.PI * u) * 0.55, 0);
-        ball.rotation.z = -dir * u * Math.PI * 3;
-      }, true);
+      const skull = new Mesh(new CylinderGeometry(0.34, 0.37, 0.26, 32), toon('#2a2a30')); skull.position.y = 0.13;
+      const board = new Mesh(new RoundedBoxGeometry(1.0, 0.05, 1.0, 2, 0.015), toon('#33333a')); board.position.y = 0.28; board.rotation.y = Math.PI / 4;
+      const button = new Mesh(new SphereGeometry(0.045, 12, 8), toon('#ba0c2f')); button.position.y = 0.31;
+      const tassel = new Group(); tassel.position.set(0.68, 0.3, 0);
+      const cord = new Mesh(new CylinderGeometry(0.012, 0.012, 0.3, 6), toon('#ba0c2f')); cord.position.y = -0.15;
+      const end = new Mesh(new CylinderGeometry(0.03, 0.05, 0.13, 10), toon('#ba0c2f')); end.position.y = -0.33;
+      tassel.add(cord, end);
+      g.add(skull, board, button, tassel);
+      g.position.y = 0.25;
+      add('uga', g, (t) => { tassel.rotation.z = Math.sin(t * 3) * 0.18; tassel.rotation.x = Math.cos(t * 2.3) * 0.1; });
     }
 
     // ---------- Leidos: stop at the light, talk to it, go on green ----------
@@ -143,10 +114,13 @@ export function create(): (SceneHandle & { show(name: string): void }) | null {
       }, true);
     }
 
-    // ---------- MSC Lab: run, crash, rewind, retry (stress testing) ----------
+    // ---------- MSC Lab: a stress test — fail, rewind, retry, pass ----------
+    // Run 1041: the agent's drone drops a cone too late, the car can't stop:
+    // FAIL. VHS rewind. Run 1042: the cone goes down early, the car brakes in
+    // time: PASS. Run numbers keep counting up every loop. The camcorder-style
+    // text and tape lines are HTML on top of the canvas (see Experience.astro).
     {
       const g = new Group();
-      // a glowing simulation grid instead of a real floor
       const grid = new GridHelper(2.6, 13, '#2fd0c0', '#2fd0c0');
       (grid.material as MeshBasicMaterial).transparent = true; (grid.material as MeshBasicMaterial).opacity = 0.35;
       grid.position.y = 0.002; grid.scale.z = 0.6;
@@ -154,7 +128,7 @@ export function create(): (SceneHandle & { show(name: string): void }) | null {
       const { car, body, wheels } = toyCar(kit);
       const lidar = new Mesh(new CylinderGeometry(0.06, 0.06, 0.06, 16), toon('#2fd0c0')); lidar.position.set(-0.03, 0.42, 0);
       body.add(lidar);
-      car.scale.setScalar(1.25);
+      const S = 1.2; car.scale.setScalar(S);
       g.add(car);
       const carShadow = blob(0.75, 0.5); g.add(carShadow);
       const cone = new Group();
@@ -162,39 +136,62 @@ export function create(): (SceneHandle & { show(name: string): void }) | null {
       const cTop = new Mesh(new ConeGeometry(0.08, 0.24, 18), toon('#ff7a2f')); cTop.position.y = 0.14;
       const cBand = new Mesh(new CylinderGeometry(0.047, 0.057, 0.04, 18), toon('#ffffff')); cBand.position.y = 0.14;
       cone.add(cBase, cTop, cBand); g.add(cone);
-      // the "◀◀ rewind" badge and a run counter, drawn on little canvases
-      const label = (w: number) => {
-        const c = document.createElement('canvas'); c.width = w; c.height = 64;
-        const tex = kit.own(new CanvasTexture(c)); tex.colorSpace = SRGBColorSpace;
-        const m = new Mesh(new PlaneGeometry(w / 256, 0.25), new MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false }));
-        return { m, draw(text: string, color: string) { const x = c.getContext('2d')!; x.clearRect(0, 0, w, 64); x.fillStyle = color; x.font = '600 34px "IBM Plex Mono", ui-monospace, monospace'; x.textBaseline = 'middle'; x.fillText(text, 8, 34); tex.needsUpdate = true; } };
+      const drone = new Group();
+      const dBody = new Mesh(new SphereGeometry(0.12, 20, 14), toon('#eef3f7')); dBody.scale.y = 0.55;
+      const dRim = new Mesh(new TorusGeometry(0.12, 0.016, 8, 28), toon('#2f7d5b')); dRim.rotation.x = Math.PI / 2;
+      const prop = new Mesh(new BoxGeometry(0.32, 0.01, 0.035), toon('#c9d3da')); prop.position.y = 0.09;
+      drone.add(dBody, dRim, prop); g.add(drone);
+
+      const CONE_X = 0.45, HIT_X = CONE_X - 0.28 * S - 0.1, STOP_X = HIT_X - 0.3, START = -1.2;
+      const HOLD_Y = 0.72, L = 5.6;
+      const osd = (text: string, mode = '') => {
+        const h = kit.host(); if (!h) return;
+        if (h.dataset.osd !== text) h.dataset.osd = text;
+        h.classList.toggle('vhs', mode === 'vhs'); h.classList.toggle('fail', mode === 'fail'); h.classList.toggle('pass', mode === 'pass');
       };
-      const rew = label(160); rew.draw('◀◀', '#2a2733'); rew.m.position.set(-0.85, 0.95, 0.2); g.add(rew.m);
-      const counter = label(256); counter.m.position.set(0.55, 1.0, 0.2); g.add(counter.m);
-      let shownRun = -1;
-      const L = 4.6, laneZ = [0.0, 0.16, -0.14];
       add('lab', g, (t, prev) => {
-        const run = Math.floor(t / L), u = t % L;
-        if (run !== shownRun) { shownRun = run; counter.draw(`run ${String(1041 + run).padStart(4, '0')}`, '#6d6b64'); }
-        const cz = laneZ[run % laneZ.length];
-        let x: number, z = 0, tip = 0, jitter = 0;
-        if (u < 1.5) { x = -1.05 + 1.15 * ease(seg(u, 0, 1.5)); }                    // try 1: bump the cone
-        else if (u < 1.8) { x = 0.1; tip = seg(u, 1.5, 1.7); }
-        else if (u < 2.5) { const k = seg(u, 1.8, 2.5); x = 0.1 - 1.15 * ease(k); tip = 1 - k; jitter = Math.sin(t * 90) * 0.02; }  // rewind
-        else if (u < 4.2) { x = -1.05 + 2.2 * ease(seg(u, 2.5, 4.2)); z = Math.sin(Math.PI * seg(u, 2.9, 3.9)) * 0.3 * (cz > 0 ? -1 : 1); }  // retry: swerve past
-        else { x = 1.15; }
-        car.position.set(x + jitter, 0, z);
-        car.rotation.y = u > 2.5 && u < 4.2 ? Math.sin(2 * Math.PI * seg(u, 2.9, 3.9)) * 0.35 * (cz > 0 ? 1 : -1) : 0;
-        car.visible = u < 4.2;
-        carShadow.position.set(car.position.x, 0.004, z); carShadow.visible = car.visible;
+        const loop = Math.floor(t / L), u = t % L, runA = 1041 + loop * 2, runB = runA + 1;
+        let x = START, coneY = HOLD_Y, coneS = 1, tip = 0, slide = 0, dip = 0, jitter = 0, carS = 1;
+        if (u < 1.75) {                                                      // run A: too late
+          x = START + (HIT_X - START) * easeIn(seg(u, 0, 1.25)) - 0.06 * Math.sin(Math.PI * seg(u, 1.25, 1.55));
+          coneS = seg(u, 0.3, 0.45);
+          coneY = HOLD_Y * (1 - easeIn(seg(u, 0.55, 0.85)));
+          tip = ease(seg(u, 1.25, 1.5)); slide = 0.2 * tip;
+          dip = -0.14 * Math.sin(Math.PI * seg(u, 1.25, 1.5));
+          osd(u < 1.25 ? `▶ PLAY  RUN ${runA}` : `RUN ${runA}  FAIL ✕`, u < 1.25 ? '' : 'fail');
+        } else if (u < 2.6) {                                                // VHS rewind
+          const k = ease(seg(u, 1.8, 2.5));
+          x = HIT_X + (START - HIT_X) * k;
+          tip = 1 - seg(u, 1.8, 2.2); slide = 0.2 * tip;
+          coneY = HOLD_Y * seg(u, 2.2, 2.5);
+          jitter = Math.sin(t * 90) * 0.015;
+          osd('◀◀ REW', 'vhs');
+        } else if (u < 4.9) {                                                // run B: in time
+          coneY = HOLD_Y * (1 - easeIn(seg(u, 2.65, 2.95)));
+          const k = seg(u, 2.7, 4.05);
+          x = START + (STOP_X - START) * (1 - Math.pow(1 - k, 2.2));      // brakes smoothly to a stop
+          dip = -0.06 * Math.sin(Math.PI * seg(u, 3.7, 4.2));
+          osd(u < 4.05 ? `▶ PLAY  RUN ${runB}` : `RUN ${runB}  PASS ✓`, u < 4.05 ? '' : 'pass');
+        } else {                                                             // reset for the next loop
+          x = STOP_X; coneY = 0;
+          carS = coneS = 1 - seg(u, 4.95, 5.3);
+          osd(u < 5.3 ? `RUN ${runB}  PASS ✓` : '', u < 5.3 ? 'pass' : '');
+        }
+        car.position.set(x + jitter, 0, 0);
+        car.scale.setScalar(S * Math.max(0.001, carS));
+        body.rotation.z = dip;
         wheels.forEach((w) => (w.rotation.z = -x * 7));
         lidar.rotation.y = t * 7;
-        cone.position.set(0.42 + jitter, 0, u < 2.5 ? 0 : cz);
-        cone.rotation.z = -tip * 1.25;
-        rew.m.visible = u > 1.8 && u < 2.5 && Math.sin(t * 20) > -0.3;
+        carShadow.position.set(car.position.x, 0.004, 0); carShadow.scale.setScalar(Math.max(0.001, carS));
+        drone.position.set(CONE_X + jitter, HOLD_Y + 0.22 + Math.sin(t * 2.6) * 0.03, 0);
+        prop.rotation.y = t * 30;
+        cone.position.set(CONE_X + slide + jitter, coneY, 0);
+        cone.rotation.z = -tip * 1.3;
+        cone.scale.setScalar(Math.max(0.001, coneS));
         grid.position.x = jitter * 2;
-        if (passed(prev, t, 1.5, L)) kit.sfx(sfx.clunk);
-        if (passed(prev, t, 1.8, L)) kit.sfx(() => sfx.lower(0.6));
+        if (passed(prev, t, 1.25, L)) kit.sfx(sfx.clunk);
+        if (passed(prev, t, 1.8, L)) kit.sfx(() => sfx.lower(0.7));
+        if (passed(prev, t, 4.05, L)) kit.sfx(sfx.ding);
       }, true);
     }
 
@@ -343,6 +340,8 @@ export function create(): (SceneHandle & { show(name: string): void }) | null {
     return (t, prev) => {
       if (want !== current) {                           // swap scenes with a little pop
         if (current) models.get(current)!.g.visible = false;
+        const h = kit.host();                           // clear any overlay a scene left behind
+        if (h) { delete h.dataset.osd; h.classList.remove('vhs', 'fail', 'pass'); }
         current = want; shownAt = t;
       }
       const m = models.get(current);
