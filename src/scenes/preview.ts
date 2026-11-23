@@ -1,6 +1,7 @@
-// The big preview in the avatar editor: your avatar on a slow turntable.
-// Drag (mouse or finger) to spin it; it eases back to turning on its own.
-// Rebuilds instantly whenever an option changes.
+// The big preview in the avatar editor: your avatar facing the camera with a
+// gentle idle. Drag (mouse or finger) to turn it; the reset button (or the
+// 'avatar-preview-reset' event) eases it back to the front. Rebuilds
+// instantly whenever an option changes.
 import { Group, Vector3 } from 'three';
 import { createStage } from './kit';
 import { makeAvatar } from './avatar';
@@ -19,11 +20,14 @@ export const create = () => createStage((kit) => {
   });
 
   // drag to spin
-  let angle = 0.35, vel = 0, dragging = false, lastX = 0;
+  const FRONT = 0.15;
+  let angle = FRONT, vel = 0, dragging = false, lastX = 0, returning = false;
+  addEventListener('avatar-preview-reset', () => { returning = true; vel = 0; });
   addEventListener('pointerdown', (e) => {
     const h = kit.host();
     if (!h || !h.contains(e.target as Node)) return;
-    dragging = true; lastX = e.clientX; h.setPointerCapture?.(e.pointerId);
+    if ((e.target as Element).closest('button')) return;           // the reset button isn't a drag
+    dragging = true; returning = false; lastX = e.clientX; h.setPointerCapture?.(e.pointerId);
   });
   addEventListener('pointermove', (e) => { if (!dragging) return; const dx = e.clientX - lastX; lastX = e.clientX; angle += dx * 0.012; vel = dx * 0.012; });
   addEventListener('pointerup', () => (dragging = false));
@@ -32,8 +36,13 @@ export const create = () => createStage((kit) => {
   let prevT = 0;
   return (t) => {
     const dt = Math.min(0.05, t - prevT); prevT = t;
-    if (!dragging) { vel *= 0.92; angle += vel + dt * 0.5; }      // momentum, then a slow turn
-    holder.rotation.y = angle;
+    if (!dragging) { vel *= 0.9; angle += vel; }                   // a little momentum after a drag
+    if (returning) {                                               // ease back to the front by the shortest way round
+      const d = Math.atan2(Math.sin(FRONT - angle), Math.cos(FRONT - angle));
+      angle += d * Math.min(1, dt * 7);
+      if (Math.abs(d) < 0.002) { angle = FRONT; returning = false; }
+    }
+    holder.rotation.y = angle + Math.sin(t * 0.8) * 0.05;          // idle: a gentle sway
     holder.position.y = Math.abs(Math.sin(t * 2.2)) * 0.012;
     fig.head.rotation.z = Math.sin(t * 1.1) * 0.04;
   };

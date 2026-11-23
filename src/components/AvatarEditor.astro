@@ -13,7 +13,11 @@
 <div class="scrim" id="avatar-ed" role="dialog" aria-modal="true" aria-label="Customize your character" hidden>
   <div class="card">
     <div class="left">
-      <div class="preview" id="ed-preview"><div class="flat" id="ed-flat"></div></div>
+      <div class="preview" id="ed-preview"><div class="flat" id="ed-flat"></div>
+        <button class="front" id="ed-front" title="Face front" aria-label="Turn the character back to face front">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>
+        </button>
+      </div>
       <div class="sliders">
         <label class="mono">height <input type="range" min="0" max="4" step="1" id="ed-height" /></label>
         <label class="mono">build <input type="range" min="0" max="4" step="1" id="ed-build" /></label>
@@ -86,13 +90,14 @@
   const open = (on: boolean) => {
     ed.hidden = !on; btn.setAttribute('aria-expanded', String(on));
     document.documentElement.classList.toggle('editing', on);
-    if (on) { nudge.hidden = true; renderGrid(); }
+    if (on) { nudge.hidden = true; const say = document.getElementById('me-say'); if (say) say.hidden = true; renderGrid(); }
     // the big preview is a live 3D render (the flat drawing shows until it's ready)
     if (on) getScene('preview').then((s) => { if (s && !ed.hidden) { preview3d = s; s.attach($('ed-preview')); } });
     else { preview3d?.detach(); }
   };
   btn.addEventListener('click', () => open(ed.hidden));
   $('ed-done').addEventListener('click', () => open(false));
+  $('ed-front').addEventListener('click', () => { dispatchEvent(new Event('avatar-preview-reset')); blip(900, 0.04, 0.02); });
   $('ed-x').addEventListener('click', () => open(false));
   ed.addEventListener('pointerdown', (e) => { if (e.target === ed) open(false); });           // click the dimmed backdrop
   addEventListener('keydown', (e) => { if (e.key === 'Escape' && !ed.hidden) { open(false); e.stopImmediatePropagation(); } }, { capture: true });
@@ -107,9 +112,13 @@
     setTimeout(() => {
       if (!ed.hidden) return;
       try { localStorage.setItem('avatar-nudges', String(shown + 1)); sessionStorage.setItem('avatar-nudged', '1'); } catch {}
-      btn.classList.add('wiggle'); nudge.hidden = false; blip(880, 0.05, 0.02); setTimeout(() => blip(1180, 0.06, 0.02), 90);
-      setTimeout(() => btn.classList.remove('wiggle'), 1200);
-      setTimeout(() => (nudge.hidden = true), 7000);
+      // On the home page your avatar says it; elsewhere, a small bubble under the button.
+      const say = document.getElementById('me-say'), fig = document.getElementById('me-fig');
+      const bubble = say && fig && fig.offsetParent ? say : nudge;
+      (bubble === say ? fig! : btn).classList.add(bubble === say ? 'hop' : 'wiggle');
+      bubble.hidden = false; blip(880, 0.05, 0.02); setTimeout(() => blip(1180, 0.06, 0.02), 90);
+      setTimeout(() => { btn.classList.remove('wiggle'); fig?.classList.remove('hop'); }, 1200);
+      setTimeout(() => (bubble.hidden = true), 8000);
     }, 3000);
   }
 </script>
@@ -151,6 +160,13 @@
   .preview:global(.scene-on) :global(.scene-canvas) { opacity: 1; }
   .preview:global(.scene-on) .flat { opacity: 0; }
   .flat { transition: opacity .2s; }
+  .front {
+    position: absolute; right: 10px; bottom: 10px; z-index: 2; width: 32px; height: 32px; border-radius: 50%;
+    display: grid; place-items: center; border: 1px solid var(--line); background: var(--panel); color: var(--muted);
+    cursor: pointer; box-shadow: var(--shadow); transition: transform .2s cubic-bezier(.3,1.6,.5,1), color .15s;
+  }
+  .front:hover { color: var(--ink); transform: rotate(-40deg); }
+  .preview .front svg { width: 16px; height: 16px; }            /* not the big preview-drawing size */
   .sliders { display: grid; gap: 8px; }
   .sliders label { display: grid; grid-template-columns: 56px 1fr; align-items: center; gap: 10px; color: var(--muted); font-size: 12px; }
   .sliders input { accent-color: var(--sel); }
