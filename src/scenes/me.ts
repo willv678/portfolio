@@ -35,6 +35,12 @@ export const create = () => createStage((kit) => {
   let walkReq = false, walkAt = -1, idle0 = 0;
   addEventListener('avatar-walk-in', () => (walkReq = true));
 
+  // which way it faces at rest: a little toward the screen's middle (on
+  // desktop it stands at the panel's right, on phones in the top-right corner
+  // beside the photo, so it angles left there)
+  const phone = matchMedia('(max-width: 720px)');
+  const rest = () => (phone.matches ? -0.3 : 0.25);
+
   const L = 8;
   let prevT = 0;
   return (t) => {
@@ -48,7 +54,7 @@ export const create = () => createStage((kit) => {
       const slow = 1 - seg(wk, 0.75, 1);                                  // the last steps settle
       holder.position.x = FROM * Math.pow(1 - Math.min(1, wk * 1.08), 2.2);   // in right away, slowing as it arrives
       holder.position.y = Math.abs(Math.sin(ph)) * 0.04 * slow;
-      holder.rotation.y = -Math.PI / 2 + (Math.PI / 2 + 0.25) * ease(seg(wk, 0.72, 1));   // facing left, then you
+      holder.rotation.y = -Math.PI / 2 + (Math.PI / 2 + rest()) * ease(seg(wk, 0.72, 1));   // facing left, then you
       holder.rotation.z = Math.sin(ph) * 0.09 * slow;
       fig.right.rotation.z = 0.18; fig.left.rotation.z = -0.18;
       fig.right.rotation.x = Math.sin(ph) * 0.7 * slow; fig.left.rotation.x = -Math.sin(ph) * 0.7 * slow;
@@ -66,7 +72,7 @@ export const create = () => createStage((kit) => {
     const u = (t - idle0) % L;
     // idle: a soft bob and a little sway
     holder.position.y = Math.abs(Math.sin(t * 2.2)) * 0.015;
-    holder.rotation.y = 0.25 + Math.sin(t * 0.7) * 0.12;
+    holder.rotation.y = rest() + Math.sin(t * 0.7) * 0.12;
     fig.head.rotation.z = Math.sin(t * 1.1) * 0.05;
     // wave, around 1.5–3.3s
     const w = seg(u, 1.5, 1.8) * (1 - seg(u, 3.0, 3.3));

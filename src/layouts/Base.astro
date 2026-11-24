@@ -71,20 +71,35 @@ const rules = home
     // Esc is the B button: back to the home screen. ← / → turn the page to the
     // previous / next project or post (from <link rel=prev/next>). Inline in
     // <head> so the keys work from the first moment, even mid-load.
-    if (!home) addEventListener('keydown', (e) => {
-      if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey || e.shiftKey || e.repeat) return;
-      if (e.target.closest && e.target.closest('input, textarea, select, pre, iframe, [contenteditable]')) return;
-      let href = '/', dir = '';
-      if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
-        dir = e.key === 'ArrowRight' ? 'next' : 'prev';
-        const link = document.querySelector('link[rel=' + dir + ']');
-        if (!link) return;
-        href = link.href;
-      } else if (e.key !== 'Escape') return;
-      e.preventDefault();
-      try { dir ? sessionStorage.setItem('nav-dir', dir) : sessionStorage.removeItem('nav-dir'); } catch (_) {}
-      location.href = href;
-    });
+    // Phones: a horizontal swipe does the same (swipe left = next). Swipes
+    // that start at the screen's edges are left to the browser's own back /
+    // forward gesture, and anything mostly vertical is just scrolling.
+    if (!home) {
+      const turn = (dir) => {
+        const href = dir ? document.querySelector('link[rel=' + dir + ']')?.href : '/';
+        if (!href) return false;
+        try { dir ? sessionStorage.setItem('nav-dir', dir) : sessionStorage.removeItem('nav-dir'); } catch (_) {}
+        location.href = href;
+        return true;
+      };
+      addEventListener('keydown', (e) => {
+        if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey || e.shiftKey || e.repeat) return;
+        if (e.target.closest && e.target.closest('input, textarea, select, pre, iframe, [contenteditable]')) return;
+        const dir = e.key === 'ArrowRight' ? 'next' : e.key === 'ArrowLeft' ? 'prev' : e.key === 'Escape' ? '' : null;
+        if (dir !== null && turn(dir)) e.preventDefault();
+      });
+      let sx = 0, sy = 0, st = 0, ok = false;
+      addEventListener('touchstart', (e) => {
+        const p = e.touches[0];
+        ok = e.touches.length === 1 && p.clientX > 30 && p.clientX < innerWidth - 30 && !(e.target.closest && e.target.closest('pre, #avatar-ed, iframe, input, textarea'));
+        sx = p.clientX; sy = p.clientY; st = performance.now();
+      }, { passive: true });
+      addEventListener('touchend', (e) => {
+        if (!ok) return; ok = false;
+        const p = e.changedTouches[0], dx = p.clientX - sx, dy = p.clientY - sy;
+        if (Math.abs(dx) > 70 && Math.abs(dy) < Math.abs(dx) * 0.5 && performance.now() - st < 700) turn(dx < 0 ? 'next' : 'prev');
+      }, { passive: true });
+    }
   </script>
 </head>
 <body style={accent ? `--accent:${accent}` : undefined} data-home={home ? '' : undefined}>
