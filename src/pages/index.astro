@@ -118,7 +118,6 @@ const empties = Math.max(0, Math.ceil((items.length + 1) / 6) * 6 - items.length
     addEventListener('avatar-change', drawFlat);
     let me: { attach(el: HTMLElement, o?: { sfx?: 'always' | 'hover' }): void; detach(): void } | null = null;
     const showMe = (on: boolean) => {
-      if (!matchMedia('(min-width: 721px)').matches) return;
       if (on) getScene('me').then((s) => {
         if (!s) { flat = true; drawFlat(); return; }
         if (cur >= 0) return;
@@ -174,11 +173,12 @@ const empties = Math.max(0, Math.ceil((items.length + 1) / 6) * 6 - items.length
     // about the character itself (still Will's default: point at the editor
     // button, which rings; already made one: "click me"). Then a status line
     // every ~12s, never the same one twice in a row.
+    const wide = matchMedia('(min-width: 721px)');    // phones: no speech bubble (no room), so it stays quiet
     let lastLine = -1, intro = true, nextAt = performance.now() + 2600;   // after the walk-in
     setInterval(() => {
       const now = performance.now();
       const free = cur < 0 && !document.hidden && !document.documentElement.classList.contains('editing')
-        && meFig.offsetParent && scrollY < innerHeight * 0.5 && say.hidden;
+        && meFig.offsetParent && wide.matches && scrollY < innerHeight * 0.5 && say.hidden;
       if (!free || now < nextAt) return;
       if (intro) {
         intro = false;
@@ -253,7 +253,10 @@ const empties = Math.max(0, Math.ceil((items.length + 1) / 6) * 6 - items.length
       if ((e.target as Element).closest('#screen')) { clearTimeout(leave); return; }
       if (cur >= 0) later();
     });
-    root.addEventListener('pointerleave', () => { if (!root.classList.contains('kbd')) later(); });
+    // (a finger lifting off the screen also "leaves" the page; that isn't a mouse wandering off)
+    root.addEventListener('pointerleave', (e) => { if (e.pointerType !== 'touch' && !root.classList.contains('kbd')) later(); });
+    let lastTouch = 0;
+    addEventListener('pointerdown', (e) => { if (e.pointerType === 'touch') lastTouch = performance.now(); }, { capture: true });
 
     // Keyboard: arrows browse like a console menu, Enter opens, Esc backs out.
     addEventListener('keydown', (e) => {
@@ -289,7 +292,7 @@ const empties = Math.max(0, Math.ceil((items.length + 1) / 6) * 6 - items.length
     }
 
     // Tabbing onto a tile selects it too.
-    tiles.forEach((t, i) => t.addEventListener('focus', () => select(i)));
+    tiles.forEach((t, i) => t.addEventListener('focus', () => { if (performance.now() - lastTouch > 600) select(i); }));
     // Touch screens (no hover): the first tap on an app shows its panel, like
     // highlighting an icon on a 3DS; tapping it again (or "open") goes to the page.
     const touch = matchMedia('(hover: none)').matches;
@@ -301,6 +304,15 @@ const empties = Math.max(0, Math.ceil((items.length + 1) / 6) * 6 - items.length
       $('screen').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }));
     x.addEventListener('click', () => select(-1));
+    if (touch) {
+      // tapping anywhere else goes back to the about view…
+      document.addEventListener('click', (e) => { if (cur >= 0 && !(e.target as Element).closest('.tile, #screen')) select(-1); });
+      // …and so does leaving it alone for 15 seconds
+      let idleT = 0;
+      const arm = () => { clearTimeout(idleT); if (cur >= 0) idleT = window.setTimeout(() => select(-1), 15000); };
+      tiles.forEach((t) => t.addEventListener('click', () => setTimeout(arm)));
+      ['touchstart', 'scroll'].forEach((ev) => addEventListener(ev, arm, { passive: true }));
+    }
     document.addEventListener('click', (e) => { if ((e.target as Element).closest('.tile, #proj') && (!touch || cur >= 0)) openSound(); });
 
     // Two "screens". Any small scroll down from the top glides to the
@@ -483,7 +495,9 @@ const empties = Math.max(0, Math.ceil((items.length + 1) / 6) * 6 - items.length
     .view { flex-direction: column; align-items: stretch; gap: 14px; padding: 20px; }
     .view[hidden] { display: none; }        /* the hidden view takes no room, so no empty gap under the bio */
     .me img { width: 104px; border-radius: 12px; }
-    .me-fig, .say { display: none; }
+    .say { display: none; }
+    /* your character stands in the top-right corner, beside the photo (and walks in from the panel's edge) */
+    .me-fig { display: grid; position: absolute; top: 6px; right: 0; width: 130px; height: 150px; margin: 0; }
     .me > div { max-width: none; }
     h1 { font-size: 30px; }
     .me p { font-size: 15px; }
