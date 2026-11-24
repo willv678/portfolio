@@ -45,7 +45,13 @@ const rules = home
   {prev && <link rel="prev" href={prev} />}
   {next && <link rel="next" href={next} />}
   <slot name="head" />
-  <script is:inline type="speculationrules" set:html={JSON.stringify(rules)} />
+  <script is:inline define:vars={{ rules }}>
+    // Only on mouse-and-keyboard devices: on phones nobody presses Esc or ←/→,
+    // so preparing pages ahead would just spend their data. (Rules in Base frontmatter.)
+    if (HTMLScriptElement.supports?.('speculationrules') && matchMedia('(hover: hover)').matches) {
+      const s = document.createElement('script'); s.type = 'speculationrules'; s.textContent = JSON.stringify(rules); document.head.append(s);
+    }
+  </script>
   <script is:inline>
     // ?fresh — forget everything this site saved in this browser (avatar, the
     // "make your own character" nudge, mute), then reload as a first-time visitor.

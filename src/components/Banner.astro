@@ -11,14 +11,19 @@ const { bg, icon, vt, image, scene } = Astro.props;
 </div>
 <script>
   import { getScene } from '../scripts/scenes';
-  document.querySelectorAll<HTMLElement>('.banner[data-scene]').forEach((el) => {
+  // The 3D scene waits until the page has loaded and gone idle, so building it
+  // (and loading three.js) never holds up the words on the page. The flat icon
+  // shows until then.
+  const idle = (f: () => void) => ('requestIdleCallback' in window ? requestIdleCallback(f, { timeout: 800 }) : setTimeout(f, 200));
+  const start = () => idle(() => document.querySelectorAll<HTMLElement>('.banner[data-scene]').forEach((el) => {
     const io = new IntersectionObserver(([e]) => {
       if (!e.isIntersecting) return;
       io.disconnect();
       getScene(el.dataset.scene!).then((s) => s?.attach(el, { sfx: 'hover' }));
     });
     io.observe(el);
-  });
+  }));
+  document.readyState === 'complete' ? start() : addEventListener('load', start, { once: true });
 </script>
 <style>
   .banner {
