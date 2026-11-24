@@ -29,7 +29,7 @@ There are two halves:
 
 Saves are named, not located: both sides call a save `game/<title id>/<user id>`, and each side looks up where that lives. Deciding which way to copy is one small function. Each side fingerprints the save (a SHA-256 over its files) and compares that to the last version both sides agreed on. If one side changed, copy it. If both changed, ask.
 
-<Figure src="/projects/warppoint/menu.png" alt="The WarpPoint menu: status, recent syncs, Sync Now" caption="click the UFO" max={360} />
+<Figure src="/projects/warppoint/menu.jpg" alt="The WarpPoint menu under its UFO icon in the macOS menu bar: the Switch is here, last sync just now, Fire Emblem: Three Houses copied to the Mac" caption="click the UFO" max={400} />
 
 ## Not eating saves
 
@@ -42,6 +42,16 @@ Sync is the dangerous part, since a bug can eat a save file, so the core stays s
 On the Switch, an overlay you can open in any game shows when it last synced, with a sync-now button and a pause switch.
 
 <Figure src="/projects/warppoint/overlay.jpg" alt="The WarpPoint overlay on a Switch: Ready, last synced 13 minutes ago, Sync now, and toggles" caption="the overlay, mid-game" max={320} />
+
+## Light enough to forget about
+
+It's a background app, so it shouldn't cost you anything while it waits. It only does real work during a sync.
+
+| | Mac app | Switch module |
+|---|---|---|
+| Memory | about 19 MB | a little over 2 MB |
+| CPU while idle | about 0.1% of one core | wakes once a second |
+| Download | 1.4 MB | 0.5 MB, plus a 0.3 MB overlay |
 
 ## What's next
 
