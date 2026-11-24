@@ -6,6 +6,7 @@
 //   roblox  → a classic blocky avatar: waves, falls to pieces, respawns
 //   leidos  → a car stops at a red light, they talk (V2X), it goes on green
 //   uga     → a graduation cap with a swinging tassel
+//   gtri    → a laptop + webcam finds a face (TechDetect), and checks it in
 
 import {
   BoxGeometry, CanvasTexture, CapsuleGeometry, ConeGeometry, GridHelper, CylinderGeometry, Group, Mesh, MeshBasicMaterial,
@@ -47,6 +48,59 @@ export function create(): (SceneHandle & { show(name: string): void }) | null {
       g.add(skull, board, button, tassel);
       g.position.y = 0.25;
       add('uga', g, (t) => { tassel.rotation.z = Math.sin(t * 3) * 0.18; tassel.rotation.x = Math.cos(t * 2.3) * 0.1; });
+    }
+
+    // ---------- GTRI: TechDetect on a laptop: scan a face, check it in ----------
+    {
+      const g = new Group();
+      const AMBER = '#d9820f', GREEN = '#3fae5a';
+      // the screen: a face with a box around it; amber while looking, green once it knows you
+      const shot = (box: string, ok: boolean) => {
+        const c = document.createElement('canvas'); c.width = 160; c.height = 110;
+        const x = c.getContext('2d')!;
+        x.fillStyle = '#eef1f5'; x.fillRect(0, 0, 160, 110);
+        x.fillStyle = '#f1c9a5'; x.beginPath(); x.arc(80, 58, 24, 0, Math.PI * 2); x.fill();
+        x.fillStyle = '#5a3a24'; x.beginPath(); x.arc(80, 50, 25, Math.PI, 0); x.fill();
+        x.fillStyle = '#2b2838'; x.beginPath(); x.arc(71, 59, 2.6, 0, Math.PI * 2); x.arc(89, 59, 2.6, 0, Math.PI * 2); x.fill();
+        x.strokeStyle = '#2b2838'; x.lineWidth = 2.2; x.lineCap = 'round'; x.beginPath(); x.arc(80, 66, 7, Math.PI * 0.2, Math.PI * 0.8); x.stroke();
+        x.strokeStyle = box; x.lineWidth = 4; x.strokeRect(50, 26, 60, 64);
+        if (ok) { x.fillStyle = box; x.fillRect(50, 92, 60, 14); x.fillStyle = '#fff'; x.font = 'bold 10px sans-serif'; x.textAlign = 'center'; x.fillText('present', 80, 102); }
+        const tex = kit.own(new CanvasTexture(c)); tex.colorSpace = SRGBColorSpace; return tex;
+      };
+      const looking = shot(AMBER, false), known = shot(GREEN, true);
+      const base = new Mesh(new RoundedBoxGeometry(1.0, 0.05, 0.66, 2, 0.02), toon('#d7dbe2')); base.position.y = 0.025;
+      const keys = new Mesh(new BoxGeometry(0.8, 0.012, 0.3), new MeshBasicMaterial({ color: '#b9bfc9' })); keys.position.set(0, 0.055, 0.06);
+      const lid = new Group(); lid.position.set(0, 0.05, -0.31); lid.rotation.x = -0.2;
+      const shell = new Mesh(new RoundedBoxGeometry(1.0, 0.68, 0.04, 2, 0.02), toon('#d7dbe2')); shell.position.y = 0.34;
+      const screenMat = new MeshBasicMaterial({ map: looking });
+      const screen = new Mesh(new PlaneGeometry(0.9, 0.6), screenMat); screen.position.set(0, 0.35, 0.022);
+      // the USB webcam clipped on top
+      const cam = new Group(); cam.position.set(0, 0.73, 0.01);
+      cam.add(new Mesh(new RoundedBoxGeometry(0.26, 0.11, 0.1, 2, 0.04), toon('#2a2d35')));
+      const lens = new Mesh(new CylinderGeometry(0.035, 0.035, 0.02, 20), new MeshBasicMaterial({ color: '#4a6fa5' })); lens.rotation.x = Math.PI / 2; lens.position.set(-0.04, 0, 0.051);
+      const led = new Mesh(new SphereGeometry(0.014, 10, 8), new MeshBasicMaterial({ color: '#5be38a' })); led.position.set(0.07, 0, 0.05);
+      cam.add(lens, led);
+      lid.add(shell, screen, cam);
+      // a check bubble pops up when it knows you
+      const check = new Group(); check.position.set(0.55, 1.0, -0.2);
+      const disc = new Mesh(new SphereGeometry(0.13, 20, 14), toon('#ffffff'));
+      const tick = new Group();
+      const s1 = new Mesh(new BoxGeometry(0.06, 0.025, 0.025), new MeshBasicMaterial({ color: GREEN })); s1.position.set(-0.03, -0.015, 0.13); s1.rotation.z = -0.8;
+      const s2 = new Mesh(new BoxGeometry(0.13, 0.025, 0.025), new MeshBasicMaterial({ color: GREEN })); s2.position.set(0.03, 0.01, 0.13); s2.rotation.z = 0.85;
+      tick.add(s1, s2); check.add(disc, tick);
+      g.add(base, keys, lid, check);
+      g.position.y = 0.05; g.scale.setScalar(1.3);
+      const L = 4.4, HIT = 1.6;
+      add('gtri', g, (t, prev) => {
+        const u = t % L;
+        const ok = u >= HIT && u < L - 0.5;
+        screenMat.map = ok ? known : looking;
+        led.visible = ok || Math.sin(t * 10) > 0;                         // blinks while it's looking
+        const pop = seg(u, HIT, HIT + 0.3) * (1 - seg(u, L - 0.8, L - 0.5));
+        check.scale.setScalar(Math.max(0.001, backOut(Math.min(1, pop)) * (pop > 0 ? 1 : 0)));
+        check.position.y = 1.0 + Math.sin(t * 3) * 0.03;
+        if (passed(prev, t, HIT, L)) kit.sfx(sfx.ding);
+      }, true);
     }
 
     // ---------- Leidos: stop at the light, talk to it, go on green ----------

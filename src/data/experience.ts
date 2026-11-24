@@ -7,7 +7,7 @@ export interface Entry {
   role: string; org: string;
   what: string;
   href?: string;
-  model?: 'abridge' | 'roblox' | 'leidos' | 'lab' | 'uga';
+  model?: 'abridge' | 'roblox' | 'leidos' | 'lab' | 'uga' | 'gtri';
   minor?: boolean;
 }
 
@@ -23,8 +23,10 @@ export const experience: Entry[] = [
     what: "Ported the CARMA–CARLA bridge to ROS 2 so USDOT's open-source cooperative-driving stack co-simulates directly with CARLA.", href: '/cdasim/', model: 'leidos' },
   { start: 'Fall 2023', end: 'now', role: 'B.S. Computer Science', org: 'University of Georgia', short: 'UGA',
     what: 'Presidential Scholar and Zell Miller Scholar.', model: 'uga' },
+  { start: 'Summer 2022', role: 'STEM@GTRI Intern', org: 'Georgia Tech Research Institute', short: 'GTRI',
+    what: 'The summer before senior year of high school, built TechDetect solo: a camera that takes attendance and notices raised hands. It won the 2022 Congressional App Challenge for my district.', href: '/techdetect/', model: 'gtri' },
   { start: '2023', end: '2025', role: 'Co-founder', org: 'Paragon Policy Fellowship',
     what: 'A nonprofit pairing students with state and local governments on tech policy. Built the platform, helped raise $100k+.', minor: true },
   { start: '2022', role: 'Congressional App Challenge winner', org: 'GA-05',
-    what: 'For <a href="/techdetect/">TechDetect</a>, built during the STEM@GTRI internship.', href: 'https://www.congressionalappchallenge.us/22-ga05/', minor: true },
+    what: 'For <a href="/techdetect/">TechDetect</a>.', href: 'https://www.congressionalappchallenge.us/22-ga05/', minor: true },
 ];
