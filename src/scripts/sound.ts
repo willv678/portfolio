@@ -15,6 +15,13 @@ function unlock() {
   ctx ??= new AudioContext();
   ctx.resume();
 }
+// Some visits are allowed sound right away (Chrome, for one, may allow it
+// after you've already clicked around this site). Check once on load; if the
+// browser says no, wait for the first gesture as usual.
+try {
+  const probe = new AudioContext();
+  if (probe.state === 'running') { ctx = probe; unlocked = true; } else probe.close();
+} catch {}
 addEventListener('pointerdown', unlock, { capture: true });
 addEventListener('keydown', unlock, { capture: true });
 
