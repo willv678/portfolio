@@ -197,8 +197,23 @@ const empties = Math.max(0, Math.ceil((items.length + 1) / 6) * 6 - items.length
     let playing: { detach(): void } | null = null, token = 0;
     const dropScene = () => { token++; playing?.detach(); playing = null; };
 
+    // On phones the about view and a project preview are different heights,
+    // so switching between them animates the panel's height (and fades the
+    // new content in) instead of snapping.
+    const screenEl = $('screen');
+    const narrow = matchMedia('(max-width: 720px)'), still = matchMedia('(prefers-reduced-motion: reduce)');
     function select(i: number) {
       if (i === cur) return;
+      const animate = narrow.matches && !still.matches;
+      const from = animate ? screenEl.getBoundingClientRect().height : 0;
+      swap(i);
+      if (!animate) return;
+      const to = screenEl.getBoundingClientRect().height;
+      const ease = 'cubic-bezier(.3,.9,.3,1)';
+      if (Math.abs(to - from) > 1) screenEl.animate([{ height: `${from}px` }, { height: `${to}px` }], { duration: 320, easing: ease });
+      (i < 0 ? home : proj).animate([{ opacity: 0, transform: 'translateY(6px)' }, { opacity: 1, transform: 'none' }], { duration: 260, easing: ease });
+    }
+    function swap(i: number) {
       cur = i;
       dropScene();
       tiles.forEach((t, j) => t.classList.toggle('on', j === i));
