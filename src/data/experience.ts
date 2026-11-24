@@ -24,7 +24,7 @@ export const experience: Entry[] = [
   { start: 'Fall 2023', end: 'now', role: 'B.S. Computer Science', org: 'University of Georgia', short: 'UGA',
     what: 'Presidential Scholar and Zell Miller Scholar.', model: 'uga' },
   { start: 'Summer 2022', role: 'STEM@GTRI Intern', org: 'Georgia Tech Research Institute', short: 'GTRI',
-    what: 'The summer before senior year of high school, built TechDetect solo: a camera that takes attendance and notices raised hands. It won the 2022 Congressional App Challenge for my district.', href: '/techdetect/', model: 'gtri' },
+    what: 'The summer before senior year of high school, built TechDetect solo: face tracking takes attendance, and hand tracking flags who has a question, so a teacher on a big Zoom class doesn\'t miss anyone. It won the 2022 Congressional App Challenge for my district.', href: '/techdetect/', model: 'gtri' },
   { start: '2023', end: '2025', role: 'Co-founder', org: 'Paragon Policy Fellowship',
     what: 'A nonprofit pairing students with state and local governments on tech policy. Built the platform, helped raise $100k+.', minor: true },
   { start: '2022', role: 'Congressional App Challenge winner', org: 'GA-05',

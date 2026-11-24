@@ -28,7 +28,7 @@ The summer before my senior year of high school I interned at the Georgia Tech R
 
 **Keeping the record.** Each day gets its own MySQL table: who arrived, when, and when they left. A small Flask site behind a login shows the day's attendance and the student list, so a teacher never has to open a database tool.
 
-**Raised hands.** Google's MediaPipe tracks hands in the same video feed. TechDetect matches a raised hand to the face next to it, so it knows *who* has a question, which mattered more to me than attendance did.
+**Raised hands.** This part was built with Zoom in mind: in a big online class, a teacher can't watch forty little video tiles for a hand going up. Google's MediaPipe tracks hands in the same video feed, and TechDetect matches a raised hand to the face next to it, so it knows *who* has a question. That mattered more to me than attendance did.
 
 <Figure src="/projects/techdetect/tracking.jpg" alt="The camera view: a green box around my face and a tracked skeleton over my raised hand" caption="a face it knows, and a hand it's tracking" />
 
@@ -38,4 +38,4 @@ TechDetect [won the 2022 Congressional App Challenge](https://www.congressionala
 
 ## Looking back
 
-The code is very high school. If I built it today I'd swap LBPH for modern face embeddings, use parameterized SQL instead of building queries out of strings, and think a lot harder about consent before pointing a camera at a classroom. But the instinct was right: find a small, annoying, everyday problem and make it go away.
+The code is very high school. If I built it today I'd swap LBPH for modern face embeddings, use parameterized SQL instead of building queries out of strings, and think a lot harder about consent before pointing a camera at a classroom. (An early version also tried to tell whether you were paying attention. I cut it, which was the right call.) But the instinct was right: find a small, annoying, everyday problem and make it go away.
