@@ -57,36 +57,16 @@ export function clear() {
 const INK = '#2b2838';
 const st = `stroke="${INK}" stroke-width="2.5" stroke-linejoin="round"`;
 
-// Curly hair is one solid shape with a scalloped outline (each edge bulges out
-// into a little arc), which reads as curls far better than separate circles.
-const CURLY_BACK: [number, number][] = [
-  [24, 30], [20, 45], [18, 60], [17, 75], [19, 89], [28, 97], [39, 95], [50, 98], [61, 95], [72, 97], [81, 89], [83, 75], [82, 60], [80, 45], [76, 30], [65, 15], [50, 10], [35, 15],
-];
-const CURLY_FRONT: [number, number][] = [
-  [24, 45], [22, 33], [27, 22], [37, 13], [50, 10], [63, 13], [73, 22], [78, 33], [76, 45], [71, 36], [64, 30], [57, 33], [50, 28], [43, 32], [36, 30], [30, 36],
-];
-function scallop(base: [number, number][], bulge: number, step = 6.5) {
-  // resample the outline into short, even pieces, so every bump is a small round curl
-  const pts: [number, number][] = [];
-  base.forEach((p, i) => {
-    const q = base[(i + 1) % base.length], n = Math.max(1, Math.round(Math.hypot(q[0] - p[0], q[1] - p[1]) / step));
-    for (let k = 0; k < n; k++) pts.push([p[0] + ((q[0] - p[0]) * k) / n, p[1] + ((q[1] - p[1]) * k) / n]);
-  });
-  const cx = base.reduce((s, p) => s + p[0], 0) / base.length, cy = base.reduce((s, p) => s + p[1], 0) / base.length;
-  let d = `M${pts[0][0]} ${pts[0][1]}`;
-  pts.forEach((p, i) => {
-    const q = pts[(i + 1) % pts.length], mx = (p[0] + q[0]) / 2, my = (p[1] + q[1]) / 2;
-    const dx = mx - cx, dy = my - cy, len = Math.hypot(dx, dy) || 1;
-    d += ` Q${(mx + (dx / len) * bulge).toFixed(1)} ${(my + (dy / len) * bulge).toFixed(1)} ${q[0].toFixed(1)} ${q[1].toFixed(1)}`;
-  });
-  return d + 'Z';
-}
+// Curly hair (Will's design): a smooth dome on top, sharp zigzag teeth down
+// the sides and along the hem, and a jagged fringe stepping up across the forehead.
+const CURLY_BACK = 'M24 40 Q24 12 50 12 Q76 12 76 40 L84 49 L78 56 L85 64 L78 72 L85 80 L78 88 L82 96 L72 92 L64 99 L56 92 L50 99 L44 92 L36 99 L28 92 L18 96 L22 88 L15 80 L22 72 L15 64 L22 56 L16 49 Z';
+const CURLY_FRONT = 'M24 48 Q21 13 50 12 Q79 13 76 48 L74 36 L69 29 L64 21 L61 15 L56 23 L48 26 L44 32 L36 34 L31 42 Z';
 
 function hairBack(a: Avatar) {
   const c = OPTIONS.hairColor[a.hairColor];
   switch (OPTIONS.hair[a.hair]) {
     case 'long': return `<path d="M24 34 Q17 66 21 92 Q28 98 36 92 Q33 70 36 50 Z M76 34 Q83 66 79 92 Q72 98 64 92 Q67 70 64 50 Z" fill="${c}" ${st}/>`;
-    case 'curly': return `<path d="${scallop(CURLY_BACK, 5, 11)}" fill="${c}" ${st}/>`;
+    case 'curly': return `<path d="${CURLY_BACK}" fill="${c}" ${st}/>`;
     default: return '';
   }
 }
@@ -97,7 +77,7 @@ function hairFront(a: Avatar) {
     case 'wavy': return `<path d="M24 46 Q18 31 26 22 Q29 9 42 10 Q50 4 59 9 Q72 8 75 21 Q82 31 76 46 Q73 36 67 34 Q64 40 57 35 Q51 41 45 35 Q39 40 34 34 Q28 36 24 46 Z" fill="${c}" ${st}/><path d="M33 18 Q38 14 43 18 M55 15 Q61 12 66 17" fill="none" stroke="${INK}" stroke-width="1.6" stroke-linecap="round" opacity=".45"/>`;
     case 'short': return `<path d="M24 40 Q22 14 50 13 Q76 13 76 38 Q70 26 56 25 Q46 31 30 30 Q26 33 24 40 Z" fill="${c}" ${st}/>`;
     case 'long': return `<path d="M24 46 Q21 14 50 13 Q79 14 76 46 Q72 30 60 27 Q46 35 30 34 Q26 38 24 46 Z" fill="${c}" ${st}/>`;
-    case 'curly': return `<path d="${scallop(CURLY_FRONT, 4.4, 9.5)}" fill="${c}" ${st}/>`;
+    case 'curly': return `<path d="${CURLY_FRONT}" fill="${c}" ${st}/>`;
     case 'ponytail': return cap(`<circle cx="70" cy="24" r="5" fill="${c}" ${st}/>`);
     case 'buzz': return `<path d="M26 34 Q26 15 50 15 Q74 15 74 34 Q64 24 50 24 Q36 24 26 34 Z" fill="${c}" opacity=".85" ${st}/>`;
     default: return '';
