@@ -1,14 +1,15 @@
 // Things Will's avatar says on the home page, one every ~12 seconds.
 // `me` is used when the avatar is Will (the default); `them` when a visitor
 // has made their own character, who passes it along as gossip.
-// Edit freely: short and casual works best.
+// Edit freely: short, deadpan, and the `them` line gets the punchline.
 export const STATUS: { me: string; them: string }[] = [
-  { me: 'I just finished The Sign of the Four. Holmes never misses.', them: 'I hear Will just finished The Sign of the Four.' },
-  { me: 'I just beat Bayonetta 3!', them: 'Word is Will just beat Bayonetta 3!' },
-  { me: 'Building WarpPoint so my Switch saves follow me to my Mac.', them: 'Apparently Will is making his Switch saves follow him to his Mac.' },
-  { me: 'Replaying Fire Emblem: Three Houses. Golden Deer, obviously.', them: 'I hear Will is on yet another Three Houses run.' },
-  { me: 'Building a GPT from scratch in PyTorch this month.', them: 'Rumor has it Will is building a GPT from scratch.' },
-  { me: 'Moving to San Francisco in January!', them: 'Psst, Will is moving to San Francisco in January!' },
-  { me: 'One more game of League. Okay, maybe two.', them: 'Will said one more game of League. I hear it is never one.' },
-  { me: 'Shipping a new project every day this week. Wish me luck?', them: 'I hear Will is shipping a new project every day this week.' },
+  { me: 'One more game of League. Then bed.', them: 'I hear Will is hardstuck.' },
+  { me: 'My Switch and my Mac are finally talking.', them: "Apparently Will made his Switch talk to his Mac. They don't get along." },
+  { me: 'This voice is just math.', them: "I hear this voice is just math. Will won't stop talking about it." },
+  { me: 'Also try the arrow keys!', them: 'I hear the arrow keys do stuff here.' },
+  { me: "This site has no skill bars. You're welcome.", them: 'Word is Will refused to add skill bars.' },
+  { me: 'Spent more time on the character creator than on my resume.', them: 'I hear Will spent a week on the character creator. The resume got an afternoon.' },
+  { me: 'Just finished A Game of Thrones. Winter is coming.', them: "Will keeps saying winter is coming. He lives in Georgia." },
+  { me: 'The HTML is a 1/5. The toys are a 5/5.', them: "I hear Will's HTML is a 1/5. The toys carry." },
+  { me: 'My avatar has better hair than me.', them: "Word is Will's avatar has better hair than Will." },
 ];

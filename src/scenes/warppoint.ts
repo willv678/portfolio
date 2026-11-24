@@ -142,6 +142,17 @@ export const create = () => createStage((kit) => {
     const shutter = new Mesh(new PlaneGeometry(0.16, 0.1), toon('#cfd3dc'));
     shutter.position.set(0.02, 0.1, f * 0.027); shutter.rotation.y = f > 0 ? 0 : Math.PI;
     save.add(label, shutter);
+    // The details that make it read as a floppy: the slot in the metal shutter, lines
+    // on the label, and the write-protect notch in the corner.
+    const detail = (w: number, h: number, color: string, x: number, y: number) => {
+      const m = new Mesh(new PlaneGeometry(w, h), new MeshBasicMaterial({ color }));
+      m.position.set(x, y, f * 0.0285); m.rotation.y = f > 0 ? 0 : Math.PI;
+      save.add(m);
+    };
+    detail(0.045, 0.075, '#2f2a4a', f > 0 ? 0.055 : -0.015, 0.1);   // shutter slot (inside the shutter on both faces)
+    detail(0.17, 0.014, '#cbc5f3', 0, -0.045);                       // label lines
+    detail(0.17, 0.014, '#cbc5f3', 0, -0.085);
+    detail(0.022, 0.03, '#2f2a4a', f * -0.135, -0.14);               // write-protect notch
   }
   scene.add(save);
   const glow = kit.glow('#ffcf3d');
