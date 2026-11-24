@@ -121,14 +121,20 @@ function noise(dur: number, from: number, to: number, vol = 0.01) {
   src.start(t); src.stop(t + dur);
 }
 
-// Recorded clips (everything else here is synthesized). Fetched once, decoded
-// on first play; tiny, so the first play is near-instant anyway.
-const clips = new Map<string, Promise<AudioBuffer | null>>();
+// Recorded clips (everything else here is synthesized). The bytes can be
+// fetched ahead of time (preloadClip); decoding needs the audio context, so it
+// happens on first play, which for a clip this small is instant.
+const bytes = new Map<string, Promise<ArrayBuffer | null>>();
+const decoded = new Map<string, Promise<AudioBuffer | null>>();
+export function preloadClip(url: string) {
+  if (!bytes.has(url)) bytes.set(url, fetch(url).then((r) => (r.ok ? r.arrayBuffer() : null)).catch(() => null));
+}
 function clip(url: string, vol: number) {
   if (!on || !unlocked || !ctx || ctx.state !== 'running') return;
   const c = ctx;
-  if (!clips.has(url)) clips.set(url, fetch(url).then((r) => r.arrayBuffer()).then((b) => c.decodeAudioData(b)).catch(() => null));
-  clips.get(url)!.then((buf) => {
+  preloadClip(url);
+  if (!decoded.has(url)) decoded.set(url, bytes.get(url)!.then((b) => (b ? c.decodeAudioData(b.slice(0)) : null)).catch(() => null));
+  decoded.get(url)!.then((buf) => {
     if (!buf || !on) return;
     const src = c.createBufferSource(), g = c.createGain();
     src.buffer = buf; g.gain.value = vol;
@@ -138,7 +144,7 @@ function clip(url: string, vol: number) {
 
 export const sfx = {
   /** the Roblox "oof", when the blocky avatar falls apart */
-  oof: () => clip('/sfx/oof.mp3', 0.35),
+  oof: () => clip('/sfx/oof.mp3', 0.8),
   /** tractor beam sucking something up: a wobbly hum rising in pitch */
   pull: (dur = 1.0) => warble(150, 360, dur),
   /** ...and lowering it down */

@@ -15,7 +15,7 @@ import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeom
 import { createStage, seg, ease, easeIn, passed, toyCar, type SceneHandle } from './kit';
 import { makeAvatar } from './avatar';
 import { load, DEFAULT, type Avatar } from '../scripts/avatar';
-import { sfx } from '../scripts/sound';
+import { sfx, preloadClip } from '../scripts/sound';
 
 // A mesh placed at (x, y, z). (position is read-only, so it can't be Object.assign'ed.)
 const at = <T extends Mesh>(m: T, x: number, y: number, z: number) => (m.position.set(x, y, z), m);
@@ -23,6 +23,7 @@ const at = <T extends Mesh>(m: T, x: number, y: number, z: number) => (m.positio
 const backOut = (x: number) => 1 + 2.7 * Math.pow(x - 1, 3) + 1.7 * Math.pow(x - 1, 2);
 
 export function create(): (SceneHandle & { show(name: string): void }) | null {
+  preloadClip('/sfx/oof.mp3');                     // the Roblox entry's oof, fetched ahead so it lands on the break
   let want = '', shownAt = -1, current = '';
   const models = new Map<string, { g: Group; tick(t: number, prev: number): void; fixed?: boolean }>();
 
@@ -235,7 +236,7 @@ export function create(): (SceneHandle & { show(name: string): void }) | null {
             p.o.scale.setScalar(1 - seg(u, RESPAWN - 0.35, RESPAWN));
           }
         }
-        if (passed(prev, t, BREAK, L)) kit.sfx(() => { sfx.oof(); sfx.clunk(); });
+        if (passed(prev, t, BREAK, L)) kit.sfx(sfx.oof);
       });
     }
 
