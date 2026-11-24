@@ -157,6 +157,8 @@ export const sfx = {
   clunk: () => { tone(170, 70, 0.14, { type: 'triangle', vol: 0.02 }); noise(0.08, 900, 300, 0.008); },
   /** tires squealing around an obstacle: a high, wobbling scrape */
   screech: () => { noise(0.42, 3400, 2200, 0.009); tone(1900, 1500, 0.38, { type: 'sawtooth', vol: 0.0025 }); },
+  /** a little footstep (alternating feet are pitched apart): pit, pat */
+  step: (foot = 0) => { tone(foot ? 520 : 440, foot ? 360 : 300, 0.05, { type: 'triangle', vol: 0.02 }); noise(0.025, 2400, 1200, 0.004); },
   /** signal light turning green */
   bip: () => tone(1046, 1046, 0.06, { vol: 0.01 }),
 };

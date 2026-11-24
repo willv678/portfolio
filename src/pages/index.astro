@@ -108,17 +108,25 @@ const empties = Math.max(0, Math.ceil((items.length + 1) / 6) * 6 - items.length
     // move on, so re-selecting is instant and idle costs nothing.
     preloadScenes(['me', ...new Set(P.map((p) => p.scene).filter((s): s is string => !!s))]);
 
-    // Your avatar in the about panel: a flat drawing right away, the 3D one
-    // once it's loaded. It pauses while a project is showing. Click → editor.
+    // Your avatar in the about panel, in 3D. Nothing shows until it's ready
+    // (the flat drawing is only a fallback for browsers without WebGL). The
+    // first time per session it walks in from the right. It pauses while a
+    // project is showing. Click → editor.
     const meFig = $('me-fig');
-    const drawFlat = () => { if (!meFig.classList.contains('scene-on')) meFig.innerHTML = avatarSvg(loadAvatar() ?? DEFAULT_AVATAR); };
-    drawFlat();
+    let flat = false;
+    const drawFlat = () => { if (flat) meFig.innerHTML = avatarSvg(loadAvatar() ?? DEFAULT_AVATAR); };
     addEventListener('avatar-change', drawFlat);
     let me: { attach(el: HTMLElement, o?: { sfx?: 'always' | 'hover' }): void; detach(): void } | null = null;
     const showMe = (on: boolean) => {
       if (!matchMedia('(min-width: 721px)').matches) return;
-      if (on) getScene('me').then((s) => { if (s && cur < 0) { me = s; meFig.innerHTML = ''; s.attach(meFig); } });
-      else { me?.detach(); drawFlat(); }
+      if (on) getScene('me').then((s) => {
+        if (!s) { flat = true; drawFlat(); return; }
+        if (cur >= 0) return;
+        let first = false; try { first = !sessionStorage.getItem('walked'); sessionStorage.setItem('walked', '1'); } catch {}
+        me = s; meFig.innerHTML = ''; s.attach(meFig);
+        if (first && meFig.offsetParent) dispatchEvent(new Event('avatar-walk-in'));
+      });
+      else me?.detach();
     };
     showMe(true);
     meFig.addEventListener('click', () => document.getElementById('who')?.click());
@@ -344,7 +352,9 @@ const empties = Math.max(0, Math.ceil((items.length + 1) / 6) * 6 - items.length
   .view[hidden] { display: flex; opacity: 0; transform: translateY(6px); pointer-events: none; visibility: hidden; transition: opacity .28s, transform .28s, visibility 0s .28s; }
   /* your character: last in the row, as tall as the panel's content area */
   .me-fig {
-    order: 3; align-self: stretch; flex: none; margin-left: auto; position: relative; width: clamp(140px, 20%, 220px);
+    order: 3; align-self: stretch; flex: none; margin-left: auto; position: relative;
+    /* reaches the panel's right edge (past the padding), so the walk-in comes from outside the panel */
+    --pad: clamp(20px, 4vw, 44px); width: calc(clamp(140px, 20%, 220px) + var(--pad)); margin-right: calc(-1 * var(--pad)); padding-right: 0;
     background: none; border: 0; padding: 0; cursor: pointer; display: grid; place-items: center;
   }
   .me-fig :global(svg) { width: 72%; height: auto; transition: transform .2s cubic-bezier(.3,1.6,.5,1); }

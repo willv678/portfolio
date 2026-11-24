@@ -1,8 +1,10 @@
 // The visitor's avatar (Will's by default) standing in the about panel on the
 // home page, idling: a gentle bob, a wave now and then, and the occasional
-// hop-and-spin. Rebuilds whenever the avatar is edited.
+// hop-and-spin. Rebuilds whenever the avatar is edited. On the first visit of
+// a session it waddles in from the right edge first (see 'avatar-walk-in').
 import { Group, Vector3 } from 'three';
 import { createStage, seg, ease } from './kit';
+import { sfx } from '../scripts/sound';
 import { makeAvatar } from './avatar';
 import { load, DEFAULT, type Avatar } from '../scripts/avatar';
 
@@ -27,13 +29,41 @@ export const create = () => createStage((kit) => {
   let talking = false, talkK = 0;
   addEventListener('avatar-talk', (e) => (talking = !!(e as CustomEvent<boolean>).detail));
 
+  // the entrance: waddle in from off the right edge, turn to face you, then
+  // the idle loop picks up (its wave lands about 1.5s after arriving)
+  const WALK = 1.6, FROM = 1.05, STEPS = 7;
+  let walkReq = false, walkAt = -1, idle0 = 0;
+  addEventListener('avatar-walk-in', () => (walkReq = true));
+
   const L = 8;
   let prevT = 0;
   return (t) => {
     const dt = Math.min(0.05, t - prevT); prevT = t;
+    if (walkReq) { walkReq = false; walkAt = t; }
+    const wk = walkAt < 0 ? 1 : seg(t, walkAt, walkAt + WALK);
+    if (walkAt >= 0 && wk >= 1) { walkAt = -1; idle0 = t; }
+    if (wk < 1) {
+      // waddle: hop on each step, rock side to side, arms swinging
+      const ph = wk * STEPS * Math.PI;
+      const slow = 1 - seg(wk, 0.75, 1);                                  // the last steps settle
+      holder.position.x = FROM * Math.pow(1 - Math.min(1, wk * 1.08), 2.2);   // in right away, slowing as it arrives
+      holder.position.y = Math.abs(Math.sin(ph)) * 0.04 * slow;
+      holder.rotation.y = -Math.PI / 2 + (Math.PI / 2 + 0.25) * ease(seg(wk, 0.72, 1));   // facing left, then you
+      holder.rotation.z = Math.sin(ph) * 0.09 * slow;
+      fig.right.rotation.z = 0.18; fig.left.rotation.z = -0.18;
+      fig.right.rotation.x = Math.sin(ph) * 0.7 * slow; fig.left.rotation.x = -Math.sin(ph) * 0.7 * slow;
+      fig.head.rotation.set(0, 0, Math.sin(ph) * 0.06);
+      shadow.position.x = holder.position.x; shadow.scale.setScalar(1);
+      // a pit-pat on every footfall
+      const step = Math.floor(wk * STEPS), prevStep = Math.floor(seg(t - dt, walkAt, walkAt + WALK) * STEPS);
+      if (step !== prevStep && step < STEPS) kit.sfx(() => sfx.step(step % 2));
+      return;
+    }
+    holder.position.x = 0; holder.rotation.z = 0; shadow.position.x = 0;
+    fig.left.rotation.x = 0;
     pointK += ((pointing ? 1 : 0) - pointK) * Math.min(1, dt * 5);
     talkK += ((talking ? 1 : 0) - talkK) * Math.min(1, dt * 8);
-    const u = t % L;
+    const u = (t - idle0) % L;
     // idle: a soft bob and a little sway
     holder.position.y = Math.abs(Math.sin(t * 2.2)) * 0.015;
     holder.rotation.y = 0.25 + Math.sin(t * 0.7) * 0.12;
