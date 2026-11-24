@@ -1,10 +1,11 @@
 ---
 // An image in a panel, with a small mono caption. `wide` breaks out of the
 // text column. Usage in MDX: <Figure src="/projects/x/shot.png" alt="..." caption="..." />
-interface Props { src: string; alt: string; caption?: string; wide?: boolean; pixel?: boolean }
-const { src, alt, caption, wide = false, pixel = false } = Astro.props;
+interface Props { src: string; alt: string; caption?: string; wide?: boolean; pixel?: boolean; max?: number }
+// `max` caps the width in px, for small or tall shots (a menu, a phone-shaped screen)
+const { src, alt, caption, wide = false, pixel = false, max } = Astro.props;
 ---
-<figure class:list={['fig', { wide }]}>
+<figure class:list={['fig', { wide }]} style={max ? `max-width:${max}px;margin-inline:auto` : undefined}>
   <div class="frame"><img src={src} alt={alt} loading="lazy" decoding="async" style={pixel ? 'image-rendering:pixelated' : undefined} /></div>
   {caption && <figcaption class="mono">{caption}</figcaption>}
 </figure>

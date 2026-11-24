@@ -1,39 +1,48 @@
 ---
 title: WarpPoint
-blurb: Pick up your Switch and your emulator save is already there. A paired background link between a homebrewed Switch and a Mac, with plugins riding on top.
-status: 2026 · in progress
+blurb: Pick up your Switch and your emulator save is already there. A menu bar app on the Mac and a background module on a homebrewed Switch that keep each game's save in sync over Wi-Fi, both ways.
+status: 2026 · 1.0 out now
 tags: [C++, Swift]
 color: "#5b4bd6"
 icon: warppoint
 scene: warppoint
 pinned: true
 order: 1
-links: []   # add GitHub / download links here when they're public
+links:
+  - { label: GitHub, href: "https://github.com/willv678/WarpPoint" }
 ---
 
 Switch emulation on the Mac is good now. You can play Fire Emblem: Three Houses at 4K at your desk. But the Switch is still the thing you take on the train, and the two don't talk to each other: saves live in different places and nothing carries over.
 
-**WarpPoint is the link.** Install it on both sides once. After that, close the game on the Mac, pick up the Switch, and your save is already there. Then go back the other way.
+**WarpPoint is the link.** Install it on both sides once. After that, close a game on the Switch and its save is on the Mac a few seconds later. Then go back the other way.
 
-<Note label="the rule">Zero UI when it's working, clear UI when it needs you. No IPs to type, no SD card swaps.</Note>
+<Figure src="/projects/warppoint/library.jpg" alt="The WarpPoint library window: games with their icons and sync status" caption="the library on the Mac" />
+
+<Note label="the rule">Zero UI when it's working, clear UI when it needs you. No IPs to type, no files to pick, no SD card swaps.</Note>
 
 ## How it works
 
 There are two halves:
 
-- **On the Switch,** a small background service (a *sysmodule*, which runs alongside games on homebrewed consoles) announces itself on your Wi-Fi network and handles save reads and writes.
-- **On the Mac,** a C++ daemon finds the Switch, pairs with it once, and decides which way each save should go. A menu-bar app shows what happened.
+- **On the Switch,** a small background module (a *sysmodule*, which runs alongside games on homebrewed consoles) announces itself on your Wi-Fi every couple of seconds and reads and writes saves through the console's own save service.
+- **On the Mac,** a menu bar app in Swift sits on a C++ sync engine. It hears the Switch, and syncs whenever it shows up or a game closes there.
 
-Sync is the dangerous part, since a bug can eat a save file, so that core stays small and boring. Every write is backed up first, and if both sides changed since the last sync, WarpPoint asks instead of guessing.
+Saves are named, not located: both sides call a save `game/<title id>/<user id>`, and each side looks up where that lives. Deciding which way to copy is one small function. Each side fingerprints the save (a SHA-256 over its files) and compares that to the last version both sides agreed on. If one side changed, copy it. If both changed, ask.
 
-## What rides on top
+<Figure src="/projects/warppoint/menu.png" alt="The WarpPoint menu: status, recent syncs, Sync Now" caption="click the UFO" max={360} />
 
-Once the link exists, other features are cheap to add, because they reuse the same connection:
+## Not eating saves
 
-- **Chronicle:** every save you've ever had, labeled with where you were in the game.
-- **Lens:** a game crashes on the Switch, and the explanation is already waiting on your Mac.
-- **Presence:** your Discord shows what you're playing on the Switch.
+Sync is the dangerous part, since a bug can eat a save file, so the core stays small and boring:
 
-## Status
+- **Backups first.** Nothing gets overwritten until it's backed up, and the last four of each save can be restored.
+- **No half-saves.** Writes land in a scratch copy and become the real save in one step, so a dropped connection leaves the old save intact.
+- **Hands off running games.** A save is never touched while its game is open, on either side.
 
-Sync is close to its first release. Screenshots and a demo video go here when it ships.
+On the Switch, an overlay you can open in any game shows when it last synced, with a sync-now button and a pause switch.
+
+<Figure src="/projects/warppoint/overlay.jpg" alt="The WarpPoint overlay on a Switch: Ready, last synced 13 minutes ago, Sync now, and toggles" caption="the overlay, mid-game" max={320} />
+
+## What's next
+
+1.0 is Mac and Ryujinx-family emulators (like Astris) only. The engine treats each emulator and console as a plug-in, so next up are more emulators, Windows and Linux, and creating saves on the Switch for games you've only played on the Mac.
