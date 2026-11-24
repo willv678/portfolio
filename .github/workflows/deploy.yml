@@ -26,6 +26,23 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
+      # Keep the previous builds' hashed scripts too. A tab opened before this
+      # deploy (or a page Chrome prepared ahead of time) still asks for the old
+      # file names, and would break if they vanished. Old files go after 30 days.
+      - uses: actions/cache/restore@v4
+        with:
+          path: old-assets
+          key: astro-assets-${{ github.run_id }}
+          restore-keys: astro-assets-
+      - run: |
+          mkdir -p old-assets
+          find old-assets -type f -mtime +30 -delete
+          cp -n old-assets/* dist/_astro/ 2>/dev/null || true
+          cp dist/_astro/* old-assets/
+      - uses: actions/cache/save@v4
+        with:
+          path: old-assets
+          key: astro-assets-${{ github.run_id }}
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist
