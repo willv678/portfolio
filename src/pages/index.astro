@@ -131,7 +131,7 @@ const empties = Math.max(0, Math.ceil((items.length + 1) / 6) * 6 - items.length
       say.style.left = `${Math.min(f.left - box.left + f.width * 0.5, box.width - 250)}px`;
       say.style.top = `${f.top - box.top + f.height * 0.06}px`;
     };
-    addEventListener('resize', () => { if (!$('me-say').hidden) placeSay(); });
+    addEventListener('resize', () => { if (!$('me-say').hidden) (meFig.offsetParent ? placeSay() : quiet()); });
 
     // ---------- your avatar talks ----------
     // Lines type out in the bubble with a babbling synthesized voice pitched for
@@ -330,16 +330,21 @@ const empties = Math.max(0, Math.ceil((items.length + 1) / 6) * 6 - items.length
   .screen {
     width: min(980px, 100%, calc((100vh - 300px) * 16 / 7)); aspect-ratio: 16 / 7;
     background: var(--panel); border: 1px solid var(--line); border-radius: 18px;
-    box-shadow: var(--shadow); position: relative; overflow: hidden;
+    box-shadow: var(--shadow); position: relative;
+    /* 16:7 is the minimum: the views sit in one grid cell, in flow, so if the
+       text needs more room (a narrow or short window) the panel grows instead
+       of cutting it off. (clip, not hidden: hidden would cancel that growth.) */
+    overflow: clip; display: grid; container-type: inline-size;
   }
   .view {
-    position: absolute; inset: 0; padding: clamp(20px, 4vw, 44px);
+    position: relative; grid-area: 1 / 1; min-width: 0; padding: clamp(20px, 4vw, 44px);
     display: flex; gap: 36px; align-items: center;
     transition: opacity .28s ease, transform .28s ease;
   }
   .view[hidden] { display: flex; opacity: 0; transform: translateY(6px); pointer-events: none; visibility: hidden; transition: opacity .28s, transform .28s, visibility 0s .28s; }
+  /* your character: last in the row, as tall as the panel's content area */
   .me-fig {
-    position: absolute; right: clamp(16px, 4vw, 44px); top: 8%; bottom: 8%; width: clamp(150px, 20%, 220px);
+    order: 3; align-self: stretch; flex: none; margin-left: auto; position: relative; width: clamp(140px, 20%, 220px);
     background: none; border: 0; padding: 0; cursor: pointer; display: grid; place-items: center;
   }
   .me-fig :global(svg) { width: 72%; height: auto; transition: transform .2s cubic-bezier(.3,1.6,.5,1); }
@@ -362,7 +367,7 @@ const empties = Math.max(0, Math.ceil((items.length + 1) / 6) * 6 - items.length
   .say:hover { background: var(--bg); }
   @keyframes say-in { from { transform: translateY(6px) scale(.85); opacity: 0; } }
   @keyframes say-bob { 50% { transform: translateY(-3px); } }
-  .me > div { max-width: calc(100% - clamp(150px, 20%, 220px) - 240px - 36px); }
+  .me > div { flex: 1 1 auto; min-width: 0; max-width: 46ch; }
   .me img { width: clamp(128px, 20vw, 220px); height: auto; aspect-ratio: 1; border-radius: 14px; flex: none; object-fit: cover; }
   h1, h2 { font-family: var(--serif); font-weight: 500; letter-spacing: -.01em; }
   h1 { font-size: clamp(28px, 4vw, 40px); line-height: 1.1; }
@@ -440,10 +445,19 @@ const empties = Math.max(0, Math.ceil((items.length + 1) / 6) * 6 - items.length
   @keyframes nudge { 50% { transform: translateY(4px); } }
 
   .x { display: none; }
+  /* a narrower panel (small window, or a short one): no room for three
+     columns, so the character steps out (the nudge then uses the top-bar
+     bubble instead) and the photo shrinks */
+  @container (max-width: 820px) {
+    .me-fig { display: none; }
+    .me img { width: clamp(110px, 22cqi, 160px); }
+    .me > div { max-width: none; }
+  }
   @media (max-width: 720px) {
     /* the two views stack in one grid cell, so the panel is as tall as the taller one */
     .screen { aspect-ratio: auto; display: grid; }
-    .view { position: relative; inset: auto; grid-area: 1 / 1; flex-direction: column; align-items: stretch; gap: 14px; padding: 20px; }
+    .view { flex-direction: column; align-items: stretch; gap: 14px; padding: 20px; }
+    .view[hidden] { display: none; }        /* the hidden view takes no room, so no empty gap under the bio */
     .me img { width: 104px; border-radius: 12px; }
     .me-fig, .say { display: none; }
     .me > div { max-width: none; }
@@ -462,7 +476,9 @@ const empties = Math.max(0, Math.ceil((items.length + 1) / 6) * 6 - items.length
       color: var(--muted); font: 22px/1 var(--sans); cursor: pointer; box-shadow: var(--shadow);
     }
     .x[hidden] { display: none; }
-    .shelf { grid-template-columns: repeat(3, minmax(0, 92px)); gap: 30px 16px; }
+    .shelf { grid-template-columns: repeat(4, minmax(0, 92px)); gap: 30px 16px; }
+    .shelf li:has(.empty) { display: none; }   /* no half-empty rows of placeholders on small screens */
+    .label { max-width: calc(100% + 10px); }
     .hint { display: none; }
     .foot { grid-template-columns: 1fr; justify-items: center; }
     .loc { display: none; }
