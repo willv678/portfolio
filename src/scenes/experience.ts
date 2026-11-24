@@ -352,7 +352,8 @@ export function create(): (SceneHandle & { show(name: string): void }) | null {
       m.g.rotation.y = Math.sin(t * 0.7) * sway + (1 - k) * 1.2;
       m.g.position.y = m.g.userData.y + (m.fixed ? 0 : Math.sin(t * 2) * 0.03);
       shadow.scale.setScalar(0.9 - Math.sin(t * 2) * 0.05);
-      m.tick(t, prev);
+      // each entry's little story starts from the top when it comes on screen
+      m.tick(t - shownAt, prev - shownAt);
     };
   }, { lookAt: new Vector3(0, 0.62, 0), minSpan: 2.6, minHeight: 2.6, outline: 0.008 });
 
