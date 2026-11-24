@@ -78,22 +78,23 @@ export function makeHead(kit: Kit, a: Avatar) {
     const m = new Mesh(geo, mat); m.position.set(x * wide, y * tall, z * wide); m.scale.set(wide, tall, wide); g.add(m); return m;
   };
   /** Hair ball of radius r, with the face carved out below `line(x)` and everything below `bottom(x, z)` trimmed (unit-sphere coords). */
-  const hair = (r: number, line: (x: number) => number, bottom: (x: number, z: number) => number, opts: { faceW?: number; rip?: number; freq?: number; flare?: number; lift?: number; curl?: number } = {}) => {
-    const { faceW = 0.74, rip = 0.03, freq = 24, flare = 0, lift = 0, curl = 0 } = opts;
+  const hair = (r: number, line: (x: number) => number, bottom: (x: number, z: number) => number, opts: { faceW?: number; rip?: number; freq?: number; flare?: number; lift?: number; curl?: number; soft?: number } = {}) => {
+    const { faceW = 0.74, rip = 0.03, freq = 24, flare = 0, lift = 0, curl = 0, soft = 0 } = opts;
     const geo = new SphereGeometry(r, 96, 72), pos = geo.attributes.position, v = new Vector3();
     for (let i = 0; i < pos.count; i++) {
       v.fromBufferAttribute(pos, i).divideScalar(r);
       // how far inside the face opening / below the trim line this vertex is (smooth, so edges don't stair-step)
       const inFace = Math.min(line(v.x) - v.y, faceW - Math.abs(v.x), (v.z - 0.1) * 1.5);
       const below = bottom(v.x, v.z) - v.y;
-      const k = Math.max(smooth(-0.025, 0.06, inFace), smooth(-0.025, 0.06, below));
+      const k = Math.max(smooth(-0.025, 0.06, inFace), smooth(-0.025 - soft, 0.06 + soft, below));   // soft: a rounder trim at the ends
       v.multiplyScalar(1 - 0.4 * k);                             // tuck it well inside the head, out of sight
       if (flare && v.y < 0 && k < 0.5) { const f = 1 + flare * -v.y; v.x *= f; v.z *= 1 + (f - 1) * 0.6; }
       // texture: a gentle ripple (plus, for curly hair, a finer one), only on
       // the visible hair, so the tucked-away part never bumps back out through the face
       const p = v.clone().multiplyScalar(r);
       const wave = (f: number) => Math.sin(p.x * f + 1.3) * Math.cos(p.y * f * 1.2) + Math.sin(p.z * f * 0.9 + p.y * f * 0.7);
-      v.multiplyScalar(1 + (1 - k) * (rip * 0.5 * wave(freq) + curl * 0.5 * wave(freq * 2.1)));
+      const edge = Math.pow(1 - k, 3);                            // fades out toward the cut edges, so the hairline stays clean
+      v.multiplyScalar(1 + edge * (rip * 0.5 * wave(freq) + curl * 0.5 * wave(freq * 2.1)));
       pos.setXYZ(i, v.x * r, v.y * r + lift, v.z * r);
     }
     pos.needsUpdate = true;
@@ -141,16 +142,18 @@ export function makeHead(kit: Kit, a: Avatar) {
       break;
     }
     case 'curly': {
-      // long, full curls as one solid mass with a scalloped, bumpy outline
-      // (the way cartoon games draw curly hair), not a cap with balls stuck on:
-      // a big rippled shell framing the face with a side part, flaring wide
-      // past the shoulders, and a rippled mass behind
-      hair(r * 1.16, (x) => 0.28 + 0.26 * Math.max(0, x + 0.1), () => -0.85, { rip: 0.06, freq: 8, curl: 0.13, faceW: 0.6, flare: 0.45 });
+      // long, full curls as one solid mass with a scalloped outline (the way
+      // cartoon games draw curly hair). The front stops at the jaw, so it frames
+      // the face without covering the chest; the length falls at the sides and
+      // behind, over the back and shoulders
+      hair(r * 1.16, (x) => 0.28 + 0.26 * Math.max(0, x + 0.1),
+        (x, z) => -0.4 - 0.45 * Math.max(smooth(0.25, -0.25, z), smooth(0.55, 0.85, Math.abs(x)) * smooth(0.6, 0.2, z)),
+        { rip: 0.06, freq: 8, curl: 0.13, faceW: 0.6, flare: 0.25, soft: 0.14 });
       const back = new SphereGeometry(0.21, 72, 54); ripple(back, 0.06, 8); ripple(back, 0.13, 17);
-      const bm = add(back, 0, -0.2, -0.06); bm.scale.set(1.3 * wide, 1.15 * tall, 0.75 * wide);
-      for (const d of [-1, 1]) {                                  // fuller ends either side of the neck
+      const bm = add(back, 0, -0.2, -0.1); bm.scale.set(1.25 * wide, 1.15 * tall, 0.7 * wide);
+      for (const d of [-1, 1]) {                                  // fuller ends either side, behind the shoulders
         const end = new SphereGeometry(0.1, 40, 30); ripple(end, 0.07, 9); ripple(end, 0.14, 19);
-        const em = add(end, d * 0.19, -0.3, -0.01); em.scale.set(wide, 1.25 * tall, 0.8 * wide);
+        const em = add(end, d * 0.19, -0.27, -0.09); em.scale.set(0.9 * wide, 1.2 * tall, 0.8 * wide);
       }
       break;
     }
