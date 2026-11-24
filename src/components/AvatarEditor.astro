@@ -37,6 +37,7 @@
 </div>
 
 <script>
+  import { shown as whenShown } from '../scripts/shown';
   import { OPTIONS, DEFAULT, load, save, clear, svg, type Avatar, type Part } from '../scripts/avatar';
   import { blip } from '../scripts/sound';
   import { getScene } from '../scripts/scenes';
@@ -109,7 +110,7 @@
   const nudge = $('who-nudge');
   let shown = 0; try { shown = Number(localStorage.getItem('avatar-nudges') || 0); } catch {}
   if (!load() && shown < 3 && !sessionStorage.getItem('avatar-nudged')) {
-    setTimeout(() => {
+    whenShown.then(() => setTimeout(() => {
       if (!ed.hidden) return;
       try { localStorage.setItem('avatar-nudges', String(shown + 1)); sessionStorage.setItem('avatar-nudged', '1'); } catch {}
       // On the home page your avatar says it; elsewhere, a small bubble under the button.
@@ -122,7 +123,7 @@
       // …and the button rings like a phone, twice
       btn.classList.add('ring');
       setTimeout(() => btn.classList.remove('ring'), 3400);
-    }, 3000);
+    }, 3000));
   }
 </script>
 

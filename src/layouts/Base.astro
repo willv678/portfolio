@@ -17,6 +17,13 @@ const desc = description ?? 'Will Varner finds where things break: AI at work (s
 const hasWriting = (await posts()).length > 0;
 const path = Astro.url.pathname;
 const here = (p: string) => (path.startsWith(p) ? 'page' : undefined);
+// Speculation rules (Chrome/Edge): the pages you're most likely to go to next
+// are rendered ahead of time in the background, so Esc and ← / → are instant.
+// From a project: home and its neighbors, right away. From home: a project as
+// soon as you hover or focus its tile.
+const rules = home
+  ? { prerender: [{ where: { and: [{ href_matches: '/*' }, { not: { href_matches: '/*.pdf' } }] }, eagerness: 'moderate' }] }
+  : { prerender: [{ urls: ['/', prev, next].filter(Boolean), eagerness: 'immediate' }] };
 ---
 <!doctype html>
 <html lang="en">
@@ -35,6 +42,7 @@ const here = (p: string) => (path.startsWith(p) ? 'page' : undefined);
   {prev && <link rel="prev" href={prev} />}
   {next && <link rel="next" href={next} />}
   <slot name="head" />
+  <script is:inline type="speculationrules" set:html={JSON.stringify(rules)} />
   <script is:inline>
     // ?fresh — forget everything this site saved in this browser (avatar, the
     // "make your own character" nudge, mute), then reload as a first-time visitor.
@@ -49,6 +57,25 @@ const here = (p: string) => (path.startsWith(p) ? 'page' : undefined);
     // (Must be inline in <head>, so it's registered before the first frame.)
     addEventListener('pageswap', (e) => { const d = sessionStorage.getItem('nav-dir'); if (d && e.viewTransition) e.viewTransition.types.add(d); });
     addEventListener('pagereveal', (e) => { const d = sessionStorage.getItem('nav-dir'); sessionStorage.removeItem('nav-dir'); if (d && e.viewTransition) e.viewTransition.types.add(d); });
+  </script>
+  <script is:inline define:vars={{ home }}>
+    // Esc is the B button: back to the home screen. ← / → turn the page to the
+    // previous / next project or post (from <link rel=prev/next>). Inline in
+    // <head> so the keys work from the first moment, even mid-load.
+    if (!home) addEventListener('keydown', (e) => {
+      if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey || e.shiftKey || e.repeat) return;
+      if (e.target.closest && e.target.closest('input, textarea, select, pre, iframe, [contenteditable]')) return;
+      let href = '/', dir = '';
+      if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+        dir = e.key === 'ArrowRight' ? 'next' : 'prev';
+        const link = document.querySelector('link[rel=' + dir + ']');
+        if (!link) return;
+        href = link.href;
+      } else if (e.key !== 'Escape') return;
+      e.preventDefault();
+      try { dir ? sessionStorage.setItem('nav-dir', dir) : sessionStorage.removeItem('nav-dir'); } catch (_) {}
+      location.href = href;
+    });
   </script>
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500&family=IBM+Plex+Mono:wght@400&family=IBM+Plex+Sans:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet" />
 </head>
@@ -75,21 +102,6 @@ const here = (p: string) => (path.startsWith(p) ? 'page' : undefined);
     import { initSoundButton, initHoverBlips } from '../scripts/sound';
     initSoundButton();
     initHoverBlips();
-    // Esc is the B button: back to the home screen. ← / → turn the page to
-    // the previous / next project or post (from <link rel=prev/next>).
-    if (!document.body.hasAttribute('data-home')) {
-      addEventListener('keydown', (e) => {
-        if (e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) return;
-        if ((e.target as Element).closest('input, textarea, pre, iframe')) return;
-        if (e.key === 'Escape') { location.href = '/'; return; }
-        const rel = e.key === 'ArrowRight' ? 'next' : e.key === 'ArrowLeft' ? 'prev' : '';
-        const link = rel && document.querySelector<HTMLLinkElement>(`link[rel=${rel}]`);
-        if (!link) return;
-        e.preventDefault();
-        try { sessionStorage.setItem('nav-dir', rel); } catch {}
-        location.href = link.href;
-      });
-    }
   </script>
 </body>
 </html>
