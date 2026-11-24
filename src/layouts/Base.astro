@@ -106,6 +106,15 @@ const rules = home
 
   <slot />
 
+  <script is:inline>
+    // View counts (GoatCounter: no cookies, ~3.5KB, loads after the page).
+    // Pages prepared ahead of time in the background only count once someone
+    // actually opens them.
+    (function () {
+      const go = () => { const s = document.createElement('script'); s.async = true; s.src = 'https://gc.zgo.at/count.js'; s.dataset.goatcounter = 'https://willvarner.goatcounter.com/count'; document.body.append(s); };
+      document.prerendering ? document.addEventListener('prerenderingchange', go, { once: true }) : go();
+    })();
+  </script>
   <script>
     import { initSoundButton, initHoverBlips } from '../scripts/sound';
     initSoundButton();
