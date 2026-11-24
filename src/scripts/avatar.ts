@@ -6,7 +6,7 @@
 export const OPTIONS = {
   skin: ['#f6d7c3', '#f1c9a5', '#d9a47a', '#b97b53', '#8d5a3b', '#5e3b27'],
   head: ['round', 'oval', 'square'],
-  hair: ['wavy', 'short', 'buzz', 'long', 'curly', 'ponytail'],
+  hair: ['wavy', 'shaggy', 'spiky', 'long', 'curly', 'parted'],
   hairColor: ['#2a2320', '#3d2a1e', '#6b4428', '#a0673a', '#e0b25a', '#b5522e', '#9aa0a8'],
   eyes: ['big', 'dots', 'happy', 'sleepy', 'wink'],
   glasses: ['none', 'round', 'square'],
@@ -67,19 +67,23 @@ function hairBack(a: Avatar) {
   switch (OPTIONS.hair[a.hair]) {
     case 'long': return `<path d="M24 34 Q17 66 21 92 Q28 98 36 92 Q33 70 36 50 Z M76 34 Q83 66 79 92 Q72 98 64 92 Q67 70 64 50 Z" fill="${c}" ${st}/>`;
     case 'curly': return `<path d="${CURLY_BACK}" fill="${c}" ${st}/>`;
+    // center part: the length behind the head, ending in jagged points below the jaw
+    case 'parted': return `<path d="M24 40 Q24 14 50 13 Q76 14 76 40 L79 62 L75 68 L80 74 L72 80 L66 70 L34 70 L28 80 L20 74 L25 68 L21 62 Z" fill="${c}" ${st}/>`;
     default: return '';
   }
 }
 function hairFront(a: Avatar) {
   const c = OPTIONS.hairColor[a.hairColor];
-  const cap = (extra = '') => `<path d="M24 42 Q22 13 50 13 Q78 13 76 42 Q70 26 50 25 Q30 26 24 42 Z" fill="${c}" ${st}/>${extra}`;
   switch (OPTIONS.hair[a.hair]) {
     case 'wavy': return `<path d="M24 46 Q18 31 26 22 Q29 9 42 10 Q50 4 59 9 Q72 8 75 21 Q82 31 76 46 Q73 36 67 34 Q64 40 57 35 Q51 41 45 35 Q39 40 34 34 Q28 36 24 46 Z" fill="${c}" ${st}/><path d="M33 18 Q38 14 43 18 M55 15 Q61 12 66 17" fill="none" stroke="${INK}" stroke-width="1.6" stroke-linecap="round" opacity=".45"/>`;
-    case 'short': return `<path d="M24 40 Q22 14 50 13 Q76 13 76 38 Q70 26 56 25 Q46 31 30 30 Q26 33 24 40 Z" fill="${c}" ${st}/>`;
+    // shaggy (Will's design): a full top, a fringe swept to one side with a notch, and notched sides down to the ears
+    case 'shaggy': return `<path d="M25 50 L22 45 L25 42 L21 37 Q20 13 50 12 Q80 13 79 37 L75 42 L78 45 L75 50 L73 37 Q68 30 60 31 L62 25 L54 29 Q42 31 31 28 L28 36 Z" fill="${c}" ${st}/>`;
     case 'long': return `<path d="M24 46 Q21 14 50 13 Q79 14 76 46 Q72 30 60 27 Q46 35 30 34 Q26 38 24 46 Z" fill="${c}" ${st}/>`;
     case 'curly': return `<path d="${CURLY_FRONT}" fill="${c}" ${st}/>`;
-    case 'ponytail': return cap(`<circle cx="70" cy="24" r="5" fill="${c}" ${st}/>`);
-    case 'buzz': return `<path d="M26 34 Q26 15 50 15 Q74 15 74 34 Q64 24 50 24 Q36 24 26 34 Z" fill="${c}" opacity=".85" ${st}/>`;
+    // center part (Will's design): a pointed crown, the hair parting in an arch over the face and falling down both sides
+    case 'parted': return `<path d="M30 72 Q26 46 28 38 Q32 20 50 16 Q68 20 72 38 Q74 46 70 72 L76 66 L74 58 L78 52 L77 34 Q74 16 61 11 L58 4 L54 10 L50 3 L46 10 L42 4 L39 11 Q26 16 23 34 L22 52 L26 58 L24 66 Z" fill="${c}" ${st}/>`;
+    // spiky (Will's design): a crown of points and a zigzag fringe
+    case 'spiky': return `<path d="M25 46 L23 30 L29 23 L27 16 L37 16 L41 8 L50 13 L59 7 L63 15 L72 15 L71 22 L77 29 L75 46 L72 31 L67 34 L63 26 L58 33 L54 25 L49 32 L44 25 L40 31 L34 27 L29 34 Z" fill="${c}" ${st}/>`;
     default: return '';
   }
 }

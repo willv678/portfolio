@@ -5,7 +5,7 @@
 // Everything is primitives; each figure is a few dozen tiny meshes.
 
 import {
-  BoxGeometry, BufferGeometry, CapsuleGeometry, CircleGeometry, CylinderGeometry, DoubleSide, Group, Mesh, MeshBasicMaterial,
+  BoxGeometry, BufferGeometry, CapsuleGeometry, CircleGeometry, ConeGeometry, CylinderGeometry, DoubleSide, Group, Mesh, MeshBasicMaterial,
   SphereGeometry, TorusGeometry, Vector3,
 } from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
@@ -106,6 +106,12 @@ export function makeHead(kit: Kit, a: Avatar) {
     const geo = new SphereGeometry(1, 20, 14); ripple(geo, 0.06, 5);
     const m = add(geo, x, y, z); m.scale.set(sx * wide, sy * tall, sz * wide); m.rotation.set(rx, 0, rz); return m;
   };
+  /** A point of hair sticking out of the head in direction (dx, dy, dz). */
+  const spike = (dx: number, dy: number, dz: number, len: number, w: number) => {
+    const dir = new Vector3(dx, dy, dz).normalize();
+    const m = add(new ConeGeometry(w, len, 6), dir.x * (R + len * 0.3), dir.y * (R + len * 0.3), dir.z * (R + len * 0.3));
+    m.quaternion.setFromUnitVectors(new Vector3(0, 1, 0), dir); return m;
+  };
   const r = R * 1.1;
 
   switch (style) {
@@ -122,14 +128,18 @@ export function makeHead(kit: Kit, a: Avatar) {
       ] as const) add(new SphereGeometry(rad, 12, 9), x, y, z);
       break;
     }
-    case 'short':
-      // tidy, above the ears, with a side part sweeping across the forehead
-      hair(r * 0.98, (x) => 0.5 + 0.18 * x, (x, z) => 0.02 - 0.46 * smooth(0.1, -0.5, z), { rip: 0.015, freq: 30, faceW: 0.82 });
-      lump(-0.035, 0.12, 0.095, 0.12, 0.045, 0.07, 0.3, -0.3);
+    case 'shaggy':
+      // full on top, a fringe swept to one side with notches, notched sides down over the ears
+      hair(r * 1.0, (x) => 0.44 - 0.14 * x - 0.1 * saw(x * 3.2 + 0.3),
+        (x, z) => -0.05 - 0.18 * saw(Math.atan2(x, z) * 1.6) - 0.45 * smooth(0.1, -0.5, z), { rip: 0.02, freq: 22, faceW: 0.8 });
       break;
-    case 'buzz':
-      hair(r * 0.94, () => 0.56, (x, z) => 0.08 - 0.42 * smooth(0.1, -0.5, z), { rip: 0.006, freq: 40, faceW: 0.85 });
+    case 'spiky': {
+      // short, with a zigzag fringe and a crown of points
+      hair(r * 0.98, (x) => 0.46 + 0.14 * saw(x * 3.5 + 0.5), (x, z) => 0.18 - 0.4 * smooth(0.1, -0.5, z), { rip: 0.01, freq: 30, faceW: 0.82 });
+      for (const [ax, ay, az, len] of [[0, 1, 0.15, 0.12], [-0.45, 0.85, 0.35, 0.1], [0.45, 0.85, 0.3, 0.1], [-0.25, 0.8, -0.5, 0.11], [0.3, 0.8, -0.5, 0.11], [-0.7, 0.6, 0, 0.09], [0.7, 0.6, -0.05, 0.09], [0, 0.75, -0.65, 0.1]] as const)
+        spike(ax, ay, az, len, 0.05);
       break;
+    }
     case 'long': {
       // side-swept bangs; hair falls past the jaw, then a curtain behind and soft locks over the shoulders
       hair(r * 1.04, (x) => 0.3 + 0.32 * Math.max(0, x + 0.15), () => -0.92, { rip: 0.012, freq: 18, faceW: 0.66, flare: 0.12 });
@@ -157,20 +167,43 @@ export function makeHead(kit: Kit, a: Avatar) {
       }
       break;
     }
-    case 'ponytail': {
-      // pulled back from a high hairline, a band, and a tail curving down behind
-      hair(r * 0.99, (x) => 0.52 - 0.06 * Math.cos(x * 4), (x, z) => -0.1 - 0.4 * smooth(0, -0.5, z), { rip: 0.012, freq: 22, faceW: 0.8 });
-      const band = new Mesh(new TorusGeometry(0.035, 0.012, 8, 16), toon('#e2463c')); band.position.set(0, 0.06, -0.19); band.rotation.x = 0.5; g.add(band);
-      for (const [y, z, rad, len, rx] of [[-0.02, -0.24, 0.052, 0.1, 0.7], [-0.15, -0.28, 0.047, 0.12, 0.2], [-0.27, -0.27, 0.035, 0.06, -0.2]] as const) {
-        const geo = new CapsuleGeometry(rad, len, 8, 16); ripple(geo, 0.02, 14);
-        const m = add(geo, 0, y, z); m.rotation.x = rx;
+    case 'parted': {
+      // a center part: the hairline comes to a sharp point over the middle of
+      // the forehead, the hair falls down both sides and behind, past the jaw,
+      // and ends in jagged points; a crown of points on top
+      hair(r * 1.05, (x) => 0.78 - 1.3 * Math.abs(x), () => -0.5, { rip: 0.012, freq: 18, faceW: 0.6 });
+      const back = new CapsuleGeometry(0.16, 0.12, 8, 24); ripple(back, 0.015, 12);
+      const bm = add(back, 0, -0.16, -0.09); bm.scale.set(1.2 * wide, tall, 0.5 * wide);
+      // each side falls in two teardrop locks of different lengths (round where
+      // they leave the head, tapering to a point), so the ends are jagged
+      for (const d of [-1, 1]) {
+        for (const [x, y, z, w, h] of [[0.168, -0.12, 0.02, 0.06, 0.24], [0.14, -0.1, 0.06, 0.045, 0.16]] as const) {
+          const m = add(teardrop(), d * x, y, z); m.scale.set(w * wide, h * tall, w * 0.8 * wide); m.rotation.z = -d * 0.06;
+        }
       }
+      // and the back ends in points too
+      for (const [x, y, z, w, h] of [[-0.12, -0.28, -0.1, 0.06, 0.13], [0, -0.3, -0.12, 0.065, 0.15], [0.12, -0.28, -0.1, 0.06, 0.13]] as const) {
+        const m = add(teardrop(), x, y, z); m.scale.set(w * wide, h * tall, w * 0.8 * wide);
+      }
+      for (const [ax, ay, az, len] of [[0, 1, 0.05, 0.11], [-0.32, 0.95, 0.1, 0.085], [0.32, 0.95, 0.1, 0.085]] as const) spike(ax, ay, az, len, 0.045);
       break;
     }
   }
   return g;
 }
 
+/** A unit teardrop: a round top, tapering to a point straight down (scale it to size). */
+function teardrop() {
+  const geo = new SphereGeometry(1, 16, 14), p = geo.attributes.position, v = new Vector3();
+  for (let i = 0; i < p.count; i++) {
+    v.fromBufferAttribute(p, i);
+    if (v.y < 0) { const k = 1 + v.y; p.setXYZ(i, v.x * k, v.y * 1.6, v.z * k); }   // the lower half narrows to a point, and stretches
+  }
+  p.needsUpdate = true; geo.computeVertexNormals();
+  return geo;
+}
+/** Triangle wave between 0 and 1 (for zigzag edges). */
+const saw = (t: number) => 2 * Math.abs(t - Math.floor(t) - 0.5);
 const smooth = (e0: number, e1: number, x: number) => { const t = Math.min(1, Math.max(0, (x - e0) / (e1 - e0))); return t * t * (3 - 2 * t); };
 
 /** Push vertices out a little in a smooth pattern, for a hand-made hair texture. */
