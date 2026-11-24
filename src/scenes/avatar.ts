@@ -139,7 +139,7 @@ export function makeHead(kit: Kit, a: Avatar) {
       // long, full curls: one bouncy mass (a strong ripple gives the curl
       // texture) that frames the face with a side part and widens as it falls
       // past the shoulders, with round curls along its outline and hem
-      hair(r * 1.06, (x) => 0.3 + 0.28 * Math.max(0, x + 0.1), () => -0.6, { rip: 0.06, freq: 11, faceW: 0.64, flare: 0.3 });
+      hair(r * 1.12, (x) => 0.3 + 0.28 * Math.max(0, x + 0.1), () => -0.6, { rip: 0.05, freq: 11, faceW: 0.62, flare: 0.3 });
       const back = new CapsuleGeometry(0.19, 0.2, 10, 28); ripple(back, 0.07, 10);
       const bm = add(back, 0, -0.2, -0.07); bm.scale.set(1.3 * wide, tall, 0.62 * wide);
       for (const d of [-1, 1]) {
@@ -150,6 +150,19 @@ export function makeHead(kit: Kit, a: Avatar) {
       // the hem behind, and a couple of curls over the crown
       for (const [x, y, z, sz] of [[-0.12, -0.4, -0.1, 0.075], [0, -0.42, -0.12, 0.08], [0.12, -0.4, -0.1, 0.075], [-0.07, 0.17, 0.07, 0.06], [0.06, 0.18, 0.05, 0.055]] as const)
         lump(x, y, z, sz, sz, sz * 0.85);
+      // rings of curls sitting right on the crown's outline, all the way round,
+      // so from any angle the top reads as curls (not a smooth dome with an
+      // outline showing between them); the front of each ring stays open for the face
+      const R2 = r * 1.12;
+      for (const [y, step, open, sz] of [[0.06, 36, 75, 0.058], [0.13, 40, 58, 0.056], [0.19, 60, 0, 0.052]] as const) {
+        const ring = Math.sqrt(R2 * R2 - y * y) * 0.98;
+        for (let a = -180 + step / 2; a < 180; a += step) {
+          if (Math.abs(a) < open) continue;
+          const t = (a * Math.PI) / 180;
+          lump(Math.sin(t) * ring, y, Math.cos(t) * ring, sz, sz, sz * 0.85, t * 0.3);
+        }
+      }
+      lump(0, 0.23, -0.02, 0.055, 0.045, 0.055);
       break;
     }
     case 'ponytail': {
