@@ -169,14 +169,24 @@ const empties = Math.max(0, Math.ceil((items.length + 1) / 6) * 6 - items.length
       dispatchEvent(new CustomEvent('avatar-talk', { detail: false }));
     }
     addEventListener('avatar-hush', quiet);
-    addEventListener('avatar-nudge', () => sayLine('click the button up there ↗ to make your own character', 8000, true));
 
-    let lastLine = -1, nextAt = performance.now() + (sessionStorage.getItem('avatar-nudged') ? 6000 : 14000);
+    // What it says, in order: every time the page loads, the first line is
+    // about the character itself (still Will's default: point at the editor
+    // button, which rings; already made one: "click me"). Then a status line
+    // every ~12s, never the same one twice in a row.
+    let lastLine = -1, intro = true, nextAt = performance.now() + 2600;   // after the walk-in
     setInterval(() => {
       const now = performance.now();
       const free = cur < 0 && !document.hidden && !document.documentElement.classList.contains('editing')
         && meFig.offsetParent && scrollY < innerHeight * 0.5 && say.hidden;
       if (!free || now < nextAt) return;
+      if (intro) {
+        intro = false;
+        if (isWill(loadAvatar())) { sayLine('click the button up there ↗ to make your own character', 8000, true); dispatchEvent(new Event('avatar-ring')); }
+        else sayLine('click me to change how I look', 5000);
+        nextAt = now + 14000;
+        return;
+      }
       let k = Math.floor(Math.random() * STATUS.length);
       if (k === lastLine) k = (k + 1) % STATUS.length;
       lastLine = k;

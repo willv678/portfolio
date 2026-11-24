@@ -106,25 +106,23 @@
 
   // The nudge: while someone still has the default avatar, a few seconds in
   // the head button wiggles (with a soft blip) and a quiet bubble appears.
-  // At most three visits, then it stops asking.
+  // At most three visits, then it stops asking. (On the home page, where your
+  // character stands and talks, it asks every time instead; see index.astro.)
   const nudge = $('who-nudge');
   let shown = 0; try { shown = Number(localStorage.getItem('avatar-nudges') || 0); } catch {}
   if (!load() && shown < 3 && !sessionStorage.getItem('avatar-nudged')) {
     whenShown.then(() => setTimeout(() => {
       if (!ed.hidden) return;
-      try { localStorage.setItem('avatar-nudges', String(shown + 1)); sessionStorage.setItem('avatar-nudged', '1'); } catch {}
-      // On the home page your avatar says it; elsewhere, a small bubble under the button.
       const fig = document.getElementById('me-fig');
-      const onHome = !!(fig && fig.offsetParent);
-      // On the home page your avatar says it out loud (the home page handles the
-      // bubble, the voice and the pointing); elsewhere, a small bubble here.
-      if (onHome) dispatchEvent(new Event('avatar-nudge'));
-      else { nudge.hidden = false; blip(880, 0.05, 0.02); setTimeout(() => blip(1180, 0.06, 0.02), 90); setTimeout(() => (nudge.hidden = true), 8000); }
-      // …and the button rings like a phone, twice
-      btn.classList.add('ring');
-      setTimeout(() => btn.classList.remove('ring'), 3400);
+      if (fig && fig.offsetParent) return;                         // the character on the home page asks instead
+      try { localStorage.setItem('avatar-nudges', String(shown + 1)); sessionStorage.setItem('avatar-nudged', '1'); } catch {}
+      nudge.hidden = false; blip(880, 0.05, 0.02); setTimeout(() => blip(1180, 0.06, 0.02), 90); setTimeout(() => (nudge.hidden = true), 8000);
+      ring();
     }, 3000));
   }
+  // the button rings like a phone, twice (also on request from the home page)
+  function ring() { btn.classList.add('ring'); setTimeout(() => btn.classList.remove('ring'), 3400); }
+  addEventListener('avatar-ring', ring);
 </script>
 
 <style>
