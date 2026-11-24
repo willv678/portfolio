@@ -35,11 +35,11 @@ export const create = () => createStage((kit) => {
   let walkReq = false, walkAt = -1, idle0 = 0;
   addEventListener('avatar-walk-in', () => (walkReq = true));
 
-  // which way it faces at rest: a little toward the screen's middle (on
-  // desktop it stands at the panel's right, on phones in the top-right corner
-  // beside the photo, so it angles left there)
+  // which way it faces at rest: in toward the middle of the panel (it stands
+  // at the right on desktop, and in the top-right corner beside the photo on
+  // phones, where it turns in a bit more)
   const phone = matchMedia('(max-width: 720px)');
-  const rest = () => (phone.matches ? -0.3 : 0.25);
+  const rest = () => (phone.matches ? -0.3 : -0.12);
 
   const L = 8;
   let prevT = 0;
