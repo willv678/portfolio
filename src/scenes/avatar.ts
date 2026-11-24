@@ -20,12 +20,13 @@ export function makeHead(kit: Kit, a: Avatar) {
   const g = new Group();
   const shape = OPTIONS.head[a.head];
   const skull = shape === 'square'
-    ? new Mesh(new RoundedBoxGeometry(0.33, 0.33, 0.31, 3, 0.1), toon(skin))
+    ? new Mesh(new RoundedBoxGeometry(0.33, 0.33, 0.31, 4, 0.125), toon(skin))
     : new Mesh(new SphereGeometry(R, 24, 16), toon(skin));
   if (shape === 'oval') skull.scale.set(0.9, 1.12, 0.94);
   g.add(skull);
   const front = shape === 'square' ? 0.158 : R * (shape === 'oval' ? 0.88 : 0.94);
-  const tall = shape === 'oval' ? 1.12 : 1, wide = shape === 'square' ? 1.08 : 1;
+  // hair is sized to the head shape (a square head needs a roomier hair ball, or its corners poke through)
+  const tall = shape === 'oval' ? 1.12 : shape === 'square' ? 1.07 : 1, wide = shape === 'square' ? 1.11 : 1;
 
   // ---------- face (flat ink, no outline) ----------
   const ink = new MeshBasicMaterial({ color: '#2b2838' }), white = new MeshBasicMaterial({ color: '#ffffff' });
@@ -86,7 +87,7 @@ export function makeHead(kit: Kit, a: Avatar) {
       const inFace = Math.min(line(v.x) - v.y, faceW - Math.abs(v.x), (v.z - 0.1) * 1.5);
       const below = bottom(v.x, v.z) - v.y;
       const k = Math.max(smooth(-0.025, 0.06, inFace), smooth(-0.025, 0.06, below));
-      v.multiplyScalar(1 - 0.22 * k);                            // tuck it inside the head, out of sight
+      v.multiplyScalar(1 - 0.4 * k);                             // tuck it well inside the head, out of sight
       if (flare && v.y < 0 && k < 0.5) { const f = 1 + flare * -v.y; v.x *= f; v.z *= 1 + (f - 1) * 0.6; }
       pos.setXYZ(i, v.x * r, v.y * r + lift, v.z * r);
     }
@@ -134,10 +135,23 @@ export function makeHead(kit: Kit, a: Avatar) {
       }
       break;
     }
-    case 'bob':
-      // chin length all round, flaring a little at the ends, with a blunt straight fringe
-      hair(r * 1.05, () => 0.36, () => -0.72, { rip: 0.01, freq: 16, faceW: 0.66, flare: 0.25 });
+    case 'curly': {
+      // long, full curls: one bouncy mass (a strong ripple gives the curl
+      // texture) that frames the face with a side part and widens as it falls
+      // past the shoulders, with round curls along its outline and hem
+      hair(r * 1.06, (x) => 0.3 + 0.28 * Math.max(0, x + 0.1), () => -0.6, { rip: 0.06, freq: 11, faceW: 0.64, flare: 0.3 });
+      const back = new CapsuleGeometry(0.19, 0.2, 10, 28); ripple(back, 0.07, 10);
+      const bm = add(back, 0, -0.2, -0.07); bm.scale.set(1.3 * wide, tall, 0.62 * wide);
+      for (const d of [-1, 1]) {
+        // curls cascading down each side, getting fuller toward the ends
+        for (const [x, y, z, sz] of [[0.2, 0.0, 0.02, 0.07], [0.22, -0.11, 0.02, 0.076], [0.23, -0.22, 0.0, 0.082], [0.21, -0.32, -0.02, 0.08], [0.15, -0.38, 0.0, 0.07]] as const)
+          lump(d * x, y, z, sz, sz, sz * 0.85, d * 0.3);
+      }
+      // the hem behind, and a couple of curls over the crown
+      for (const [x, y, z, sz] of [[-0.12, -0.4, -0.1, 0.075], [0, -0.42, -0.12, 0.08], [0.12, -0.4, -0.1, 0.075], [-0.07, 0.17, 0.07, 0.06], [0.06, 0.18, 0.05, 0.055]] as const)
+        lump(x, y, z, sz, sz, sz * 0.85);
       break;
+    }
     case 'ponytail': {
       // pulled back from a high hairline, a band, and a tail curving down behind
       hair(r * 0.99, (x) => 0.52 - 0.06 * Math.cos(x * 4), (x, z) => -0.1 - 0.4 * smooth(0, -0.5, z), { rip: 0.012, freq: 22, faceW: 0.8 });

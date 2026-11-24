@@ -6,7 +6,7 @@
 export const OPTIONS = {
   skin: ['#f6d7c3', '#f1c9a5', '#d9a47a', '#b97b53', '#8d5a3b', '#5e3b27'],
   head: ['round', 'oval', 'square'],
-  hair: ['wavy', 'short', 'buzz', 'long', 'bob', 'ponytail'],
+  hair: ['wavy', 'short', 'buzz', 'long', 'curly', 'ponytail'],
   hairColor: ['#2a2320', '#3d2a1e', '#6b4428', '#a0673a', '#e0b25a', '#b5522e', '#9aa0a8'],
   eyes: ['big', 'dots', 'happy', 'sleepy', 'wink'],
   glasses: ['none', 'round', 'square'],
@@ -61,7 +61,11 @@ function hairBack(a: Avatar) {
   const c = OPTIONS.hairColor[a.hairColor];
   switch (OPTIONS.hair[a.hair]) {
     case 'long': return `<path d="M24 34 Q17 66 21 92 Q28 98 36 92 Q33 70 36 50 Z M76 34 Q83 66 79 92 Q72 98 64 92 Q67 70 64 50 Z" fill="${c}" ${st}/>`;
-    case 'bob': return `<path d="M22 36 Q20 62 30 68 H70 Q80 62 78 36 Z" fill="${c}" ${st}/>`;
+    case 'curly': {
+      // a cloud of curls behind the head, falling past the shoulders
+      const bumps = [[24, 40, 10], [20, 54, 10], [21, 68, 10], [25, 81, 10], [33, 90, 9], [76, 40, 10], [80, 54, 10], [79, 68, 10], [75, 81, 10], [67, 90, 9], [50, 30, 22], [40, 84, 9], [60, 84, 9]];
+      return `<g fill="${c}" ${st}>${bumps.map(([x, y, r]) => `<circle cx="${x}" cy="${y}" r="${r}"/>`).join('')}</g><g fill="${c}">${bumps.map(([x, y, r]) => `<circle cx="${x}" cy="${y}" r="${r - 1.4}"/>`).join('')}</g>`;
+    }
     case 'ponytail': return `<path d="M66 24 Q86 22 84 46 Q83 64 74 72 Q78 52 70 36 Z" fill="${c}" ${st}/>`;
     default: return '';
   }
@@ -73,7 +77,11 @@ function hairFront(a: Avatar) {
     case 'wavy': return `<path d="M24 46 Q18 31 26 22 Q29 9 42 10 Q50 4 59 9 Q72 8 75 21 Q82 31 76 46 Q73 36 67 34 Q64 40 57 35 Q51 41 45 35 Q39 40 34 34 Q28 36 24 46 Z" fill="${c}" ${st}/><path d="M33 18 Q38 14 43 18 M55 15 Q61 12 66 17" fill="none" stroke="${INK}" stroke-width="1.6" stroke-linecap="round" opacity=".45"/>`;
     case 'short': return `<path d="M24 40 Q22 14 50 13 Q76 13 76 38 Q70 26 56 25 Q46 31 30 30 Q26 33 24 40 Z" fill="${c}" ${st}/>`;
     case 'long': return `<path d="M24 46 Q21 14 50 13 Q79 14 76 46 Q72 30 60 27 Q46 35 30 34 Q26 38 24 46 Z" fill="${c}" ${st}/>`;
-    case 'bob': return `<path d="M23 44 Q21 13 50 13 Q79 13 77 44 Q74 30 66 29 H34 Q26 30 23 44 Z" fill="${c}" ${st}/>`;
+    case 'curly': {
+      // curls across the top, with a side part
+      const top = [[30, 26, 8], [40, 18, 9], [52, 15, 9], [63, 19, 9], [71, 28, 8], [25, 37, 7], [75, 38, 7], [44, 26, 7]];
+      return `<g fill="${c}" ${st}>${top.map(([x, y, r]) => `<circle cx="${x}" cy="${y}" r="${r}"/>`).join('')}</g><g fill="${c}">${top.map(([x, y, r]) => `<circle cx="${x}" cy="${y}" r="${r - 1.4}"/>`).join('')}</g>`;
+    }
     case 'ponytail': return cap(`<circle cx="70" cy="24" r="5" fill="${c}" ${st}/>`);
     case 'buzz': return `<path d="M26 34 Q26 15 50 15 Q74 15 74 34 Q64 24 50 24 Q36 24 26 34 Z" fill="${c}" opacity=".85" ${st}/>`;
     default: return '';
