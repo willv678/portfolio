@@ -144,7 +144,7 @@ function clip(url: string, vol: number) {
 
 export const sfx = {
   /** the Roblox "oof", when the blocky avatar falls apart */
-  oof: () => clip('/sfx/oof.mp3', 0.8),
+  oof: () => clip('/sfx/oof.mp3', 0.56),
   /** tractor beam sucking something up: a wobbly hum rising in pitch */
   pull: (dur = 1.0) => warble(150, 360, dur),
   /** ...and lowering it down */
