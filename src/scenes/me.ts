@@ -1,7 +1,7 @@
 // The visitor's avatar (Will's by default) standing in the about panel on the
 // home page, idling: a gentle bob, a wave now and then, and the occasional
-// hop-and-spin. Rebuilds whenever the avatar is edited. On the first visit of
-// a session it waddles in from the right edge first (see 'avatar-walk-in').
+// hop-and-spin. Rebuilds whenever the avatar is edited. On a
+// fresh arrival it waddles in from the right edge first (see 'avatar-walk-in').
 import { Group, Vector3 } from 'three';
 import { createStage, seg, ease } from './kit';
 import { sfx } from '../scripts/sound';
