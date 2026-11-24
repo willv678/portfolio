@@ -235,7 +235,7 @@ export function create(): (SceneHandle & { show(name: string): void }) | null {
             p.o.scale.setScalar(1 - seg(u, RESPAWN - 0.35, RESPAWN));
           }
         }
-        if (passed(prev, t, BREAK, L)) kit.sfx(sfx.clunk);
+        if (passed(prev, t, BREAK, L)) kit.sfx(() => { sfx.oof(); sfx.clunk(); });
       });
     }
 

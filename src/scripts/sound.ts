@@ -121,7 +121,24 @@ function noise(dur: number, from: number, to: number, vol = 0.01) {
   src.start(t); src.stop(t + dur);
 }
 
+// Recorded clips (everything else here is synthesized). Fetched once, decoded
+// on first play; tiny, so the first play is near-instant anyway.
+const clips = new Map<string, Promise<AudioBuffer | null>>();
+function clip(url: string, vol: number) {
+  if (!on || !unlocked || !ctx || ctx.state !== 'running') return;
+  const c = ctx;
+  if (!clips.has(url)) clips.set(url, fetch(url).then((r) => r.arrayBuffer()).then((b) => c.decodeAudioData(b)).catch(() => null));
+  clips.get(url)!.then((buf) => {
+    if (!buf || !on) return;
+    const src = c.createBufferSource(), g = c.createGain();
+    src.buffer = buf; g.gain.value = vol;
+    src.connect(g).connect(c.destination); src.start();
+  });
+}
+
 export const sfx = {
+  /** the Roblox "oof", when the blocky avatar falls apart */
+  oof: () => clip('/sfx/oof.mp3', 0.35),
   /** tractor beam sucking something up: a wobbly hum rising in pitch */
   pull: (dur = 1.0) => warble(150, 360, dur),
   /** ...and lowering it down */
