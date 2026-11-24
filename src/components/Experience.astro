@@ -37,7 +37,7 @@ const when = (e: (typeof experience)[number]) => (e.end ? `${e.start} – ${e.en
       {minor.map((e) => (
         <li>
           <span class="when mono">{when(e)}</span>
-          <span>{e.href ? <a href={e.href} data-blip="880">{e.role}</a> : e.role}<span class="org">{e.org}</span><span class="what">{e.what}</span></span>
+          <span>{e.href ? <a href={e.href} data-blip="880" {...(e.href.startsWith('http') ? { target: '_blank', rel: 'noopener' } : {})}>{e.role}{e.href.startsWith('http') && ' ↗'}</a> : e.role}<span class="org">{e.org}</span><span class="what" set:html={e.what} /></span>
         </li>
       ))}
     </ul>

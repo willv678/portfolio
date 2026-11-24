@@ -26,5 +26,5 @@ export const experience: Entry[] = [
   { start: '2023', end: '2025', role: 'Co-founder', org: 'Paragon Policy Fellowship',
     what: 'A nonprofit pairing students with state and local governments on tech policy. Built the platform, helped raise $100k+.', minor: true },
   { start: '2022', role: 'Congressional App Challenge winner', org: 'GA-05',
-    what: 'For TechDetect, built during the STEM@GTRI internship.', href: '/techdetect/', minor: true },
+    what: 'For <a href="/techdetect/">TechDetect</a>, built during the STEM@GTRI internship.', href: 'https://www.congressionalappchallenge.us/22-ga05/', minor: true },
 ];
