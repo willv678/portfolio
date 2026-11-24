@@ -164,7 +164,7 @@ export const sfx = {
   /** tires squealing around an obstacle: a high, wobbling scrape */
   screech: () => { noise(0.42, 3400, 2200, 0.009); tone(1900, 1500, 0.38, { type: 'sawtooth', vol: 0.0025 }); },
   /** a little footstep (alternating feet are pitched apart): pit, pat */
-  step: (foot = 0) => { tone(foot ? 520 : 440, foot ? 360 : 300, 0.05, { type: 'triangle', vol: 0.02 }); noise(0.025, 2400, 1200, 0.004); },
+  step: (foot = 0) => { tone(foot ? 520 : 440, foot ? 360 : 300, 0.06, { type: 'triangle', vol: 0.06 }); noise(0.03, 2400, 1200, 0.012); },
   /** signal light turning green */
   bip: () => tone(1046, 1046, 0.06, { vol: 0.01 }),
 };
