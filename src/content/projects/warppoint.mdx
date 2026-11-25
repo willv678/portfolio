@@ -12,31 +12,31 @@ links:
   - { label: GitHub, href: "https://github.com/willv678/WarpPoint" }
 ---
 
-Switch emulation on the Mac is good now. You can play Fire Emblem: Three Houses at 4K at your desk. But the Switch is still the thing you take on the train, and the two don't talk to each other: saves live in different places and nothing carries over.
+Switch emulation on the Mac is good now. You can finally experience great games the way they were meant to be played. But, the Switch is still the thing you take on the train, and the two don't talk to each other: saves live in different places and nothing carries over. Which means that you have to make a choice. Start a game on your laptop, and lose out on the convenience of portability? Or play it on the go, at a crummy 540p 20fps. I personally think that really stinks.
 
-**WarpPoint is the link.** Install it on both sides once. After that, close a game on the Switch and its save is on the Mac a few seconds later. Then go back the other way.
+**WarpPoint finally fixes this.** Install it on both sides once. After that, any time you close a game on the Switch, its save is on the Mac a few seconds later. And of course, it goes back the other way.
 
 <Figure src="/projects/warppoint/library.jpg" alt="The WarpPoint library window: games with their icons and sync status" caption="the library on the Mac" />
 
-<Note label="the rule">Zero UI when it's working, clear UI when it needs you. No IPs to type, no files to pick, no SD card swaps.</Note>
+<Note label="the goal">No configs, pop-ups, or ip addresses to manage, just a clear UI on the rare chance it needs you. No more annoying SD card swaps, which means one less adapter for you to carry around.</Note>
 
 ## How it works
 
 There are two halves:
 
 - **On the Switch,** a small background module (a *sysmodule*, which runs alongside games on homebrewed consoles) announces itself on your Wi-Fi every couple of seconds and reads and writes saves through the console's own save service.
-- **On the Mac,** a menu bar app in Swift sits on a C++ sync engine. It hears the Switch, and syncs whenever it shows up or a game closes there.
+- **On the Mac,** a menu bar app I wrote in Swift sits on a C++ sync engine. It hears the Switch, and syncs whenever it shows up or a game closes there.
 
 Saves are named, not located: both sides call a save `game/<title id>/<user id>`, and each side looks up where that lives. Deciding which way to copy is one small function. Each side fingerprints the save (a SHA-256 over its files) and compares that to the last version both sides agreed on. If one side changed, copy it. If both changed, ask.
 
 <Figure src="/projects/warppoint/menu.jpg" alt="The WarpPoint menu under its UFO icon in the macOS menu bar: the Switch is here, last sync just now, Fire Emblem: Three Houses copied to the Mac" caption="click the UFO" max={400} />
 
-## Not eating saves
+## Not destroying saves
 
-Sync is the dangerous part, since a bug can eat a save file, so the core stays small and boring:
+Sync is the dangerous part, as one mishap bricks a save file, so the core has to stay small and boring:
 
 - **Backups first.** Nothing gets overwritten until it's backed up, and the last four of each save can be restored.
-- **No half-saves.** Writes land in a scratch copy and become the real save in one step, so a dropped connection leaves the old save intact.
+- **No half-saves.** Writes land in a scratch copy and become the real save in one step, so a dropped connection leaves the old save intact. I learned this by studying how emulators manage save files.
 - **Hands off running games.** A save is never touched while its game is open, on either side.
 
 On the Switch, an overlay you can open in any game shows when it last synced, with a sync-now button and a pause switch.
@@ -45,14 +45,14 @@ On the Switch, an overlay you can open in any game shows when it last synced, wi
 
 ## Light enough to forget about
 
-It's a background app, so it shouldn't cost you anything while it waits. It only does real work during a sync.
+It's a background app, so it shouldn't cost you anything while it waits. Which is especially important when we're squeezing every last inch out of the switch on a maximum overclock. It only does semi-real work during a sync.
 
 | | Mac app | Switch module |
 |---|---|---|
 | Memory | about 19 MB | a little over 2 MB |
-| CPU while idle | about 0.1% of one core | wakes once a second |
+| CPU while idle | ~0.1% of one core | wakes once a second |
 | Download | 1.4 MB | 0.5 MB, plus a 0.3 MB overlay |
 
 ## What's next
 
-1.0 is Mac and Ryujinx-family emulators (like Astris) only. The engine treats each emulator and console as a plug-in, so next up are more emulators, Windows and Linux, and creating saves on the Switch for games you've only played on the Mac.
+Right now the 1.0 is just for Mac and Ryujinx-family emulators (like Astris) only. However, I designed the engine to treat each emulator and console as a plug-in, so next up are more emulators, Windows and Linux, and creating saves on the Switch for games you've only played on the Mac. And most promisingly, bringing support to emulation methods like nxnative, and investigating support for an even higher fidelity way to play swtich games via Switch 2 upgrade packs.
