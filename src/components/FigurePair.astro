@@ -1,0 +1,33 @@
+---
+// Two images side by side at the same height, each with its own caption; they stack
+// on narrow screens. Usage in MDX:
+// <FigurePair a={{src, alt, caption}} b={{src, alt, caption}} caption="..." />
+interface Shot { src: string; alt: string; caption?: string }
+interface Props { a: Shot; b: Shot; caption?: string; height?: number }
+const { a, b, caption, height = 380 } = Astro.props;
+---
+<figure class="pair-fig">
+  <div class="pair" style={`--h:${height}px`}>
+    {[a, b].map((s) => (
+      <div class="cell">
+        <div class="frame"><img src={s.src} alt={s.alt} loading="lazy" decoding="async" /></div>
+        {s.caption && <div class="sub mono">{s.caption}</div>}
+      </div>
+    ))}
+  </div>
+  {caption && <figcaption class="mono">{caption}</figcaption>}
+</figure>
+<style>
+  .pair-fig { margin: 2.2em 0; }
+  .pair { display: flex; gap: 18px; justify-content: center; align-items: flex-end; flex-wrap: wrap; }
+  .cell { display: flex; flex-direction: column; align-items: center; }
+  .frame {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 14px;
+    box-shadow: var(--shadow); padding: 8px; overflow: hidden;
+  }
+  .frame img { height: var(--h); width: auto; max-width: 100%; display: block; border-radius: 8px; }
+  .sub { color: var(--muted); margin-top: 8px; }
+  figcaption { color: var(--muted); margin-top: 12px; padding-left: 4px; text-align: center; }
+  figcaption::before { content: "↳ "; opacity: .6; }
+  @media (max-width: 640px) { .frame img { height: auto; width: 100%; } .cell { width: 100%; } }
+</style>
