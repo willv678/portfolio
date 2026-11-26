@@ -1,0 +1,160 @@
+---
+// Two versions of the same footage with a divider you drag to compare them.
+// `src` is one video with the two versions stacked: the left one on top, the right one
+// below, each `width` x `height`. A single video keeps them in perfect sync; a canvas
+// draws the top half, then the bottom half to the right of the divider.
+// The video loads only when the figure is near the screen and plays only while it's
+// on screen; until then `poster` shows. With reduced motion it stays on its first frame.
+// Usage in MDX:
+// <CompareVideo src="/x/clip.mp4" av1="/x/clip-av1.mp4" poster="/x/clip.jpg"
+//   left="Switch 1" right="Switch 2 Edition" alt="..." caption="..." />
+interface Props {
+  src: string; av1?: string; poster: string; alt: string;
+  left: string; right: string; caption?: string;
+  width?: number; height?: number;
+}
+const { src, av1, poster, alt, left, right, caption, width = 1600, height = 900 } = Astro.props;
+---
+<figure class="fig wide cmpv" data-src={src} data-av1={av1} data-w={width} data-h={height}>
+  <div class="frame">
+    <div class="stage" style={`aspect-ratio:${width}/${height}`}>
+      <img src={poster} alt={alt} loading="lazy" decoding="async" />
+      <canvas width={width} height={height} aria-hidden="true"></canvas>
+      <video muted playsinline loop preload="none" aria-hidden="true" tabindex="-1"></video>
+      <span class="tag l mono">{left}</span>
+      <span class="tag r mono">{right}</span>
+      <div class="divider" aria-hidden="true"><span class="knob">‹ ›</span></div>
+      <input type="range" min="0" max="100" value="50" step="0.5"
+        aria-label={`Divider: ${left} on the left, ${right} on the right`} />
+    </div>
+  </div>
+  {caption && <figcaption class="mono">{caption}</figcaption>}
+</figure>
+
+<style>
+  .fig { margin: 2.2em 0; }
+  .frame {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 14px;
+    box-shadow: var(--shadow); padding: 8px; overflow: hidden;
+  }
+  .stage {
+    --p: 50%;
+    position: relative; width: 100%; border-radius: 8px; overflow: hidden;
+    cursor: ew-resize; touch-action: pan-y; user-select: none; -webkit-user-select: none;
+    background: #111;
+  }
+  .stage img, .stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  .stage canvas { opacity: 0; transition: opacity .3s; }
+  .stage.live canvas { opacity: 1; }
+  /* Kept in the layout (not display:none) so every browser keeps decoding it. */
+  .stage video { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+  .divider {
+    position: absolute; top: 0; bottom: 0; left: var(--p); width: 2px; margin-left: -1px;
+    background: #fff; box-shadow: 0 0 8px rgba(0,0,0,.45); pointer-events: none;
+  }
+  .knob {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    width: 38px; height: 38px; border-radius: 50%; background: #fff; color: #222;
+    display: grid; place-items: center; font: 600 13px/1 var(--mono, monospace); letter-spacing: -1px;
+    box-shadow: 0 2px 10px rgba(0,0,0,.35);
+  }
+  .tag {
+    position: absolute; top: 10px; padding: 3px 8px; border-radius: 6px; font-size: 12px;
+    color: #fff; background: rgba(0,0,0,.55); pointer-events: none; transition: opacity .2s;
+  }
+  .tag.l { left: 10px; }
+  .tag.r { right: 10px; }
+  .stage input {
+    position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none;
+  }
+  .stage:has(input:focus-visible) .knob { outline: 2px solid var(--accent, #5b4bd6); outline-offset: 2px; }
+  figcaption { color: var(--muted); margin-top: 10px; padding-left: 4px; }
+  figcaption::before { content: "↳ "; opacity: .6; }
+  @media (max-width: 640px) { .tag { font-size: 10px; top: 6px; } .tag.l { left: 6px; } .tag.r { right: 6px; } .knob { width: 30px; height: 30px; } }
+</style>
+
+<script>
+  const AV1 = 'video/mp4; codecs="av01.0.12M.08"';
+  const still = matchMedia('(prefers-reduced-motion: reduce)');
+
+  for (const fig of document.querySelectorAll<HTMLElement>('.cmpv')) {
+    const stage = fig.querySelector<HTMLElement>('.stage')!;
+    const canvas = stage.querySelector('canvas')!;
+    const video = stage.querySelector('video')!;
+    const input = stage.querySelector('input')!;
+    const tagL = stage.querySelector<HTMLElement>('.tag.l')!;
+    const tagR = stage.querySelector<HTMLElement>('.tag.r')!;
+    const ctx = canvas.getContext('2d')!;
+    const w = Number(fig.dataset.w), h = Number(fig.dataset.h);
+    let p = 0.5, loaded = false, visible = false, ready = false;
+
+    const draw = () => {
+      if (!ready) return;
+      const x = Math.round(p * w);
+      ctx.drawImage(video, 0, 0, w, h, 0, 0, w, h);
+      if (x < w) ctx.drawImage(video, x, h, w - x, h, x, 0, w - x, h);
+    };
+    const set = (v: number) => {
+      p = Math.min(1, Math.max(0, v));
+      stage.style.setProperty('--p', `${p * 100}%`);
+      input.value = String(p * 100);
+      tagL.style.opacity = p < 0.2 ? '0' : '';
+      tagR.style.opacity = p > 0.8 ? '0' : '';
+      draw();
+    };
+
+    // Redraw on every new video frame.
+    const hasRVFC = 'requestVideoFrameCallback' in video;
+    const onFrame = () => {
+      draw();
+      if (hasRVFC) video.requestVideoFrameCallback(onFrame);
+      else if (!video.paused) requestAnimationFrame(onFrame);
+    };
+    video.addEventListener('loadeddata', () => {
+      ready = true;
+      stage.classList.add('live');
+      draw();
+      if (hasRVFC) video.requestVideoFrameCallback(onFrame);
+    });
+    video.addEventListener('play', () => { if (!hasRVFC) requestAnimationFrame(onFrame); });
+    video.addEventListener('seeked', draw);
+
+    const sync = () => {
+      if (visible && !still.matches) video.play().catch(() => {});
+      else video.pause();
+    };
+    still.addEventListener('change', sync);
+
+    new IntersectionObserver(([e]) => {
+      visible = e.isIntersecting;
+      if (visible && !loaded) {
+        loaded = true;
+        const av1 = fig.dataset.av1;
+        video.src = av1 && video.canPlayType(AV1) === 'probably' ? av1 : fig.dataset.src!;
+        video.load();
+      }
+      sync();
+    }, { rootMargin: '200px 0px' }).observe(stage);
+
+    // Drag (mouse, pen or a horizontal swipe; vertical swipes still scroll the page).
+    const at = (e: PointerEvent) => {
+      const r = stage.getBoundingClientRect();
+      set((e.clientX - r.left) / r.width);
+    };
+    let dragging = false;
+    stage.addEventListener('pointerdown', (e) => {
+      dragging = true;
+      stage.setPointerCapture(e.pointerId);
+      at(e);
+    });
+    stage.addEventListener('pointermove', (e) => {
+      if (dragging) at(e);
+    });
+    const stop = () => { dragging = false; };
+    stage.addEventListener('pointerup', stop);
+    stage.addEventListener('pointercancel', stop);
+
+    // Keyboard: the hidden range input (Tab to it, then arrows).
+    input.addEventListener('input', () => set(Number(input.value) / 100));
+  }
+</script>
