@@ -8,20 +8,14 @@ npm run dev      # http://localhost:4321  (PUBLIC_DRAFTS=1 npm run dev to also s
 npm run build    # → dist/
 ```
 
-## Add a project
+## Adding a project, and the style rules
 
-1. Create `src/content/projects/<slug>.mdx`. It's served at `willvarner.me/<slug>`. Copy the frontmatter from an existing one.
-2. Icon: drop an SVG in `src/icons/<slug>.svg` and set `icon: <slug>`, or use `glyph: AB` until there's art.
-3. `pinned: true` puts it on the home shelf; `order` sets the position (lower = further left).
-4. Images go in `public/projects/<slug>/`.
-
-In the body you can use `<Figure src alt caption />`, `<YouTube id title />` and `<Note label>…</Note>`.
-
-## Add a post
-
-Same idea in `src/content/writing/<slug>.mdx` (needs a `date`). `draft: true` keeps it off the live site. The `writing` link in the nav only appears once a non-draft post exists.
+See [AGENTS.md](AGENTS.md): the checklist (page, icon and its hover animation, 3D scene,
+shelf, timeline), how the scenes and animations work, the writing voice, the do's and
+don'ts, how to check your work and how to ship.
 
 ## Other pages
 
-- Timeline: `src/pages/experience.astro` (one entry per line in the `timeline` array).
+- Timeline: `src/data/experience.ts` (shown on the home page; 3D models in `src/scenes/experience.ts`).
+- The home character's status lines: `src/data/status.ts`.
 - Resume: replace `public/CSResume.pdf`.
