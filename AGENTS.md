@@ -351,8 +351,12 @@ CH="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
 
 ## 11. Shipping
 
-- **Branches:** work on `redesign`, then fast-forward `main` to it and push both:
-  `git checkout main && git merge --ff-only redesign && git push origin main redesign && git checkout redesign`.
+- **Branch:** work on `main`; pushing it deploys. (`redesign` is an old branch from before
+  launch. Don't use it.)
+- **Other sessions may be working in this repo at the same time.** Before committing, run
+  `git status -sb` and check you're on the branch you think. Never `--amend` or rebase a commit
+  you didn't just make, and never switch branches or stash in the shared checkout. If `main` has
+  moved, `git pull --rebase` your own commit on top.
 - **Deploy:** pushing `main` runs `.github/workflows/deploy.yml` (about a minute). Wait for it:
   `gh run watch <id> --exit-status`. The run list can briefly show the previous run, so match
   the head SHA.
