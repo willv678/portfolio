@@ -162,6 +162,30 @@ export const create = () => createStage((kit) => {
   // ---------- the loop ----------
   const L = 7.2, X0 = -2.35, X1 = 2.35;
   const IN_A = 0.6, IN_B = 2.7, CHECK = 3.0, OUT_A = 5.3, OUT_B = 6.6;
+  const INSPECT = 1.7;   // the seam has just passed the character
+  // key poses for the inspect, at seconds after INSPECT: arms [x (forward), y (twist), z (in/out)]
+  // for right (r) and left (l), the head [x (down), y (toward the right hand), z (tilt)]
+  type P = { rx: number; ry: number; rz: number; lx: number; ly: number; lz: number; hx: number; hy: number; hz: number; shake: number; on: number };
+  const rest: P = { rx: 0, ry: 0, rz: 0.18, lx: 0, ly: 0, lz: -0.18, hx: 0, hy: 0, hz: 0, shake: 0, on: 0 };
+  const KEYS: [number, Partial<P>][] = [
+    [0, {}],
+    [0.3, { rx: -1.0, rz: -0.2, lx: -1.0, lz: 0.2, hx: 0.32, on: 1 }],                              // hands up, palms up: what?
+    [0.62, { rx: -1.05, ry: 1.0, rz: -0.25, lx: -1.05, ly: -1.0, lz: 0.25, hx: 0.34, hz: 0.06, on: 1 }],  // turned over
+    [0.98, { rx: -1.45, ry: 0.4, rz: -0.42, lx: -0.6, ly: -0.2, lz: 0.05, hx: 0.2, hy: 0.32, hz: 0.1, on: 1 }],   // the right one, up close
+    [1.32, { rx: -0.6, ry: 0.2, rz: 0.0, lx: -1.45, ly: -0.4, lz: 0.42, hx: 0.2, hy: -0.32, hz: -0.1, on: 1 }],   // now the left
+    [1.6, { rx: -1.1, rz: -0.28, lx: -1.1, lz: 0.28, hx: 0.12, shake: 1, on: 1 }],                 // both: yes!
+    [1.85, { rx: -0.9, rz: -0.15, lx: -0.9, lz: 0.15, hx: 0.05, shake: 1, on: 1 }],
+    [2.15, {}],
+  ];
+  const smooth = (x: number) => x * x * (3 - 2 * x);
+  const full = KEYS.map(([at, p]) => [at, { ...rest, ...p }] as [number, P]), out = { ...rest };
+  const pose = (t: number): P => {
+    if (t <= 0 || t >= full[full.length - 1][0]) return rest;
+    let i = 0; while (t > full[i + 1][0]) i++;
+    const [a0, A] = full[i], [a1, B] = full[i + 1], f = smooth((t - a0) / (a1 - a0));
+    for (const key of Object.keys(rest) as (keyof P)[]) out[key] = A[key] + (B[key] - A[key]) * f;
+    return out;
+  };
   const sparkAt = new Vector3(0.25, 1.45, 0.3);
   const SUN_AT = IN_A + (IN_B - IN_A) * Math.cbrt((sun.position.x - X0) / (X1 - X0) / 4);   // when the seam reaches the sun (inverse of ease's first half)
 
@@ -191,19 +215,17 @@ export const create = () => createStage((kit) => {
     }
 
     // the character notices it has a shadow now, and looks down at it
-    // the moment it's remastered, the character can't believe it: hands up in front,
-    // a long look at them as they turn over, a little head shake; a hop when the check
-    // lands; then it notices it has a shadow now
+    // the moment it's remastered, the character inspects itself like a game's item
+    // inspect: hands up to the chest, turned over, one brought close and looked at, then
+    // the other, an excited shake, and down with a little hop. Then it finds its shadow.
     if (head && armL && armR) {
-      const hk = ease(seg(u, 1.8, 2.15)) * (1 - ease(seg(u, 3.25, 3.6)));        // hands up
-      const turn = Math.sin((u - 1.8) * 6.5) * 0.35 * hk;                       // turning them over
-      armR.rotation.set(-1.7 * hk, turn, 0.18 - 0.62 * hk);
-      armL.rotation.set(-1.7 * hk, -turn, -0.18 + 0.62 * hk);
-      const shadowLook = Math.sin(Math.PI * seg(u, 3.55, 4.7));
-      head.rotation.x = 0.22 * hk + 0.45 * shadowLook;
-      head.rotation.y = -0.3 * shadowLook;
-      head.rotation.z = Math.sin((u - 1.8) * 9) * 0.07 * hk;                    // "no way"
-      me.position.y = Math.sin(Math.PI * seg(u, CHECK + 0.05, CHECK + 0.4)) * 0.09;
+      const k = pose(u - INSPECT);
+      const jitter = Math.sin(u * 23) * 0.07 * k.shake;                        // the excited shake
+      armR.rotation.set(k.rx + jitter + Math.sin(u * 3.1) * 0.04 * k.on, k.ry, k.rz);
+      armL.rotation.set(k.lx - jitter + Math.sin(u * 2.7 + 1) * 0.04 * k.on, k.ly, k.lz);
+      const shadowLook = Math.sin(Math.PI * seg(u, INSPECT + 2.15, INSPECT + 3.2));
+      head.rotation.set(k.hx + 0.45 * shadowLook, k.hy - 0.3 * shadowLook, k.hz);
+      me.position.y = Math.sin(Math.PI * seg(u, INSPECT + 1.75, INSPECT + 2.05)) * 0.08;
     }
     // the dog wags, harder once the sun is out, and hops when the check lands
     tail.rotation.y = Math.sin(t * (u > SUN_AT && u < OUT_B ? 18 : 7)) * 0.5;
