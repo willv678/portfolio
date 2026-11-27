@@ -267,9 +267,12 @@ for Leidos, a laptop doing face check-in for GTRI).
 - `<FigurePair a={{src,alt,caption}} b={{...}} />` puts two images side by side.
 - `<YouTube id title caption />` loads the player only when clicked (no tracking before that).
 - `<CompareVideo …/>` shows two versions with a draggable divider (see the component header).
-  `intro={0.12}` gives the *first* slider on a page an entrance: it starts on the left version
-  (give it a left-only `poster` so nothing jumps), glides to 12% and nudges back. Use it once
-  per page at most; later sliders stay at the plain 50/50.
+  `path` sets where the divider sits for each image, and optionally a short tour: the first
+  number is the start, the rest are visited once when it's well on screen. For example,
+  `[0.36]` puts the divider through the subject, `[1, 0.12, 0.22]` is an entrance (left
+  version only, reveal, nudge back), and `[0.72, 0.48, 0.59]` crosses one subject (before,
+  after, halfway). Pick stops by looking at the frame, and make the `poster` match the first
+  stop (crop and overlay the two halves with ffmpeg) so nothing jumps while the video loads.
   It works for **stills** too: stack the two images (left on top) into a 2-frame video with
   ffmpeg and give it a 50/50 poster. Label honestly in the slider's `left`/`right` tags and in
   the caption; mockups say "mockup".
