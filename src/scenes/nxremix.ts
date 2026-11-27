@@ -88,10 +88,10 @@ export const create = () => createStage((kit) => {
 
   // ---------- the characters: never repainted ----------
   const me = new Group(); me.position.set(-0.25, 0, 0.2); me.rotation.y = 0.45; scene.add(me);
-  let head: Group | null = null;
+  let head: Group | null = null, armL: Group | null = null, armR: Group | null = null;
   const build = (a: Avatar) => {
     me.clear();
-    const f = makeAvatar(kit, a); kit.outline(f.g); me.add(f.g); head = f.head;
+    const f = makeAvatar(kit, a); kit.outline(f.g); me.add(f.g); head = f.head; armL = f.left; armR = f.right;
   };
   build(load() ?? DEFAULT);
   addEventListener('avatar-change', (e) => build((e as CustomEvent<Avatar | null>).detail ?? DEFAULT));
@@ -120,7 +120,7 @@ export const create = () => createStage((kit) => {
 
   // ---------- only in the remaster ----------
   const sun = new Group(); sun.position.set(-1.35, 1.6, -1.35); scene.add(sun);
-  sun.add(new Mesh(new SphereGeometry(0.2, 20, 14), new MeshBasicMaterial({ color: C.sun })));
+  const sunBall = new Mesh(new SphereGeometry(0.2, 20, 14), new MeshBasicMaterial({ color: C.sun })); sunBall.userData.remasterOnly = true; sun.add(sunBall);
   const sunGlow = kit.glow(C.sun); sunGlow.scale.setScalar(1.1); sun.add(sunGlow);
   // the sun is up and to the left, so shadows fall to the right and back
   const shadows: { m: Mesh; x: number; k: number }[] = [];
@@ -191,10 +191,19 @@ export const create = () => createStage((kit) => {
     }
 
     // the character notices it has a shadow now, and looks down at it
-    if (head) {
-      const look = Math.sin(Math.PI * seg(u, 1.75, 2.9));
-      head.rotation.x = 0.45 * look;
-      head.rotation.y = -0.3 * look;
+    // the moment it's remastered, the character can't believe it: hands up in front,
+    // a long look at them as they turn over, a little head shake; a hop when the check
+    // lands; then it notices it has a shadow now
+    if (head && armL && armR) {
+      const hk = ease(seg(u, 1.8, 2.15)) * (1 - ease(seg(u, 3.25, 3.6)));        // hands up
+      const turn = Math.sin((u - 1.8) * 6.5) * 0.35 * hk;                       // turning them over
+      armR.rotation.set(-1.7 * hk, turn, 0.18 - 0.62 * hk);
+      armL.rotation.set(-1.7 * hk, -turn, -0.18 + 0.62 * hk);
+      const shadowLook = Math.sin(Math.PI * seg(u, 3.55, 4.7));
+      head.rotation.x = 0.22 * hk + 0.45 * shadowLook;
+      head.rotation.y = -0.3 * shadowLook;
+      head.rotation.z = Math.sin((u - 1.8) * 9) * 0.07 * hk;                    // "no way"
+      me.position.y = Math.sin(Math.PI * seg(u, CHECK + 0.05, CHECK + 0.4)) * 0.09;
     }
     // the dog wags, harder once the sun is out, and hops when the check lands
     tail.rotation.y = Math.sin(t * (u > SUN_AT && u < OUT_B ? 18 : 7)) * 0.5;
