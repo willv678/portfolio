@@ -42,7 +42,10 @@ A finished project has all of these. Do them in this order:
 1. **The page:** `src/content/projects/<slug>.mdx`, with frontmatter (§3) and the write-up (§7).
 2. **The icon:** `src/icons/<name>.svg`, plus its hover animation (§4).
 3. **The 3D scene:** `src/scenes/<name>.ts`, set as `scene: <name>` (§5).
-4. **On the shelf:** `pinned: true` and an `order` (lower is further left). The shelf, the home
+4. **On the shelf:** `pinned: true` and an `order` (lower is further left; decimals are fine).
+   Order by what Will would want a visitor to see first: current, substantial work near the
+   front (a work-in-progress project he's excited about can go second), old school projects
+   toward the end. Not strictly by date. The shelf, the home
    info card, the page, ← / → and swipe order, the side arrows and prerendering all come from
    this; there's nothing else to register.
 5. **Timeline, if it was a job or research:** add an entry to `src/data/experience.ts` with an
@@ -91,8 +94,9 @@ The icon is the project's face: it appears on the shelf tile, in the home info c
 banner (until the 3D scene loads) and on the prev/next arrows.
 
 **Drawing rules**
-- `viewBox="0 0 48 48"`, flat shapes, **no stroke-heavy line art, no gradients, no text, no logos
-  or brand marks**. It should say what the project does, literally and simply: a UFO carrying
+- `viewBox="0 0 48 48"`, flat shapes, **no stroke-heavy line art, no text, no logos or brand
+  marks**. No decorative gradients; a soft gradient is OK only for light itself (WarpPoint's
+  beam). It should say what the project does, literally and simply: a UFO carrying
   a save, a gate a car drives under, a bridge, a face in scan brackets.
 - Use `currentColor` (inherited; the loader sets `fill="currentColor"`), so the icon takes the
   project's `color`. For depth, use the same color at 2–3 opacities (`opacity=".3"`, `".7"`).
@@ -190,7 +194,7 @@ const build = (a: Avatar) => { seat.clear(); const f = makeAvatar(kit, a); kit.o
 build(load() ?? DEFAULT);
 addEventListener('avatar-change', (e) => build((e as CustomEvent<Avatar | null>).detail ?? DEFAULT));
 ```
-`makeAvatar` returns `{ g, head, left, right }`; the arms pivot at the shoulder (`rotation.z`
+`makeAvatar` returns `{ g, head, left, right, arm }` (`arm` is the same as `right`); the arms pivot at the shoulder (`rotation.z`
 raises, `rotation.x` swings). `makeHead` is just the head, for a pilot or a driver.
 
 **Scene style rules**
@@ -205,6 +209,11 @@ raises, `rotation.x` swings). `makeHead` is just the head, for a pilot or a driv
 - **Performance:** a few dozen meshes. Reuse geometries and materials in loops. No per-frame
   allocations: create Vectors once outside `update`.
 - **Facing:** characters face the camera or inward toward the content, not out of the frame.
+- **A "before → after" wipe across the scene** (as in `nxremix.ts`): patch `MeshToonMaterial` with
+  `onBeforeCompile` to mix two colors by world x against a moving seam uniform, and give every
+  patched material the same `customProgramCacheKey`. That works with the automatic outlines.
+  Objects that exist on only one side (a sun, shadows) should pop in or out as the seam passes,
+  not be clipped, or their outlines show on the wrong side.
 
 ---
 
@@ -253,6 +262,9 @@ for Leidos, a laptop doing face check-in for GTRI).
 - `<FigurePair a={{src,alt,caption}} b={{...}} />` puts two images side by side.
 - `<YouTube id title caption />` loads the player only when clicked (no tracking before that).
 - `<CompareVideo …/>` shows two versions with a draggable divider (see the component header).
+  It works for **stills** too: stack the two images (left on top) into a 2-frame video with
+  ffmpeg and give it a 50/50 poster. Label honestly in the slider's `left`/`right` tags and in
+  the caption; mockups say "mockup".
 - `<Note label="…">` is a quiet aside.
 - Tables are fine for numbers.
 
@@ -304,6 +316,8 @@ for Leidos, a laptop doing face check-in for GTRI).
 ## 9. Performance budget
 
 - **Total size:** the home page is about 330 KB with everything. Keep new pages in that range.
+- **Video:** H.264 MP4 at about 1440–1600 wide, a JPEG poster, and lazy-loaded (CompareVideo
+  and YouTube already are). Keep each clip under about 1 MB.
 - **Images:** JPEG at quality 70–82, at most about 1440px wide (about 2× the column), ideally
   under 250 KB. Use PNG only when transparency matters. Use `sips` to convert and resize.
   `<Figure>` lazy-loads.
@@ -324,9 +338,14 @@ that plainly showed hair covering the character's chest, and Will had to point i
 in (2× device scale), check several angles and variants, and look for clipping, things poking
 through, layout jumps and overlap.
 
+In a fresh worktree, run `npm ci` first; `node_modules` isn't shared.
+
 ```sh
 npm run build                                   # must pass
-npx astro preview --port 4322 &                 # serve dist/
+npx astro preview --port 4377                   # serve dist/; it detaches and may pick another
+                                                # free port, so READ THE PORT FROM ITS OUTPUT
+                                                # (another session may already own 4322, serving
+                                                # a different checkout). Stop: npx astro preview stop
 CH="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
 # static screenshot (the 3D scene may not have drawn yet; use the real GPU)
 "$CH" --headless=new --use-angle=metal --enable-gpu --hide-scrollbars \
@@ -334,6 +353,9 @@ CH="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
   --screenshot=/tmp/shot.png http://localhost:4322/<slug>/
 ```
 
+- **Selecting a shelf tile in a test:** hovering only counts as a real mouse `pointerover`.
+  Dispatch `new PointerEvent('pointerover', {bubbles: true, pointerType: 'mouse'})` on
+  `a.tile[href*="<slug>"]`, or press → with CDP key events.
 - **Interaction** (taps, keys, scrolling, timing): drive Chrome with
   `--remote-debugging-port=9333` and a small Node script over CDP (`Runtime.evaluate`,
   `Input.dispatchTouchEvent`, `Emulation.setDeviceMetricsOverride` with `mobile: true` for

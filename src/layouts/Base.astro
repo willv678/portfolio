@@ -163,4 +163,7 @@ const rules = home
   .snd { background: none; border: 0; color: inherit; cursor: pointer; padding: 4px; display: flex; }
   .snd:hover { color: var(--ink); }
   @media (max-width: 720px) { nav { gap: 12px; } .top { padding-top: 14px; padding-bottom: 14px; } }
+  /* phones: the top bar stays on one line. The back button keeps its arrow and drops the name; links don't wrap. */
+  nav { white-space: nowrap; }
+  @media (max-width: 480px) { .back { font-size: 0; gap: 0; } .back .arr { font-size: 14px; } nav { gap: 10px; } }
 </style>

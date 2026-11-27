@@ -70,6 +70,13 @@ html:active-view-transition-type(prev)::view-transition-new(root) { animation: .
 .icon .brk { transform-box: view-box; transform-origin: center; }
 :is(.tile.on, .tile.peek, html:not(.kbd) a.tile:hover, .nav-tile:hover, .banner) .icon .scan { opacity: .75; animation: scan 1.6s ease-in-out infinite; }
 :is(.tile.on, .tile.peek, html:not(.kbd) a.tile:hover, .nav-tile:hover, .banner) .icon .brk { animation: brk 1.6s ease-in-out infinite; }
+/* NXRemix: the divider slides back and forth like a compare slider, remastering
+   the frame behind it; a glint twinkles in the remastered sky */
+@keyframes remix-wipe { 0%, 100% { transform: none; } 35% { transform: translateX(12px); } 75% { transform: translateX(-9px); } }
+@keyframes remix-glint { 0%, 100% { transform: scale(.6) rotate(0); } 50% { transform: scale(1.15) rotate(45deg); } }
+.icon .glint { transform-box: fill-box; transform-origin: center; }
+:is(.tile.on, .tile.peek, html:not(.kbd) a.tile:hover, .nav-tile:hover, .banner) .icon :is(.wipe, .seam) { animation: remix-wipe 2.4s cubic-bezier(.45,0,.3,1) infinite; }
+:is(.tile.on, .tile.peek, html:not(.kbd) a.tile:hover, .nav-tile:hover, .banner) .icon .glint { animation: remix-glint 1.2s ease-in-out infinite; }
 
 /* Keyboard mode: an arrow key hides the cursor and turns hover off until the
    mouse really moves, so a resting cursor can't fight the keyboard. */

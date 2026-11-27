@@ -1,0 +1,82 @@
+---
+title: NXRemix
+blurb: Switch games remastered by agents, native on Apple Silicon. Agents read a game's own shaders, rewrite its lighting, and check every change against the same frame. Early days; the first shader change is running live.
+status: 2026 · in progress
+tags: [Python, Metal]
+color: "#c2416e"
+icon: nxremix
+scene: nxremix
+pinned: true
+order: 1.5
+links:
+  - { label: GitHub, href: "https://github.com/willv678/nxremix" }
+---
+
+Run a 2019 Switch game on an M-series Mac and you have far more GPU than it will ever ask for. 4K at 60 fps is easy. It still looks like a 2019 Switch game, though: milky colors, soft shadows, almost no ambient occlusion, 512px textures on every wall. Upscalers can't fix that. They make sharper pixels, but they don't add light that was never rendered. Sharper mud is still mud.
+
+**NXRemix goes after the ingredients instead.** Agents read the game's own shaders, rewrite the lighting, color and shadows, rebuild its textures, and check every change against the exact same frame. What you share at the end is a recipe: shader diffs, rules and prompts, a few kilobytes, with no game files in it.
+
+<CompareVideo src="/projects/nxremix/classroom.mp4" poster="/projects/nxremix/classroom.jpg" width={1440} height={810} left="stock · via nxnative" right="target · mockup" alt="Fire Emblem: Three Houses, a classroom with Byleth talking to Dorothea, split by a draggable line: on the left the real game running on a Mac through nxnative, dim and grey; on the right a mockup of the goal made by an image model from the same frame, with sunlight through the curtain, dust in the air and warmer wood and stone. The dialogue box and portrait are the same on both sides" caption="drag the line. left is the real game on a Mac; right is the goal, mocked up by an image model" />
+
+That's the honest status: it's early. Phase 0 is done. That means the tools to rebuild a game's shaders, a color change running live in Fire Emblem: Three Houses, and a first native 4K render path. The right side of every slider on this page is a mockup, and I'll swap in real captures as milestones land.
+
+## Standing on nxnative
+
+None of this works without [nxnative](https://github.com/seedds/nxnative). It's seedds' project, not mine (I contribute to it). It turns a Switch game you own into a native Apple Silicon app, and it translates every one of the game's shaders into readable Metal Shading Language ahead of time.
+
+That second part is the opening. The renderer stops being a black box and becomes source code an agent can read, reason about and rewrite: find the tonemap pass, swap in a filmic curve, add contact shadows from the depth buffer, give the cel shader a rim light. Then render the same frame again and prove it got better.
+
+<Note label="the rule">Change one thing, render the same frame, and keep it only if it's better.</Note>
+
+## How it works
+
+It's one loop:
+
+- **Run.** nxnative runs the game natively on Metal. My runner starts the game directly and points every writable path, saves included, at a throwaway folder. It refuses to write anywhere near the real save folder, which matters, because [WarpPoint](/warppoint/) syncs those saves with my Switch.
+- **Read.** nxnative can dump every render pass of a frame. From that you get the frame graph: which pass draws the world, which one tonemaps, where the UI starts.
+- **Rewrite.** Agents edit the translated shaders by key and rebuild only those, through nxnative's own build steps. Edits are pattern rules, not hand patches, so one rule covers every variant of a shader.
+- **Judge.** The same frame, stock and changed: a pixel diff for the UI, which must not move, and a vision model for questions like "did the faces survive".
+- **Recipe.** Whatever passes gets written down as diffs, rules and prompts. You apply it to your own copy of the game.
+
+Why not put a real-time AI filter over the frame instead? Because those boil from frame to frame, change faces and melt UI text. NXRemix does the AI work once, offline, and then the game runs on plain, deterministic Metal at full frame rate.
+
+## Phase 0: one shader, changed for real
+
+The first milestone was small on purpose: change one shader in Fire Emblem: Three Houses (FE3H) and show the same scene before and after.
+
+**Prove the rebuild is clean.** Before changing anything, I rebuilt an untouched shader through nxnative's own build steps and checked that it came out byte-identical to stock. Screenshots would have been a noisy test (the fire in the scene animates); identical compiled shaders mean identical rendering, no squinting required.
+
+**Find the tonemap.** I dumped one frame pass by pass: the lighting buffers, the HDR scene, the auto-exposure chain that shrinks the image to a single pixel, the bloom. The first pass that draws into the final image is FE3H's tonemap. Everything after it is UI, which is exactly the line the pixel diff guards.
+
+**Change it, and measure.** A small patcher routes the shader's color output through a grade. The recipe holds only that snippet, never the game's code. My first grade came out too dark (average brightness 96 → 78), and measuring showed why: the curve was bending linear light, before the frame gets encoded for the screen. Redone in display space, brightness held (96.9 → 94.4) with a bit more contrast, as the offline model predicted.
+
+**Live reload.** Restarting the game for every edit is slow, so I added a reload command to nxnative: about 60 lines that swap a rebuilt shader into the running game in 0.6 to 1.1 ms. Before and after now show up in the same run. It's on a local branch for now.
+
+## The target
+
+The classroom up top is one of three scenes I picked, each with a different problem. Here are the other two. Same deal: one frame, the real game on the left, the mockup of the goal on the right.
+
+<CompareVideo src="/projects/nxremix/courtyard.mp4" poster="/projects/nxremix/courtyard.jpg" width={1440} height={810} left="stock · via nxnative" right="target · mockup" alt="Fire Emblem: Three Houses, the monastery courtyard with Byleth kneeling near a dog, split by a draggable line: on the left the real game, flat light with no shadows on the ground; on the right a mockup of the goal, with warm sun, a cast shadow and cobblestones with depth" caption="the courtyard: right now the ground has no idea anyone is standing on it" />
+
+<CompareVideo src="/projects/nxremix/battle.mp4" poster="/projects/nxremix/battle.jpg" width={1440} height={810} left="stock · via nxnative" right="target · mockup" alt="Fire Emblem: Three Houses, Bernadetta with a bow facing a line of thieves at the foot of stone stairs, split by a draggable line: on the left the real game, a flat green floor under a clear blue sky; on the right a mockup of the goal, with golden-hour light, haze and tall grass. The battle UI is the same on both sides" caption="a battle: same camera, same UI, better light" />
+
+Two things stay put on purpose: faces and UI. Texture work sorts each texture by what it is (UI, an anime face, stone, sky) before it touches anything, and faces and UI are never repainted. The pixel diff is there to prove the UI didn't move.
+
+## 4K, from the inside
+
+Upscaling makes a 1080p image bigger at the very end. I wanted the game itself to render at 3840x2160: its own render targets, viewports and swap chain. That took six patches in four places in the game's code: its dynamic-resolution table, a render target setup that hard-codes 1920x1080, the display size, and the swap chain's starting size.
+
+It mostly works. The 3D scenes behind the title screen render full-frame at 4K. Movies and the title layout still draw into the top-left quarter. And it crashes every time at the jump from the title to the menu, in the loader for the game's model files, and never without the patch. It isn't the main heap (it still crashes with that raised to 5.94 GB), so next is finding what that loader runs out of at 4K.
+
+## What's next
+
+- **A verified frame graph** on a 3D benchmark scene: depth, shadows, world, characters, the last pass before the UI, and the camera and light in the shader inputs.
+- **Filmic tonemapping** (AgX) before the UI, plus resolution and shadow map unlocks, with a pixel diff proving the UI is untouched.
+- **Contact shadows** (GTAO) and a better character cel shader: rim light, warm shadow ramps.
+- **Texture swaps at runtime,** and materials for stone, wood and terrain generated locally on the Mac.
+
+Two things in nxnative would make the loop much faster. Frame capture refuses FE3H today, because the game submits work on two queues. With it, a shader edit could be checked against one fixed frame in seconds, without running the game at all. The other is frame numbers in the control log, so a route through the game can be replayed frame for frame.
+
+FE3H is first because I want to play it again, and because its art deserves a better renderer. Nothing in the approach is specific to it, though. Most Switch games sit on a handful of engines, so one engine adapter carries a whole shelf of games. The one I want next is the new Fire Emblem, Fortune's Weave.
+
+<Note label="the rules">NXRemix contains no Nintendo code and no game files, and never will. A recipe is diffs, rules and prompts that you apply to a game you own and dumped yourself.</Note>
