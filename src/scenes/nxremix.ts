@@ -34,7 +34,7 @@ const C = {
   wall: ['#c8cad1', '#f3dfc4'], stone: ['#b3b6be', '#e2c49c'],
   crate: ['#a8a29b', '#cf9159'], barrel: ['#9e9994', '#b8754a'], hoop: ['#7c7a7a', '#6a4a36'],
   leaf: ['#a9b8ad', '#82c785'], trunk: ['#8f8984', '#9c6842'],
-  accent: '#c2416e', seam: '#fff3dc', sun: '#ffd36b', cobble: '#e0b47e',
+  accent: '#b03a63', seam: '#fff3dc', sun: '#ffd36b', cobble: '#e0b47e',
   dog: '#d99a5b', dogDark: '#6b4a36', dogLight: '#f6efe4', green: '#2f9e5b',
 };
 
