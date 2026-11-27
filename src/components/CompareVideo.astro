@@ -8,9 +8,12 @@
 // Usage in MDX:
 // <CompareVideo src="/x/clip.mp4" av1="/x/clip-av1.mp4" poster="/x/clip.jpg"
 //   left="Switch 1" right="Switch 2 Edition" alt="..." caption="..." />
-// `intro={0.15}`: the first time it's on screen, start on the left version only, wait a
-// moment, glide the divider to 15% (revealing the right version), then ease back 10% to
-// show it can be dragged. Any drag or key press cancels it. Reduced motion: just lands there.
+// `intro={0.15}`: an entrance for the first slider on a page. It starts on the left
+// version only (divider hidden; give it a `poster` of just the left version, so nothing
+// jumps while the video loads). Once it's well on screen the divider fades in at the
+// right edge, glides to 15% with a soft overshoot (revealing the right version), the knob
+// pops, and it eases back 10% to show it can be dragged. Any drag or key press takes over.
+// Reduced motion: it just appears at the end position.
 interface Props {
   src: string; av1?: string; poster: string; alt: string;
   left: string; right: string; caption?: string;
@@ -20,14 +23,14 @@ const { src, av1, poster, alt, left, right, caption, width = 1600, height = 900,
 ---
 <figure class="fig wide cmpv" data-src={src} data-av1={av1} data-w={width} data-h={height} data-intro={intro}>
   <div class="frame">
-    <div class="stage" style={`aspect-ratio:${width}/${height}`}>
+    <div class="stage" style={`aspect-ratio:${width}/${height}${intro != null ? ';--p:100%' : ''}`} data-pending={intro != null ? '' : undefined}>
       <img src={poster} alt={alt} loading="lazy" decoding="async" />
       <canvas width={width} height={height} aria-hidden="true"></canvas>
       <video muted playsinline loop preload="none" aria-hidden="true" tabindex="-1"></video>
       <span class="tag l mono">{left}</span>
       <span class="tag r mono">{right}</span>
       <div class="divider" aria-hidden="true"><span class="knob">‹ ›</span></div>
-      <input type="range" min="0" max="100" value="50" step="0.5"
+      <input type="range" min="0" max="100" value={intro != null ? 100 : 50} step="0.5"
         aria-label={`Divider: ${left} on the left, ${right} on the right`} />
     </div>
   </div>
@@ -55,6 +58,11 @@ const { src, av1, poster, alt, left, right, caption, width = 1600, height = 900,
     position: absolute; top: 0; bottom: 0; left: var(--p); width: 2px; margin-left: -1px;
     background: #fff; box-shadow: 0 0 8px rgba(0,0,0,.45); pointer-events: none;
   }
+  .divider { transition: opacity .45s ease; }
+  .stage[data-pending] .divider { opacity: 0; }
+  .stage[data-pending] .tag.r { opacity: 0; }
+  .knob.pop { animation: knob-pop .45s cubic-bezier(.3,1.6,.5,1); }
+  @keyframes knob-pop { 40% { transform: translate(-50%, -50%) scale(1.22); } }
   .knob {
     position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
     width: 38px; height: 38px; border-radius: 50%; background: #fff; color: #222;
@@ -89,7 +97,7 @@ const { src, av1, poster, alt, left, right, caption, width = 1600, height = 900,
     const tagR = stage.querySelector<HTMLElement>('.tag.r')!;
     const ctx = canvas.getContext('2d')!;
     const w = Number(fig.dataset.w), h = Number(fig.dataset.h);
-    let p = 0.5, loaded = false, visible = false, ready = false;
+    let p = fig.dataset.intro ? 1 : 0.5, loaded = false, visible = false, ready = false;
 
     const draw = () => {
       if (!ready) return;
@@ -160,33 +168,47 @@ const { src, av1, poster, alt, left, right, caption, width = 1600, height = 900,
     // Keyboard: the hidden range input (Tab to it, then arrows).
     input.addEventListener('input', () => { cancelIntro(); set(Number(input.value) / 100); });
 
-    // The intro (opt-in): once it's well on screen and the video is drawing, show
-    // only the left version, then reveal the right one, then nudge back.
+
+    // The intro (opt-in): see the header.
     let introT = 0, introRaf = 0, introDone = !fig.dataset.intro;
-    function cancelIntro() { introDone = true; clearTimeout(introT); cancelAnimationFrame(introRaf); }
+    const knob = stage.querySelector<HTMLElement>('.knob')!;
+    const reveal = () => { delete stage.dataset.pending; };
+    let cancelled = false;
+    function cancelIntro() { if (cancelled) return; cancelled = introDone = true; clearTimeout(introT); cancelAnimationFrame(introRaf); reveal(); }
     stage.addEventListener('pointerdown', cancelIntro, { capture: true });
-    const glide = (to: number, ms: number, then?: () => void) => {
+    // move the divider from where it is to `to` over `ms`, shaped by `curve`
+    const glide = (to: number, ms: number, curve: (k: number) => number, then?: () => void) => {
       const from = p, t0 = performance.now();
       const step = (now: number) => {
-        const k = Math.min(1, (now - t0) / ms), e = k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2;
-        set(from + (to - from) * e);
+        if (cancelled) return;
+        const k = Math.min(1, (now - t0) / ms);
+        set(from + (to - from) * curve(k));
         if (k < 1) introRaf = requestAnimationFrame(step); else then?.();
       };
       introRaf = requestAnimationFrame(step);
     };
+    const sine = (k: number) => (1 - Math.cos(Math.PI * k)) / 2;      // slow out, slow in
+    const easeOut = (k: number) => 1 - Math.pow(1 - k, 3);
     const runIntro = () => {
       if (introDone) return;
-      const end = Number(fig.dataset.intro), back = Math.min(1, end + 0.1);
       introDone = true;
-      if (still.matches) { set(back); return; }
-      set(1);
-      introT = window.setTimeout(() => glide(end, 1300, () => { introT = window.setTimeout(() => glide(back, 700), 1800); }), 2200);
+      const end = Number(fig.dataset.intro), back = Math.min(1, end + 0.1);
+      if (still.matches) { set(back); reveal(); return; }
+      introT = window.setTimeout(() => {
+        reveal();                                       // divider fades in at the right edge
+        // a long, even glide a little past the mark, then settle onto it (a soft overshoot)
+        glide(Math.max(0, end - 0.035), 1900, sine, () => glide(end, 450, easeOut, () => {
+          knob.classList.remove('pop'); void knob.offsetWidth; knob.classList.add('pop');
+          introT = window.setTimeout(() => glide(back, 1000, sine), 1000);
+        }));
+      }, 650);
     };
+    set(p);
     if (!introDone) {
       let seen = false;
       const maybe = () => { if (seen && ready) runIntro(); };
       video.addEventListener('loadeddata', maybe);
-      new IntersectionObserver(([e], io) => { if (e.intersectionRatio >= 0.6) { seen = true; io.disconnect(); maybe(); } }, { threshold: [0, 0.6] }).observe(stage);
+      new IntersectionObserver(([e], io) => { if (e.intersectionRatio >= 0.55) { seen = true; io.disconnect(); maybe(); } }, { threshold: [0, 0.55] }).observe(stage);
     }
   }
 </script>

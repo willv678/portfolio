@@ -54,6 +54,8 @@ export interface Kit {
   host(): HTMLElement | null;
   /** Add cel outlines to something built after setup (setup's own meshes get them automatically). */
   outline(root: Object3D): void;
+  /** Replace the plain render with your own passes (e.g. a pixelated half). Called once per frame. */
+  renderWith(fn: (renderer: WebGLRenderer, scene: Scene, camera: PerspectiveCamera) => void): void;
 }
 
 interface StageOpts {
@@ -212,7 +214,9 @@ export function createStage(
     });
     for (const m of targets) { const o = new Mesh(m.geometry, ink); o.userData.noOutline = true; m.userData.outlined = true; m.add(o); }
   };
-  const update = setup({ scene, toon, blob, island, stars, sparkles, glow, own, sfx, host: () => el, outline });
+  let customRender: ((r: WebGLRenderer, s: Scene, c: PerspectiveCamera) => void) | null = null;
+  const renderWith = (fn: typeof customRender) => { customRender = fn; };
+  const update = setup({ scene, toon, blob, island, stars, sparkles, glow, own, sfx, host: () => el, outline, renderWith });
   outline(scene);
 
 
@@ -247,7 +251,7 @@ export function createStage(
     camera.position.x += parallax.x;
     camera.position.y -= parallax.y;
     camera.lookAt(lookAt);
-    renderer.render(scene, camera);
+    if (customRender) customRender(renderer, scene, camera); else renderer.render(scene, camera);
   }
 
   // Compile every shader now (while idle), so the first real frame doesn't stutter.

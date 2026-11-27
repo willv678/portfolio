@@ -8,8 +8,19 @@
 // The wipe is per pixel: world materials carry both colors and pick by world x
 // against the seam (see `dual`). Extras that only exist in the remaster (sun,
 // shadows, cobblestones) pop in as the seam passes them.
+//
+// The stock side is also *low resolution*, like the original game: everything past
+// the seam is drawn a second time into a tiny render target (about 1 pixel per 7
+// on screen) with flat colors and three baked shading bands, no outlines and no
+// soft shadows, then laid over the crisp render with nearest-neighbour scaling and
+// a reduced palette. So as the seam sweeps, the world literally upscales. The crisp
+// pass skips whatever is on the stock side, so no sharp edges peek out from under
+// the chunky pixels. See `pixelPass` at the end.
 
-import { Color, CylinderGeometry, CapsuleGeometry, BoxGeometry, Group, Mesh, MeshBasicMaterial, SphereGeometry, TorusGeometry, Vector3 } from 'three';
+import {
+  BackSide, Color, CylinderGeometry, CapsuleGeometry, BoxGeometry, Group, Mesh, MeshBasicMaterial, NearestFilter, OrthographicCamera,
+  PlaneGeometry, Scene, ShaderMaterial, SphereGeometry, TorusGeometry, Vector2, Vector3, WebGLRenderTarget, type Material, type Object3D,
+} from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { createStage, seg, ease, passed } from './kit';
 import { sfx } from '../scripts/sound';
@@ -126,7 +137,7 @@ export const create = () => createStage((kit) => {
   const cobbles: Mesh[] = [];
   for (const [x, z] of [[-1.7, 0.85], [-1.4, 0.55], [-1.15, 0.9], [-0.85, 0.65], [-0.55, 0.92], [-1.65, 0.2], [-0.95, 0.15],
     [0.05, 0.85], [0.4, 0.62], [0.75, 0.92], [1.1, 0.68], [1.45, 0.92], [1.72, 0.55], [1.25, 0.2], [1.75, 0.05], [0.2, -0.35]]) {
-    const c = new Mesh(cobbleGeo, cobbleMat); c.position.set(x, 0.025, z); c.userData.x = x;
+    const c = new Mesh(cobbleGeo, cobbleMat); c.position.set(x, 0.025, z); c.userData.x = x; c.userData.remasterOnly = true;
     c.rotation.y = Math.sin(x * 7 + z * 3) * 0.5; scene.add(c); cobbles.push(c);
   }
 
@@ -153,6 +164,8 @@ export const create = () => createStage((kit) => {
   const IN_A = 0.6, IN_B = 2.7, CHECK = 3.0, OUT_A = 5.3, OUT_B = 6.6;
   const sparkAt = new Vector3(0.25, 1.45, 0.3);
   const SUN_AT = IN_A + (IN_B - IN_A) * Math.cbrt((sun.position.x - X0) / (X1 - X0) / 4);   // when the seam reaches the sun (inverse of ease's first half)
+
+  kit.renderWith(pixelPass(seam));
 
   return (t, prev) => {
     const u = t % L;
@@ -201,3 +214,107 @@ export const create = () => createStage((kit) => {
     if (passed(prev, t, CHECK, L)) kit.sfx(sfx.ding);
   };
 }, { lookAt: new Vector3(0, 0.72, 0), minSpan: 4.8, minHeight: 3.1, outline: 0.012 });
+
+
+// ---------- the low-res stock side ----------
+const PX = 7;   // screen pixels per stock pixel
+
+/** A render function: crisp pass for the remastered side, chunky pass for the stock side. */
+function pixelPass(seam: { value: number }) {
+  const cut = { value: 0 };
+  // 1. every opaque material learns to skip fragments on the stock side (when `cut` is on)
+  const patched = new WeakSet<Material>();
+  const patch = (m: Material) => {
+    if (patched.has(m) || m.transparent) return;
+    patched.add(m);
+    const orig = m.onBeforeCompile, key = m.customProgramCacheKey();
+    m.onBeforeCompile = (sh, r) => {
+      orig.call(m, sh, r);
+      sh.uniforms.uSeam = seam; sh.uniforms.uCut = cut;
+      if (!sh.vertexShader.includes('varying float vWX;')) {
+        sh.vertexShader = sh.vertexShader
+          .replace('#include <common>', '#include <common>\nvarying float vWX;')
+          .replace('#include <project_vertex>', '#include <project_vertex>\nvWX = (modelMatrix * vec4(transformed, 1.0)).x;');
+        sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vWX;\nuniform float uSeam;');
+      }
+      sh.fragmentShader = sh.fragmentShader
+        .replace('#include <common>', '#include <common>\nuniform float uCut;')
+        .replace('#include <clipping_planes_fragment>', '#include <clipping_planes_fragment>\nif (uCut > 0.5 && vWX > uSeam) discard;');
+    };
+    m.customProgramCacheKey = () => `${key}|nxr-cut`;
+    m.needsUpdate = true;
+  };
+
+  // 2. the flat stock look: one cached material per original, keyed by its color
+  const flatVS = `varying float vWX; varying vec3 vN;
+    void main() { vec4 w = modelMatrix * vec4(position, 1.0); vWX = w.x; vN = normalize(mat3(modelMatrix) * normal);
+      gl_Position = projectionMatrix * viewMatrix * w; }`;
+  const flatFS = `uniform vec3 uColor; uniform float uSeam; varying float vWX; varying vec3 vN;
+    void main() { if (vWX <= uSeam) discard;
+      vec3 n = normalize(vN) * (gl_FrontFacing ? 1.0 : -1.0);
+      float l = dot(n, normalize(vec3(0.45, 1.0, 0.6)));
+      float shade = l > 0.55 ? 1.0 : (l > 0.1 ? 0.82 : 0.64);
+      gl_FragColor = vec4(uColor * shade, 1.0); }`;
+  const flats = new WeakMap<Material, ShaderMaterial>();
+  const flatOf = (m: Material) => {
+    let f = flats.get(m);
+    if (!f) {
+      const c = (m as Material & { color?: Color }).color ?? new Color('#999');
+      f = new ShaderMaterial({ vertexShader: flatVS, fragmentShader: flatFS, uniforms: { uColor: { value: c }, uSeam: seam }, side: m.side });
+      flats.set(m, f);
+    }
+    return f;
+  };
+
+  // 3. the chunky layer: a tiny target, shown with nearest-neighbour and a 16-bit-ish palette
+  const rt = new WebGLRenderTarget(1, 1, { minFilter: NearestFilter, magFilter: NearestFilter, depthBuffer: true });
+  const quadScene = new Scene(), quadCam = new OrthographicCamera(-1, 1, 1, -1, 0, 1);
+  const quad = new Mesh(new PlaneGeometry(2, 2), new ShaderMaterial({
+    uniforms: { tLow: { value: rt.texture } },
+    vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
+    fragmentShader: `uniform sampler2D tLow; varying vec2 vUv;
+      void main() { vec4 c = texture2D(tLow, vUv); if (c.a < 0.5) discard;
+        vec3 s = pow(max(c.rgb, 0.0), vec3(1.0 / 2.2));
+        s = floor(s * 14.0 + 0.5) / 14.0;      // a 16-bit-ish palette, fine enough that greys stay grey
+        gl_FragColor = vec4(s, 1.0); }`,
+    depthTest: false, depthWrite: false,
+  }));
+  quadScene.add(quad);
+
+  const size = new Vector2();
+  const swapped: [Mesh, Material | Material[]][] = [], hidden: Object3D[] = [];
+  return (renderer: import('three').WebGLRenderer, scene: Scene, camera: import('three').PerspectiveCamera) => {
+    scene.traverse((o) => { const m = o as Mesh; if (m.isMesh) (Array.isArray(m.material) ? m.material : [m.material]).forEach(patch); });
+
+    // chunky pass: flat colors, stock side only, no outlines / glows / soft shadows
+    renderer.getSize(size);
+    const w = Math.max(1, Math.ceil(size.x / PX)), h = Math.max(1, Math.ceil(size.y / PX));
+    if (rt.width !== w || rt.height !== h) rt.setSize(w, h);
+    scene.traverse((o) => {
+      const m = o as Mesh;
+      if (!o.visible) return;
+      if (o.userData.remasterOnly || (o as { isSprite?: boolean }).isSprite || (o as { isPoints?: boolean }).isPoints) { hidden.push(o); o.visible = false; return; }
+      if (!m.isMesh) return;
+      const mats = Array.isArray(m.material) ? m.material : [m.material];
+      if (mats.some((x) => x.transparent || x.side === BackSide)) { hidden.push(o); o.visible = false; return; }
+      swapped.push([m, m.material]);
+      m.material = Array.isArray(m.material) ? m.material.map(flatOf) : flatOf(m.material);
+    });
+    renderer.setRenderTarget(rt);
+    renderer.setClearColor(0x000000, 0);
+    renderer.clear();
+    renderer.render(scene, camera);
+    renderer.setRenderTarget(null);
+    for (const [m, mat] of swapped) m.material = mat;
+    for (const o of hidden) o.visible = true;
+    swapped.length = 0; hidden.length = 0;
+
+    // crisp pass for the remastered side, then the chunky layer on top
+    cut.value = 1;
+    renderer.render(scene, camera);
+    cut.value = 0;
+    const auto = renderer.autoClear; renderer.autoClear = false;
+    renderer.render(quadScene, quadCam);
+    renderer.autoClear = auto;
+  };
+}
