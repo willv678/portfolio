@@ -89,9 +89,20 @@ export const create = () => createStage((kit) => {
   // ---------- the characters: never repainted ----------
   const me = new Group(); me.position.set(-0.25, 0, 0.2); me.rotation.y = 0.45; scene.add(me);
   let head: Group | null = null, armL: Group | null = null, armR: Group | null = null;
+  // a cartoon "excited" emote: little lines bursting out around the head
+  const emote = new Group();
+  const emoteMat = new MeshBasicMaterial({ color: '#f2a93b' });
+  const emoteLines = [-1, 1].flatMap((side) => [0.35, 0.8, 1.2].map((a) => {
+    const ang = side > 0 ? a : Math.PI - a;                         // fan out above-left and above-right
+    const m = new Mesh(new CapsuleGeometry(0.014, 0.075, 3, 8), emoteMat);
+    m.userData.remasterOnly = true; m.userData.dir = new Vector3(Math.cos(ang), Math.sin(ang), 0.15);
+    m.rotation.z = ang - Math.PI / 2;
+    emote.add(m); return m;
+  }));
   const build = (a: Avatar) => {
     me.clear();
     const f = makeAvatar(kit, a); kit.outline(f.g); me.add(f.g); head = f.head; armL = f.left; armR = f.right;
+    head.add(emote);
   };
   build(load() ?? DEFAULT);
   addEventListener('avatar-change', (e) => build((e as CustomEvent<Avatar | null>).detail ?? DEFAULT));
@@ -175,7 +186,9 @@ export const create = () => createStage((kit) => {
     [1.32, { rx: -0.6, ry: 0.2, rz: 0.0, lx: -1.45, ly: -0.4, lz: 0.42, hx: 0.2, hy: -0.32, hz: -0.1, on: 1 }],   // now the left
     [1.6, { rx: -1.1, rz: -0.28, lx: -1.1, lz: 0.28, hx: 0.12, shake: 1, on: 1 }],                 // both: yes!
     [1.85, { rx: -0.9, rz: -0.15, lx: -0.9, lz: 0.15, hx: 0.05, shake: 1, on: 1 }],
-    [2.15, {}],
+    [2.1, { rx: -0.25, rz: 2.35, lx: -0.25, lz: -2.35, hx: -0.18, on: 1 }],                         // yay! arms up
+    [2.75, { rx: -0.2, rz: 2.2, lx: -0.2, lz: -2.2, hx: -0.12, on: 1 }],
+    [3.1, {}],
   ];
   const smooth = (x: number) => x * x * (3 - 2 * x);
   const full = KEYS.map(([at, p]) => [at, { ...rest, ...p }] as [number, P]), out = { ...rest };
@@ -215,17 +228,26 @@ export const create = () => createStage((kit) => {
     }
 
     // the character notices it has a shadow now, and looks down at it
-    // the moment it's remastered, the character inspects itself like a game's item
-    // inspect: hands up to the chest, turned over, one brought close and looked at, then
-    // the other, an excited shake, and down with a little hop. Then it finds its shadow.
+    // the moment it's remastered, the character inspects itself like a new item in a game:
+    // hands up, turned over, one brought close and looked at, then the other, an excited
+    // shake, then arms up with a double hop and a little burst of emote lines
     if (head && armL && armR) {
       const k = pose(u - INSPECT);
       const jitter = Math.sin(u * 23) * 0.07 * k.shake;                        // the excited shake
       armR.rotation.set(k.rx + jitter + Math.sin(u * 3.1) * 0.04 * k.on, k.ry, k.rz);
       armL.rotation.set(k.lx - jitter + Math.sin(u * 2.7 + 1) * 0.04 * k.on, k.ly, k.lz);
-      const shadowLook = Math.sin(Math.PI * seg(u, INSPECT + 2.15, INSPECT + 3.2));
-      head.rotation.set(k.hx + 0.45 * shadowLook, k.hy - 0.3 * shadowLook, k.hz);
-      me.position.y = Math.sin(Math.PI * seg(u, INSPECT + 1.75, INSPECT + 2.05)) * 0.08;
+      head.rotation.set(k.hx, k.hy, k.hz);
+      // a double hop with the yay, and the emote lines popping out on each one
+      const hop1 = Math.sin(Math.PI * seg(u, INSPECT + 2.0, INSPECT + 2.36)), hop2 = Math.sin(Math.PI * seg(u, INSPECT + 2.42, INSPECT + 2.7));
+      me.position.y = hop1 * 0.13 + hop2 * 0.07;
+      const burst = (a: number) => { const k2 = seg(u, a, a + 0.4); return k2 > 0 && k2 < 1 ? k2 : -1; };
+      const b = Math.max(burst(INSPECT + 2.0), burst(INSPECT + 2.42));
+      emote.visible = b >= 0;
+      if (b >= 0) for (const m of emoteLines) {
+        const d = m.userData.dir as Vector3, r = 0.24 + b * 0.09;
+        m.position.set(d.x * r, 0.02 + d.y * r, d.z * r);
+        m.scale.setScalar(Math.max(0.001, Math.sin(Math.PI * Math.min(1, b * 1.15))));
+      }
     }
     // the dog wags, harder once the sun is out, and hops when the check lands
     tail.rotation.y = Math.sin(t * (u > SUN_AT && u < OUT_B ? 18 : 7)) * 0.5;
