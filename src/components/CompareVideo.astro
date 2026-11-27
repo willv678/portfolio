@@ -8,14 +8,17 @@
 // Usage in MDX:
 // <CompareVideo src="/x/clip.mp4" av1="/x/clip-av1.mp4" poster="/x/clip.jpg"
 //   left="Switch 1" right="Switch 2 Edition" alt="..." caption="..." />
+// `intro={0.15}`: the first time it's on screen, start on the left version only, wait a
+// moment, glide the divider to 15% (revealing the right version), then ease back 10% to
+// show it can be dragged. Any drag or key press cancels it. Reduced motion: just lands there.
 interface Props {
   src: string; av1?: string; poster: string; alt: string;
   left: string; right: string; caption?: string;
-  width?: number; height?: number;
+  width?: number; height?: number; intro?: number;
 }
-const { src, av1, poster, alt, left, right, caption, width = 1600, height = 900 } = Astro.props;
+const { src, av1, poster, alt, left, right, caption, width = 1600, height = 900, intro } = Astro.props;
 ---
-<figure class="fig wide cmpv" data-src={src} data-av1={av1} data-w={width} data-h={height}>
+<figure class="fig wide cmpv" data-src={src} data-av1={av1} data-w={width} data-h={height} data-intro={intro}>
   <div class="frame">
     <div class="stage" style={`aspect-ratio:${width}/${height}`}>
       <img src={poster} alt={alt} loading="lazy" decoding="async" />
@@ -155,6 +158,35 @@ const { src, av1, poster, alt, left, right, caption, width = 1600, height = 900 
     stage.addEventListener('pointercancel', stop);
 
     // Keyboard: the hidden range input (Tab to it, then arrows).
-    input.addEventListener('input', () => set(Number(input.value) / 100));
+    input.addEventListener('input', () => { cancelIntro(); set(Number(input.value) / 100); });
+
+    // The intro (opt-in): once it's well on screen and the video is drawing, show
+    // only the left version, then reveal the right one, then nudge back.
+    let introT = 0, introRaf = 0, introDone = !fig.dataset.intro;
+    function cancelIntro() { introDone = true; clearTimeout(introT); cancelAnimationFrame(introRaf); }
+    stage.addEventListener('pointerdown', cancelIntro, { capture: true });
+    const glide = (to: number, ms: number, then?: () => void) => {
+      const from = p, t0 = performance.now();
+      const step = (now: number) => {
+        const k = Math.min(1, (now - t0) / ms), e = k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2;
+        set(from + (to - from) * e);
+        if (k < 1) introRaf = requestAnimationFrame(step); else then?.();
+      };
+      introRaf = requestAnimationFrame(step);
+    };
+    const runIntro = () => {
+      if (introDone) return;
+      const end = Number(fig.dataset.intro), back = Math.min(1, end + 0.1);
+      introDone = true;
+      if (still.matches) { set(back); return; }
+      set(1);
+      introT = window.setTimeout(() => glide(end, 1300, () => { introT = window.setTimeout(() => glide(back, 700), 1800); }), 2200);
+    };
+    if (!introDone) {
+      let seen = false;
+      const maybe = () => { if (seen && ready) runIntro(); };
+      video.addEventListener('loadeddata', maybe);
+      new IntersectionObserver(([e], io) => { if (e.intersectionRatio >= 0.6) { seen = true; io.disconnect(); maybe(); } }, { threshold: [0, 0.6] }).observe(stage);
+    }
   }
 </script>
