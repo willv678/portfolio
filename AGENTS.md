@@ -423,8 +423,9 @@ CH="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
   - Long hair must stop at the jaw in front, or it covers the chest.
   - Separate balls stuck onto a cap read as "a pile of balls", not curls. Use `lobes` on the shell.
   - Strong lobes with sharp creases draw scribbly ink lines; keep creases rounded (`puff`).
-  - Ears sit just inside most hair. A tighter style (under about 1.05) lets them poke through
-    unless it ends above them.
+- **`wavy` is the exception, and it's Will's own look: leave it alone.** It's the original cap
+  with clusters of round curls, not a shell. Will tried replacements and prefers it as it was;
+  the same goes for his round head, no ears, no nose and no shoes.
 - **The face is painted on:** `put(obj, x, y)` lays a flat piece against the head at that spot, for
   any head shape. Eyes that can close go in `lids`, and `blink(head, t)` (or `fig.blink(t)` from
   `makeAvatar`) squashes them now and then; call it every frame in a scene.

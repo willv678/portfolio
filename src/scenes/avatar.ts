@@ -29,25 +29,11 @@ export function makeHead(kit: Kit, a: Avatar) {
   const skull = square
     ? new Mesh(new RoundedBoxGeometry(0.33, 0.33, 0.31, 4, 0.125), toon(skin))
     : new Mesh(new SphereGeometry(R, 32, 20), toon(skin));
-  const ex = shape === 'oval' ? 0.93 : 1, ey = shape === 'oval' ? 1.14 : 1, ez = shape === 'oval' ? 0.95 : 1;
+  const ex = shape === 'oval' ? 0.9 : 1, ey = shape === 'oval' ? 1.12 : 1, ez = shape === 'oval' ? 0.94 : 1;
   skull.scale.set(ex, ey, ez);
-  // the oval face narrows toward the chin, like an egg standing on its point
-  const JAW = shape === 'oval' ? 0.17 : 0;
-  const jaw = (y: number) => 1 - JAW * Math.pow(Math.max(0, -y / R), 1.4);   // y in unscaled head units
-  if (JAW) {
-    const p = skull.geometry.attributes.position;
-    for (let i = 0; i < p.count; i++) { const k = jaw(p.getY(i)); p.setX(i, p.getX(i) * k); p.setZ(i, p.getZ(i) * k); }
-    skull.geometry.computeVertexNormals();
-  }
   g.add(skull);
   // hair is sized to the head shape (a square head needs roomier hair, or its corners poke through)
   const tall = shape === 'oval' ? 1.12 : square ? 1.07 : 1, wide = square ? 1.11 : 1;
-
-  // ears: small, low on the sides; most hair covers them
-  for (const d of [-1, 1]) {
-    const ear = new Mesh(new SphereGeometry(0.036, 12, 10), skull.material);
-    ear.scale.set(0.5, 1, 0.75); ear.position.set(d * (square ? 0.158 : R * ex * 0.94), -0.015, -0.005); g.add(ear);
-  }
 
   // ---------- face: flat ink, painted onto the surface of the head ----------
   const ink = new MeshBasicMaterial({ color: '#2b2838' }), white = new MeshBasicMaterial({ color: '#ffffff' });
@@ -59,7 +45,7 @@ export function makeHead(kit: Kit, a: Avatar) {
       const dz = Math.sqrt(Math.max(1e-5, 0.125 * 0.125 - dx * dx - dy * dy));
       n.set(dx, dy, dz).normalize(); return 0.03 + dz;
     }
-    const j = jaw(y / ey), X = x / (R * ex * j), Y = y / (R * ey), z = R * ez * j * Math.sqrt(Math.max(0.02, 1 - X * X - Y * Y));
+    const X = x / (R * ex), Y = y / (R * ey), z = R * ez * Math.sqrt(Math.max(0.02, 1 - X * X - Y * Y));
     n.set(X / ex, Y / ey, z / (R * ez * ez)).normalize(); return z;
   };
   /** Stick something onto the face at (x, y), lying flat against the head. */
@@ -94,9 +80,6 @@ export function makeHead(kit: Kit, a: Avatar) {
   eye(-1, es === 'wink' ? 'big' : es);
   eye(1, es === 'wink' ? 'happy' : es);
   for (const d of [-1, 1]) { const b = new Group(); b.add(bar(0.03, 0.006, d * -0.2)); put(b, d * 0.058, 0.073); }   // soft brows
-  // a small button nose: no outline, so it only shows in profile and as a soft shade
-  const nose = new Mesh(new SphereGeometry(0.016, 10, 8), skull.material); nose.userData.noOutline = true; nose.scale.z = 0.7;
-  put(nose, 0, -0.014, -0.002);
   const mk = OPTIONS.makeup[a.makeup];
   const lips = mk === 'lipstick' || mk === 'both';
   const smile = new Mesh(new TorusGeometry(0.026, lips ? 0.0095 : 0.0065, 6, 16, Math.PI), lips ? new MeshBasicMaterial({ color: '#d6334d' }) : ink);
@@ -192,14 +175,21 @@ export function makeHead(kit: Kit, a: Avatar) {
   const puff = (x: number) => Math.sqrt(Math.sin(x) ** 2 + 0.03) - 0.17;
 
   switch (style) {
-    case 'wavy':
-      // Will's hair: a big curly mop. Tall and wide, curls tumbling onto the
-      // forehead, standing out over the ears (which show), shorter at the neck
-      shell({ r: 1.07, top: 0.2, hug: 1,
-        bulge: (phi, ang) => lobes(0.2, 3.5, 5.2, 1.2, 0.06)(phi, ang) + 0.07 * smooth(0.4, 1.2, ang),
-        end: (deg, ap) => mix(52 + 15 * Math.abs(Math.sin(deg * D * 3 + 1.2)) * (0.6 + 0.4 * Math.sin(deg * D * 1.3 + 2)),
-          mix(77, 102, smooth(95, 140, ap)) + 5 * Math.abs(Math.sin(deg * D * 4.5)), sides(ap, 60, 7)) });
+    case 'wavy': {
+      // Will's hair, as first built: a smooth cap with clusters of round curls
+      // on the crown, over the forehead and down the sides
+      const cap = new Mesh(new SphereGeometry(R * 1.08, 24, 12, 0, Math.PI * 2, 0, Math.PI * 0.5), mat);
+      cap.position.y = (square ? 0.03 : 0.01) * tall; cap.scale.set(wide, tall, wide); cap.rotation.x = -0.38; g.add(cap);
+      for (const [x, y, z, rad] of [
+        [0, 0.17, -0.01, 0.085], [-0.09, 0.15, 0.03, 0.075], [0.09, 0.15, 0.02, 0.078], [-0.05, 0.16, -0.08, 0.075], [0.06, 0.15, -0.09, 0.075],
+        [-0.15, 0.08, -0.02, 0.07], [0.15, 0.08, -0.03, 0.07], [0, 0.11, -0.14, 0.08], [-0.11, 0.06, -0.11, 0.065], [0.11, 0.06, -0.11, 0.065],
+        [-0.165, 0.0, 0.01, 0.055], [0.165, 0.0, 0.0, 0.055],
+        [-0.07, 0.1, 0.12, 0.052], [0.015, 0.11, 0.135, 0.055], [0.085, 0.095, 0.115, 0.05],
+      ] as const) {
+        const m = new Mesh(new SphereGeometry(rad, 12, 9), mat); m.position.set(x * wide, y * tall, z * wide); m.scale.set(wide, tall, wide); g.add(m);
+      }
       break;
+    }
     case 'shaggy':
       // full on top, a fringe swept to one side with a notch, notched sides down over the ears
       shell({ r: 1.1, top: 0.05,
