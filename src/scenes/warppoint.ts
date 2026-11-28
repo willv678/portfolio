@@ -36,7 +36,7 @@ export const create = () => createStage((kit) => {
     return { g: c.getContext('2d')!, tex, last: '', mat: new MeshBasicMaterial({ map: tex }) };
   };
   const drawGame = (s: ReturnType<typeof mkScreen>, v: number, flash: number) => {
-    const key = v.toFixed(2) + flash.toFixed(2);
+    const key = v.toFixed(3) + flash.toFixed(2);
     if (key === s.last) return; s.last = key;
     const g = s.g, W = 160, w = v % 4, TAU = Math.PI * 2;
     g.fillStyle = C.screen; g.fillRect(0, 0, W, 96);
@@ -47,7 +47,8 @@ export const create = () => createStage((kit) => {
     g.fillStyle = '#6cc07a'; g.fillRect(0, 72, W, 24);
     g.fillStyle = 'rgba(255,255,255,.75)';
     for (let i = 0; i < 3; i++) g.fillRect(29 + i * 40, 80, 22, 2);
-    for (let i = 0; i < 4; i++) { g.fillStyle = i <= w ? C.light : '#ffffff'; g.beginPath(); g.arc(20 + i * 40, 81, 5.5, 0, TAU); g.fill(); }
+    // a stop lights up as the hero touches down on it
+    for (let i = 0; i < 4; i++) { g.fillStyle = i <= w + 0.04 ? C.light : '#ffffff'; g.beginPath(); g.arc(20 + i * 40, 81, 5.5, 0, TAU); g.fill(); }
     const hop = Math.sin(Math.PI * (w - Math.floor(w)));
     for (const x of [20 + w * 40, 20 + w * 40 - W]) {         // past the last stop it walks off one edge and in at the other
       const y = 66 - hop * 13;
