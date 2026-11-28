@@ -199,7 +199,8 @@ const build = (a: Avatar) => { seat.clear(); const f = makeAvatar(kit, a); kit.o
 build(load() ?? DEFAULT);
 addEventListener('avatar-change', (e) => build((e as CustomEvent<Avatar | null>).detail ?? DEFAULT));
 ```
-`makeAvatar` returns `{ g, head, left, right, arm }` (`arm` is the same as `right`); the arms pivot at the shoulder (`rotation.z`
+`makeAvatar` returns `{ g, head, left, right, arm, blink }` (`arm` is the same as `right`; call
+`blink(t)` every frame so it blinks); the arms pivot at the shoulder (`rotation.z`
 raises, `rotation.x` swings). `makeHead` is just the head, for a pilot or a driver.
 
 **Scene style rules**
@@ -411,16 +412,24 @@ CH="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
 - **A hair style has two halves that must match:** the flat SVG (`hairBack` / `hairFront`,
   viewBox 100×120, head circle at 50,40, r 25) and the 3D version (`makeHead` in
   `src/scenes/avatar.ts`).
-- **3D hair is built from one shell:** `hair(r, line, bottom, opts)`. The face is cut out below
-  `line(x)`, the ends are trimmed at `bottom(x, z)`, and hidden parts are tucked inside the head.
-  Extra pieces come from `lump`, `spike` and `teardrop`.
+- **3D hair is one shell per style:** `shell({ r, end, … })`, described from the crown down. For
+  each direction round the head (`deg`: 0 is the front, ±180 the back), `end` gives how far down
+  the hair goes, in degrees from the top (90 is level with the middle of the head; past that it
+  hangs). The mesh stops exactly on that edge and turns in with a thick lip, so hairlines and
+  hems are crisp. `sides(ap, half)` blends a fringe into the sides, `lobes(…)` adds waves or
+  curls, `spikes` adds points, and `hug` / `flare` / `tuck` shape whatever hangs below the middle.
 - **Hair pitfalls:**
-  - Square heads need roomier hair, or the corners poke through.
-  - Texture must fade near cut edges, or the hairline frays.
+  - Square heads need roomier hair (`wide`, `tall`), or the corners poke through.
   - Long hair must stop at the jaw in front, or it covers the chest.
-  - Separate balls stuck onto a cap read as "a pile of balls", not curls.
+  - Separate balls stuck onto a cap read as "a pile of balls", not curls. Use `lobes` on the shell.
+  - Strong lobes with sharp creases draw scribbly ink lines; keep creases rounded (`puff`).
+  - Ears sit just inside most hair. A tighter style (under about 1.05) lets them poke through
+    unless it ends above them.
+- **The face is painted on:** `put(obj, x, y)` lays a flat piece against the head at that spot, for
+  any head shape. Eyes that can close go in `lids`, and `blink(head, t)` (or `fig.blink(t)` from
+  `makeAvatar`) squashes them now and then; call it every frame in a scene.
 - **Test every change on a sheet:** all head shapes, a light and a dark hair color, front, side
-  and back, and an arm raised (waving).
+  and back, and an arm raised (waving). New hair and eye options go at the **end** of their lists.
 
 ---
 

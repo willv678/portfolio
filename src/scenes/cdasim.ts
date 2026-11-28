@@ -2,17 +2,21 @@
 // car (CARLA) drives a planned route through an intersection. Above, a tilted
 // dark map (CARMA's view: lanes and the route) with a dot that mirrors the
 // car. Little packets shuttle between the two, both ways: that's the bridge.
+// The car waits at a red light and goes on green, and the map shows the same
+// light: cooperative driving, where cars and signals talk.
 
 import {
-  BoxGeometry, CatmullRomCurve3, CylinderGeometry, Group, Mesh, MeshBasicMaterial, SphereGeometry, TubeGeometry, Vector3,
+  type Object3D, BoxGeometry, CatmullRomCurve3, CylinderGeometry, Group, Mesh, MeshBasicMaterial, SphereGeometry, TubeGeometry, Vector3,
 } from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
-import { createStage, seg, toyCar } from './kit';
+import { createStage, seg, passed, toyCar } from './kit';
+import { blink } from './avatar';
 import { sfx } from '../scripts/sound';
 import { makeHead } from './avatar';
 import { load, DEFAULT, type Avatar } from '../scripts/avatar';
 
 const C = {
+  off: '#4a4f5a', red: '#ff5d5d', green: '#5be38a',
   ground: '#e4e2dc', road: '#4a505c', paint: '#f4f1e8', route: '#d63aff',
   mapBg: '#123638', lane: '#2fd0c0', car: '#3d8bfd',
   buildings: ['#bfe3e0', '#d9d4ea', '#f0d9c4', '#cfe0f5'],
@@ -42,6 +46,15 @@ export const create = () => createStage((kit) => {
     const crown = new Mesh(new SphereGeometry(0.13, 14, 10), toon('#6cc07a')); crown.position.set(x, 0.25, z);
     scene.add(trunk, crown);
   }
+  // a traffic light on the corner the car turns at
+  const LIGHT = new Vector3(ROAD_X - 0.42, 0, ROAD_Z - 0.44);
+  const pole = new Mesh(new CylinderGeometry(0.02, 0.02, 0.5, 8), toon('#8b909c')); pole.position.set(LIGHT.x, 0.25, LIGHT.z);
+  const lampBox = new Mesh(new RoundedBoxGeometry(0.13, 0.26, 0.1, 2, 0.035), toon('#2a2d35')); lampBox.position.set(LIGHT.x, 0.6, LIGHT.z);
+  const lampRed = new MeshBasicMaterial({ color: C.off }), lampGreen = new MeshBasicMaterial({ color: C.off });
+  for (const [y, m] of [[0.66, lampRed], [0.54, lampGreen]] as const) {
+    const l = new Mesh(new SphereGeometry(0.04, 12, 9), m); l.position.set(LIGHT.x, y, LIGHT.z + 0.05); scene.add(l);
+  }
+  scene.add(pole, lampBox);
   // the route the car is told to follow: along the main road, then a left turn
   const route = new CatmullRomCurve3([
     new Vector3(-2.15, 0, ROAD_Z + 0.12), new Vector3(-1.2, 0, ROAD_Z + 0.12), new Vector3(-0.62, 0, ROAD_Z + 0.02),
@@ -55,9 +68,10 @@ export const create = () => createStage((kit) => {
   const carShadow = blob(0.75, 0.5); scene.add(carShadow);
   // the driver: the visitor's head (or Will's), leaning out of the window
   const driver = new Group(); driver.position.set(-0.04, 0.34, 0.16); car.add(driver);
+  let driverHead: Object3D | null = null;
   const seatDriver = (cfg: Avatar) => {
     driver.clear();
-    const h = makeHead(kit, cfg); h.scale.setScalar(0.42); h.rotation.set(0.15, 0.5, -0.25);
+    const h = driverHead = makeHead(kit, cfg); h.scale.setScalar(0.42); h.rotation.set(0.15, 0.5, -0.25);
     kit.outline(h); driver.add(h);
   };
   seatDriver(load() ?? DEFAULT);
@@ -76,6 +90,10 @@ export const create = () => createStage((kit) => {
   const dot = new Mesh(new SphereGeometry(0.12, 16, 12), new MeshBasicMaterial({ color: '#ffffff' })); map.add(dot);
   const ring = new Mesh(new SphereGeometry(0.2, 16, 12), new MeshBasicMaterial({ color: C.route, transparent: true, opacity: 0.35, depthWrite: false })); map.add(ring);
 
+  // the same light, as the map sees it
+  const mapLight = new MeshBasicMaterial({ color: C.red });
+  const ml = new Mesh(new SphereGeometry(0.11, 14, 10), mapLight); ml.position.set(LIGHT.x, 0.06, LIGHT.z); map.add(ml);
+
   // ---------- packets crossing the bridge, both ways ----------
   const packets = Array.from({ length: 6 }, (_, i) => {
     const up = i % 2 === 0;
@@ -83,10 +101,17 @@ export const create = () => createStage((kit) => {
     scene.add(m); return { m, up, phase: i / 6 };
   });
 
-  const L = 6.2, DRIVE = 5.2;
+  const L = 6.6, DRIVE = 5.6, STOP = 0.36, GREEN = 2.3;        // STOP: how far along the route the stop line is
   const pos = new Vector3(), tan = new Vector3(), dotWorld = new Vector3();
   return (t, prev) => {
-    const u = t % L, k = seg(u, 0, DRIVE);
+    const u = t % L;
+    // roll up to the light, wait for green, then through the turn
+    const a = seg(u, 0, 1.8), b = seg(u, GREEN + 0.15, DRIVE);
+    const k = STOP * (1 - (1 - a) * (1 - a)) + (1 - STOP) * b * b * (3 - 2 * b);
+    const go = u >= GREEN && u < DRIVE + 0.6;
+    lampRed.color.set(go ? C.off : C.red); lampGreen.color.set(go ? C.green : C.off); mapLight.color.set(go ? C.green : C.red);
+    ml.scale.setScalar(1 + 0.5 * Math.sin(Math.PI * seg(u, GREEN, GREEN + 0.35)));
+    if (driverHead) blink(driverHead, t);
     route.getPointAt(k, pos); route.getTangentAt(k, tan);
     const fade = Math.min(seg(u, 0, 0.25), 1 - seg(u, DRIVE, DRIVE + 0.3));
     car.position.copy(pos);
@@ -109,7 +134,7 @@ export const create = () => createStage((kit) => {
       p.m.rotation.set(t * 3, t * 2, 0);
     }
     map.position.y = 2.05 + Math.sin(t * 1.4) * 0.04;
-    // a soft bip each time the route turns
-    if (prev < 2.6 && u >= 2.6 && u < 2.7) kit.sfx(sfx.bip);
+    // a soft bip when the light turns green
+    if (passed(prev, t, GREEN, L)) kit.sfx(sfx.bip);
   };
 }, { lookAt: new Vector3(0, 1.05, 0), minSpan: 6.0, minHeight: 3.8, outline: 0.012 });

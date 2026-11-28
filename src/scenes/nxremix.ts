@@ -24,7 +24,7 @@ import {
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { createStage, seg, ease, passed } from './kit';
 import { sfx } from '../scripts/sound';
-import { makeAvatar } from './avatar';
+import { makeAvatar, blink } from './avatar';
 import { load, DEFAULT, type Avatar } from '../scripts/avatar';
 
 const backOut = (x: number) => 1 + 2.7 * Math.pow(x - 1, 3) + 1.7 * Math.pow(x - 1, 2);
@@ -205,6 +205,7 @@ export const create = () => createStage((kit) => {
   kit.renderWith(pixelPass(seam));
 
   return (t, prev) => {
+    if (head) blink(head, t);
     const u = t % L;
     const x = u < OUT_A ? X0 + (X1 - X0) * ease(seg(u, IN_A, IN_B)) : X1 + (X0 - X1) * ease(seg(u, OUT_A, OUT_B));
     seam.value = x;

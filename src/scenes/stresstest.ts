@@ -154,6 +154,18 @@ export const create = () => createStage((kit) => {
   const ring1 = makeRing(), ring2 = makeRing();
   ring2.m.color.set(C.red);
   const sparks = kit.sparkles(6);
+  // …and a badge that pops up beside the drop: a check for a fair test, a cross for a cheat
+  const badge = (color: string, cross: boolean) => {
+    const g = new Group(), m = new MeshBasicMaterial({ color });
+    const disc = new Mesh(new CylinderGeometry(0.19, 0.19, 0.03, 28), toon('#ffffff')); disc.rotation.x = Math.PI / 2; disc.position.z = -0.025;
+    const a = new Mesh(new BoxGeometry(cross ? 0.24 : 0.12, 0.045, 0.02), m), b = new Mesh(new BoxGeometry(0.24, 0.045, 0.02), m);
+    if (cross) { a.rotation.z = -Math.PI / 4; b.rotation.z = Math.PI / 4; }
+    else { a.position.set(-0.055, -0.03, 0); a.rotation.z = -0.8; b.position.set(0.05, 0.015, 0); b.rotation.z = 0.9; }
+    g.add(disc, a, b); g.visible = false; scene.add(g);
+    return g;
+  };
+  const okBadge = badge('#2f9e5b', false), noBadge = badge('#e0453a', true);
+  const backOut = (x: number) => 1 + 2.7 * Math.pow(x - 1, 3) + 1.7 * Math.pow(x - 1, 2);
 
   const HOME = new Vector3(0, 2.15, -0.4);
   const above = (p: Vector3, y: number) => new Vector3(p.x, y, p.z);
@@ -241,6 +253,14 @@ export const create = () => createStage((kit) => {
       rg.r.scale.setScalar(1 + k * 1.6);
       rg.m.opacity = 1 - k;
     }
+    for (const [bd, at, t0, y] of [[okBadge, P1, 2.0, 1.0], [noBadge, P2, 8.85, 1.05]] as const) {
+      const s = backOut(seg(u, t0, t0 + 0.25)) * (1 - seg(u, t0 + 1.25, t0 + 1.45));
+      bd.visible = u > t0 && s > 0.01;
+      bd.position.set(at.x + 0.5, y + Math.sin(t * 3) * 0.02, at.z + 0.25);
+      bd.scale.setScalar(Math.max(0.001, s));
+      bd.rotation.z = bd === noBadge ? Math.sin(t * 30) * 0.12 * (1 - seg(u, t0, t0 + 0.5)) : 0;   // the cross shakes its head
+    }
+    pilotFig?.blink(t);
     if (passed(prev, t, 9.05, T)) sparks.burst(t, above(P2, 0.6), ['#ff8a8a', '#ffffff']);
     sparks.update(t);
 

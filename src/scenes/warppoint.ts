@@ -1,18 +1,20 @@
 // WarpPoint: a toy Switch and a laptop on a little floating island, and a UFO
 // carrying a glowing floppy (the save) from one to the other, then back.
-// The product in one loop: your save is already on the other device.
+// The product in one loop: your save is already on the other device. Both
+// screens show the same little game: wherever the save lands, the hero jumps
+// to where the other device left it, plays on a stop, and the save goes back.
 //
 // Personality comes from motion, not faces: the sender shivers as its save is
 // beamed up, the receiver hops (the laptop flaps its lid) when it lands.
 
 import {
-  Color, CylinderGeometry, DoubleSide, Group, Mesh, MeshBasicMaterial, PlaneGeometry,
-  ShaderMaterial, SphereGeometry, TorusGeometry, Vector3,
+  CanvasTexture, Color, CylinderGeometry, DoubleSide, Group, Mesh, MeshBasicMaterial, PlaneGeometry,
+  ShaderMaterial, SphereGeometry, SRGBColorSpace, TorusGeometry, Vector3, type Object3D,
 } from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { createStage, seg, ease, passed } from './kit';
 import { sfx } from '../scripts/sound';
-import { makeHead } from './avatar';
+import { makeHead, blink } from './avatar';
 import { load, DEFAULT, type Avatar } from '../scripts/avatar';
 
 const C = {
@@ -25,6 +27,38 @@ const C = {
 export const create = () => createStage((kit) => {
   const { scene, toon, blob } = kit;
 
+  // ---------- the game on both screens ----------
+  // A hero on a path of four stops. `v` is how far along it is (whole numbers
+  // are stops; in between, it's hopping to the next one).
+  const mkScreen = () => {
+    const c = document.createElement('canvas'); c.width = 160; c.height = 96;
+    const tex = kit.own(new CanvasTexture(c)); tex.colorSpace = SRGBColorSpace;
+    return { g: c.getContext('2d')!, tex, last: '', mat: new MeshBasicMaterial({ map: tex }) };
+  };
+  const drawGame = (s: ReturnType<typeof mkScreen>, v: number, flash: number) => {
+    const key = v.toFixed(2) + flash.toFixed(2);
+    if (key === s.last) return; s.last = key;
+    const g = s.g, W = 160, w = v % 4, TAU = Math.PI * 2;
+    g.fillStyle = C.screen; g.fillRect(0, 0, W, 96);
+    g.fillStyle = '#fff6c9'; g.beginPath(); g.arc(130, 22, 10, 0, TAU); g.fill();
+    g.fillStyle = '#9ad9ae';
+    g.beginPath(); g.ellipse(38, 80, 62, 30, 0, 0, TAU); g.fill();
+    g.beginPath(); g.ellipse(128, 84, 58, 26, 0, 0, TAU); g.fill();
+    g.fillStyle = '#6cc07a'; g.fillRect(0, 72, W, 24);
+    g.fillStyle = 'rgba(255,255,255,.75)';
+    for (let i = 0; i < 3; i++) g.fillRect(29 + i * 40, 80, 22, 2);
+    for (let i = 0; i < 4; i++) { g.fillStyle = i <= w ? C.light : '#ffffff'; g.beginPath(); g.arc(20 + i * 40, 81, 5.5, 0, TAU); g.fill(); }
+    const hop = Math.sin(Math.PI * (w - Math.floor(w)));
+    for (const x of [20 + w * 40, 20 + w * 40 - W]) {         // past the last stop it walks off one edge and in at the other
+      const y = 66 - hop * 13;
+      g.fillStyle = C.floppy; g.beginPath(); g.arc(x, y, 8.5, 0, TAU); g.fill(); g.fillRect(x - 8.5, y, 17, 8);
+      g.fillStyle = '#ffffff'; g.beginPath(); g.arc(x - 3, y - 1, 2, 0, TAU); g.arc(x + 3.5, y - 1, 2, 0, TAU); g.fill();
+    }
+    if (flash > 0) { g.fillStyle = `rgba(255,255,255,${flash.toFixed(2)})`; g.fillRect(0, 0, W, 96); }
+    s.tex.needsUpdate = true;
+  };
+  const swGame = mkScreen(), lapGame = mkScreen();
+
   // ---------- the Switch (left) ----------
   const sw = new Group();
   const swTilt = new Group();                           // leaning back on its kickstand
@@ -32,7 +66,7 @@ export const create = () => createStage((kit) => {
   swTilt.position.y = 0.5;
   sw.add(swTilt);
   swTilt.add(new Mesh(new RoundedBoxGeometry(1.5, 0.88, 0.12, 4, 0.04), toon(C.switchBody)));
-  const swScreenMat = new MeshBasicMaterial({ color: C.screen });
+  const swScreenMat = swGame.mat;
   const swScreen = new Mesh(new PlaneGeometry(1.2, 0.68), swScreenMat);
   swScreen.position.z = 0.061;
   swTilt.add(swScreen);
@@ -65,7 +99,7 @@ export const create = () => createStage((kit) => {
   const lid = new Mesh(new RoundedBoxGeometry(1.9, 1.22, 0.05, 3, 0.03), toon(C.laptop));
   lid.position.y = 0.61;
   hinge.add(lid);
-  const lapScreenMat = new MeshBasicMaterial({ color: C.screen });
+  const lapScreenMat = lapGame.mat;
   const lapScreen = new Mesh(new PlaneGeometry(1.7, 1.02), lapScreenMat);
   lapScreen.position.set(0, 0.62, 0.027);
   hinge.add(lapScreen);
@@ -103,9 +137,10 @@ export const create = () => createStage((kit) => {
   const pilot = new Group();
   pilot.position.y = 0.3;
   ufo.add(pilot);
+  let pilotHead: Object3D | null = null;
   const seat = (cfg: Avatar) => {
     pilot.clear();
-    const h = makeHead(kit, cfg); h.scale.setScalar(0.68); h.position.y = 0.02;
+    const h = pilotHead = makeHead(kit, cfg); h.scale.setScalar(0.68); h.position.y = 0.02;
     kit.outline(h); pilot.add(h);
   };
   seat(load() ?? DEFAULT);
@@ -163,11 +198,11 @@ export const create = () => createStage((kit) => {
   // One leg = pick up at A, fly, drop at B. Two legs = A→B→A.
   const LEG = 5.4, CRUISE = 2.35, LAND = 4.35;
   const hoverOver = (p: Vector3) => new Vector3(p.x * 0.97, CRUISE, p.z + 0.25);
-  const screenBase = new Color(C.screen), white = new Color('#ffffff');
-  const SW = { group: sw, screen: swScreenMat }, LAP = { group: lap, screen: lapScreenMat };
+  const SW = { group: sw, game: swGame }, LAP = { group: lap, game: lapGame };
 
   return (t, prev) => {
-    const k = Math.floor(t / LEG) % 2, u = t % LEG;
+    const n = Math.floor(t / LEG), k = n % 2, u = t % LEG;
+    if (pilotHead) blink(pilotHead, t);
     const [fromPort, toPort, from, to] = k === 0 ? [swPort, lapPort, SW, LAP] : [lapPort, swPort, LAP, SW];
     const A = hoverOver(fromPort), B = hoverOver(toPort);
 
@@ -215,7 +250,11 @@ export const create = () => createStage((kit) => {
       d.group.position.y = hop * 0.2;
       d.group.scale.set(1 - sq, 1 + sq, 1 - sq);
       d.group.rotation.z = d === from && u > 0.35 && u < 1.2 ? Math.sin(t * 40) * 0.018 : 0;
-      d.screen.color.copy(screenBase).lerp(white, h >= 0 ? Math.max(0, 1 - h / 0.6) * 0.8 : 0);
+      // the game: the receiver is one stop behind until the save lands, then
+      // catches up in a flash and plays on to the next stop; the sender is
+      // just finishing that stop as its save is picked up
+      if (d === to) drawGame(d.game, u < LAND ? n : n + 1 + ease(seg(u, LAND + 0.3, LEG + 0.3)), h >= 0 ? Math.max(0, 1 - h / 0.5) * 0.85 : 0);
+      else drawGame(d.game, n === 0 ? 1 : n + ease(seg(u + LEG, LAND + 0.3, LEG + 0.3)), 0);
     }
     const lh = to === LAP ? u - LAND : -1;
     hinge.rotation.x = -0.22 - (lh >= 0 && lh < 0.6 ? Math.sin((Math.PI * lh) / 0.6) * 0.22 : 0);

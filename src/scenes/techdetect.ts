@@ -5,7 +5,7 @@
 
 import { BoxGeometry, CanvasTexture, CapsuleGeometry, CylinderGeometry, Group, Mesh, MeshBasicMaterial, PlaneGeometry, SphereGeometry, SRGBColorSpace, Vector3 } from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
-import { createStage, seg, ease, easeIn, passed } from './kit';
+import { createStage, seg, ease, easeIn, bump, passed } from './kit';
 import { makeAvatar } from './avatar';
 import { load, DEFAULT, OPTIONS, type Avatar } from '../scripts/avatar';
 import { sfx } from '../scripts/sound';
@@ -114,19 +114,19 @@ export const create = () => createStage((kit) => {
   ];
   const configs = PRESETS.map((p, i) => (i === 0 ? load() ?? p : p));
   const students = configs.map((cfg) => {
-    const { g, arm } = makeAvatar(kit, cfg);
+    const { g, arm, left, blink } = makeAvatar(kit, cfg);
     scene.add(g);
     const sh = blob(0.5, 0.36); scene.add(sh);
-    return { g, arm, sh, face: bracket(0.42, C.amber), hand: bracket(0.3, C.amber), ok: check() };
+    return { g, arm, left, blink, sh, face: bracket(0.42, C.amber), hand: bracket(0.3, C.amber), ok: check() };
   });
   // rebuild the first student whenever the visitor edits their avatar
   addEventListener('avatar-change', (e) => {
     const cfg = (e as CustomEvent<Avatar | null>).detail ?? PRESETS[0];
     configs[0] = cfg;
     scene.remove(students[0].g);
-    const { g, arm } = makeAvatar(kit, cfg);
+    const { g, arm, left, blink } = makeAvatar(kit, cfg);
     scene.add(g);
-    students[0].g = g; students[0].arm = arm;
+    Object.assign(students[0], { g, arm, left, blink });
     drawn = -1;                                            // redraw the attendance list colors
   });
 
@@ -148,7 +148,11 @@ export const create = () => createStage((kit) => {
       else if (k < 1.5) { p.lerpVectors(DOOR, SPOT, ease(seg(k, 0.7, 1.5))); heading = Math.atan2(SPOT.x - DOOR.x, SPOT.z - DOOR.z); }
       else if (k < 2.6) { p.copy(SPOT); walking = false; heading = Math.atan2(cam.position.x - SPOT.x, cam.position.z - SPOT.z) * 0.6; }
       else { p.lerpVectors(SPOT, OUT, easeIn(seg(k, 2.6, 4.4))); heading = Math.PI / 2; }
-      s.g.position.set(p.x, walking ? Math.abs(Math.sin(t * 9)) * 0.04 : 0, p.z);
+      // a bouncy walk with swinging arms; a little hop when the check lands
+      s.g.position.set(p.x, walking ? Math.abs(Math.sin(t * 9)) * 0.04 : bump(k, 1.95, 2.25) * 0.09, p.z);
+      const swing = walking ? Math.sin(t * 9) * 0.6 : 0;
+      s.left.rotation.x = swing; s.arm.rotation.x = -swing;
+      s.blink(t);
       s.g.rotation.y = heading;
       s.sh.position.set(p.x, 0.004, p.z);
       // the camera sees them

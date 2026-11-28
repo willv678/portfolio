@@ -2,231 +2,258 @@
 // original cartoon toy figure: big head, small two-tone body, round hands.
 //   makeHead(kit, a)   → just the head + hair + face, centered at its origin
 //   makeAvatar(kit, a) → the whole figure, feet at the origin, facing +z
+//   blink(head, t)     → call every frame so the eyes blink now and then
 // Everything is primitives; each figure is a few dozen tiny meshes.
 
 import {
-  BoxGeometry, BufferGeometry, CapsuleGeometry, CircleGeometry, ConeGeometry, CylinderGeometry, DoubleSide, Group, Mesh, MeshBasicMaterial,
-  SphereGeometry, TorusGeometry, Vector3,
+  BoxGeometry, BufferGeometry, CapsuleGeometry, CircleGeometry, CylinderGeometry, DoubleSide, Float32BufferAttribute, Group, Mesh,
+  MeshBasicMaterial, Shape, ShapeGeometry, SphereGeometry, TorusGeometry, Vector3, type Object3D,
 } from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { OPTIONS, heightScale, buildScale, type Avatar } from '../scripts/avatar';
 import type { Kit } from './kit';
 
 const R = 0.18;                                            // head radius
+const D = Math.PI / 180, HALF = Math.PI / 2;
+const Z = new Vector3(0, 0, 1);
+const mix = (a: number, b: number, k: number) => a + (b - a) * k;
+/** Triangle wave between 0 and 1 (for zigzag edges). */
+const saw = (t: number) => 2 * Math.abs(t - Math.floor(t) - 0.5);
+const smooth = (e0: number, e1: number, x: number) => { const t = Math.min(1, Math.max(0, (x - e0) / (e1 - e0))); return t * t * (3 - 2 * t); };
 
 export function makeHead(kit: Kit, a: Avatar) {
   const { toon } = kit;
   const skin = OPTIONS.skin[a.skin], hc = OPTIONS.hairColor[a.hairColor];
   const g = new Group();
-  const shape = OPTIONS.head[a.head];
-  const skull = shape === 'square'
+  const shape = OPTIONS.head[a.head], square = shape === 'square';
+  const skull = square
     ? new Mesh(new RoundedBoxGeometry(0.33, 0.33, 0.31, 4, 0.125), toon(skin))
-    : new Mesh(new SphereGeometry(R, 24, 16), toon(skin));
-  if (shape === 'oval') skull.scale.set(0.9, 1.12, 0.94);
+    : new Mesh(new SphereGeometry(R, 32, 20), toon(skin));
+  const ex = shape === 'oval' ? 0.9 : 1, ey = shape === 'oval' ? 1.12 : 1, ez = shape === 'oval' ? 0.94 : 1;
+  skull.scale.set(ex, ey, ez);
   g.add(skull);
-  const front = shape === 'square' ? 0.158 : R * (shape === 'oval' ? 0.88 : 0.94);
-  // hair is sized to the head shape (a square head needs a roomier hair ball, or its corners poke through)
-  const tall = shape === 'oval' ? 1.12 : shape === 'square' ? 1.07 : 1, wide = shape === 'square' ? 1.11 : 1;
+  // hair is sized to the head shape (a square head needs roomier hair, or its corners poke through)
+  const tall = shape === 'oval' ? 1.12 : square ? 1.07 : 1, wide = square ? 1.11 : 1;
 
-  // ---------- face (flat ink, no outline) ----------
+  // ears: small, low on the sides; most hair covers them
+  for (const d of [-1, 1]) {
+    const ear = new Mesh(new SphereGeometry(0.036, 12, 10), skull.material);
+    ear.scale.set(0.5, 1, 0.75); ear.position.set(d * (square ? 0.158 : R * ex * 0.94), -0.015, -0.005); g.add(ear);
+  }
+
+  // ---------- face: flat ink, painted onto the surface of the head ----------
   const ink = new MeshBasicMaterial({ color: '#2b2838' }), white = new MeshBasicMaterial({ color: '#ffffff' });
-  const at = (m: Mesh, x: number, y: number, z = front) => (m.position.set(x, y, z), g.add(m), m);
-  const arc = (r: number, up: boolean) => { const m = new Mesh(new TorusGeometry(r, 0.0065, 6, 14, Math.PI), ink); if (!up) m.rotation.z = Math.PI; return m; };
-  const eye = (x: number, style: string) => {
-    if (style === 'happy') at(arc(0.024, true), x, 0.005);
-    else if (style === 'sleepy') at(arc(0.024, false), x, 0.03);
-    else if (style === 'dots') { const e = new Mesh(new SphereGeometry(0.017, 10, 8), ink); e.scale.z = 0.5; at(e, x, 0.015); }
-    else {
-      const e = new Mesh(new SphereGeometry(0.022, 12, 10), ink); e.scale.set(0.8, 1.3, 0.45); at(e, x, 0.015);
-      at(new Mesh(new SphereGeometry(0.007, 8, 6), white), x + 0.006, 0.027, front + 0.01);
+  const n = new Vector3();
+  /** Depth of the head's front surface at (x, y); leaves its normal in `n`. */
+  const surf = (x: number, y: number) => {
+    if (square) {
+      const dx = Math.sign(x) * Math.max(0, Math.abs(x) - 0.04), dy = Math.sign(y) * Math.max(0, Math.abs(y) - 0.04);
+      const dz = Math.sqrt(Math.max(1e-5, 0.125 * 0.125 - dx * dx - dy * dy));
+      n.set(dx, dy, dz).normalize(); return 0.03 + dz;
     }
+    const X = x / (R * ex), Y = y / (R * ey), z = R * ez * Math.sqrt(Math.max(0.02, 1 - X * X - Y * Y));
+    n.set(X / ex, Y / ey, z / (R * ez * ez)).normalize(); return z;
+  };
+  /** Stick something onto the face at (x, y), lying flat against the head. */
+  const put = <T extends Object3D>(o: T, x: number, y: number, lift = 0.003) => {
+    const z = surf(x, y);
+    o.position.set(x, y, z).addScaledVector(n, lift); o.quaternion.setFromUnitVectors(Z, n); g.add(o); return o;
+  };
+  const circle = new CircleGeometry(1, 28);
+  const disc = (rx: number, ry: number, mat: MeshBasicMaterial, x = 0, y = 0, layer = 0) => {
+    const m = new Mesh(circle, mat); m.scale.set(rx, ry, 1); m.position.set(x, y, layer * 0.0014); return m;
+  };
+  const arc = (r: number, up: boolean, tube = 0.0065) => { const m = new Mesh(new TorusGeometry(r, tube, 6, 16, Math.PI), ink); if (!up) m.rotation.z = Math.PI; return m; };
+  const bar = (len: number, w: number, rz: number, x = 0, y = 0) => { const m = new Mesh(new CapsuleGeometry(w, len, 3, 6), ink); m.rotation.z = Math.PI / 2 + rz; m.position.set(x, y, 0); m.scale.z = 0.4; return m; };
+
+  const lids: Group[] = [];                                // the open eyes, squashed shut by blink()
+  const eye = (side: number, style: string) => {
+    const e = new Group(), open = new Group(); e.add(open);
+    let y = 0.015;
+    if (style === 'happy') { e.add(arc(0.025, true)); y = 0.004; }
+    else if (style === 'sleepy') { e.add(arc(0.025, false)); y = 0.03; }
+    else {
+      lids.push(open);
+      if (style === 'dots') open.add(disc(0.0165, 0.0165, ink));
+      else if (style === 'wide') {
+        open.add(disc(0.029, 0.029, ink), disc(0.0235, 0.0235, white, 0, 0, 1), disc(0.0155, 0.0155, ink, 0.002, -0.002, 2), disc(0.005, 0.005, white, 0.007, 0.005, 3));
+      } else if (style === 'chill') {
+        // half-lidded: the lower half of an eye under a straight lid
+        const half = new Mesh(new ShapeGeometry(new Shape().absarc(0, 0, 1, Math.PI, Math.PI * 2, false), 20), ink);
+        half.scale.set(0.022, 0.03, 1); half.position.y = 0.008;
+        open.add(half, disc(0.0055, 0.0055, white, 0.007, -0.004, 1));
+        e.add(bar(0.05, 0.0055, 0, 0, 0.008));
+      } else {                                             // big (also half of a wink, and under lashes)
+        open.add(disc(0.02, 0.031, ink), disc(0.0078, 0.0078, white, 0.006, 0.012, 1));
+        if (style === 'lashes') for (const [lx, ly, rz] of [[-0.021, 0.02, -0.7], [-0.011, 0.033, -1.15]] as const) e.add(bar(0.014, 0.0042, side * rz, side * -lx, ly));
+      }
+    }
+    put(e, side * 0.058, y);
   };
   const es = OPTIONS.eyes[a.eyes];
-  eye(-0.058, es === 'wink' ? 'big' : es);
-  eye(0.058, es === 'wink' ? 'happy' : es);
-  for (const d of [-1, 1]) {                               // soft brows
-    const b = new Mesh(new CapsuleGeometry(0.006, 0.032, 3, 6), ink);
-    b.rotation.z = Math.PI / 2 + d * 0.18; at(b, d * 0.058, 0.07, front - 0.004);
-  }
+  eye(-1, es === 'wink' ? 'big' : es);
+  eye(1, es === 'wink' ? 'happy' : es);
+  for (const d of [-1, 1]) { const b = new Group(); b.add(bar(0.03, 0.006, d * -0.2)); put(b, d * 0.058, es === 'wide' ? 0.08 : 0.073); }   // soft brows
+  // a small button nose: no outline, so it only shows in profile and as a soft shade
+  const nose = new Mesh(new SphereGeometry(0.016, 10, 8), skull.material); nose.userData.noOutline = true; nose.scale.z = 0.7;
+  put(nose, 0, -0.014, -0.002);
   const mk = OPTIONS.makeup[a.makeup];
   const lips = mk === 'lipstick' || mk === 'both';
-  const smile = new Mesh(new TorusGeometry(0.026, lips ? 0.0095 : 0.0065, 6, 14, Math.PI), lips ? new MeshBasicMaterial({ color: '#d6334d' }) : ink);
-  smile.rotation.z = Math.PI; at(smile, 0, -0.05, front - 0.003);
+  const smile = new Mesh(new TorusGeometry(0.026, lips ? 0.0095 : 0.0065, 6, 16, Math.PI), lips ? new MeshBasicMaterial({ color: '#d6334d' }) : ink);
+  const mouth = new Group(); smile.rotation.z = Math.PI; smile.scale.z = 0.5; mouth.add(smile); put(mouth, 0, -0.048, 0.002);
   if (mk === 'blush' || mk === 'both') {
-    const pink = new MeshBasicMaterial({ color: '#ff8fa3', transparent: true, opacity: 0.6, depthWrite: false });
-    for (const d of [-1, 1]) { const c = new Mesh(new CircleGeometry(0.026, 16), pink); c.scale.y = 0.55; c.rotation.y = d * 0.45; at(c, d * 0.1, -0.03, front - 0.02); }
+    const pink = new MeshBasicMaterial({ color: '#ff8fa3', transparent: true, opacity: 0.55, depthWrite: false });
+    for (const d of [-1, 1]) put(disc(0.027, 0.016, pink), d * 0.102, -0.03, 0.002);
   }
   const gl = OPTIONS.glasses[a.glasses];
   if (gl !== 'none') {
+    const zf = surf(0.058, 0.015) + 0.016;
     for (const d of [-1, 1]) {
-      const rim = new Mesh(new TorusGeometry(0.04, 0.006, 6, gl === 'round' ? 20 : 4), ink);
-      if (gl === 'square') rim.rotation.z = Math.PI / 4;
-      at(rim, d * 0.058, 0.015, front + 0.012);
+      let rim: Mesh;
+      if (gl === 'round') rim = new Mesh(new TorusGeometry(0.041, 0.0058, 6, 24), ink);
+      else {                                               // a rounded-square frame
+        const w = 0.044, h = 0.036, c = 0.014, t = 0.01;
+        const rr = (s: Shape | ReturnType<Shape['holes']['at']>, w: number, h: number, c: number) => {
+          s!.moveTo(-w + c, -h); s!.lineTo(w - c, -h); s!.quadraticCurveTo(w, -h, w, -h + c); s!.lineTo(w, h - c); s!.quadraticCurveTo(w, h, w - c, h);
+          s!.lineTo(-w + c, h); s!.quadraticCurveTo(-w, h, -w, h - c); s!.lineTo(-w, -h + c); s!.quadraticCurveTo(-w, -h, -w + c, -h);
+        };
+        const frame = new Shape(); rr(frame, w, h, c);
+        const hole = new Shape(); rr(hole, w - t, h - t, c - t * 0.6); frame.holes.push(hole);
+        rim = new Mesh(new ShapeGeometry(frame, 6), new MeshBasicMaterial({ color: '#2b2838', side: DoubleSide }));
+      }
+      rim.position.set(d * 0.058, 0.015, zf); g.add(rim);
     }
-    const bridge = new Mesh(new BoxGeometry(0.03, 0.006, 0.006), ink); at(bridge, 0, 0.02, front + 0.012);
+    const bridge = new Mesh(new BoxGeometry(0.034, 0.007, 0.006), ink); bridge.position.set(0, 0.022, zf); g.add(bridge);
   }
+  g.userData.lids = lids;
+  g.userData.blinkAt = (a.hair * 0.9 + a.eyes * 1.7 + a.skin * 0.4) % 3;   // so a crowd doesn't blink in unison
 
   // ---------- hair ----------
-  // Every style starts as one smooth ball of hair around the head; the face is
-  // carved out of it along a hairline curve, and the bottom is trimmed to the
-  // style's length. That gives clean, organic outlines (a scalloped fringe, a
-  // side part, a blunt bob) instead of caps with seams. A gentle ripple adds
-  // texture; a few extra pieces (volume, locks, a tail) finish each style.
+  // Every style is one shell wrapped over the head, like the hair on a toy
+  // figure. It's described from the crown down: for each direction around the
+  // head (phi: 0 = front, ±180° = back), `end` says how far down the hair
+  // goes, as an angle from the top (90° = level with the middle of the head;
+  // past that it hangs). The shell is meshed from the crown to exactly that
+  // edge, so hairlines and hems are crisp, and the edge is given a thick lip
+  // that turns in to the head. Lobes, spikes and a bun finish a style.
   const style = OPTIONS.hair[a.hair];
   const mat = toon(hc, { side: DoubleSide });
-  const add = (geo: BufferGeometry, x = 0, y = 0, z = 0) => {
-    const m = new Mesh(geo, mat); m.position.set(x * wide, y * tall, z * wide); m.scale.set(wide, tall, wide); g.add(m); return m;
-  };
-  /** Hair ball of radius r, with the face carved out below `line(x)` and everything below `bottom(x, z)` trimmed (unit-sphere coords). */
-  const hair = (r: number, line: (x: number) => number, bottom: (x: number, z: number) => number, opts: { faceW?: number; rip?: number; freq?: number; flare?: number; lift?: number; curl?: number; soft?: number } = {}) => {
-    const { faceW = 0.74, rip = 0.03, freq = 24, flare = 0, lift = 0, curl = 0, soft = 0 } = opts;
-    const geo = new SphereGeometry(r, 96, 72), pos = geo.attributes.position, v = new Vector3();
-    for (let i = 0; i < pos.count; i++) {
-      v.fromBufferAttribute(pos, i).divideScalar(r);
-      // how far inside the face opening / below the trim line this vertex is (smooth, so edges don't stair-step)
-      const inFace = Math.min(line(v.x) - v.y, faceW - Math.abs(v.x), (v.z - 0.1) * 1.5);
-      const below = bottom(v.x, v.z) - v.y;
-      const k = Math.max(smooth(-0.025, 0.06, inFace), smooth(-0.025 - soft, 0.06 + soft, below));   // soft: a rounder trim at the ends
-      v.multiplyScalar(1 - 0.4 * k);                             // tuck it well inside the head, out of sight
-      if (flare && v.y < 0 && k < 0.5) { const f = 1 + flare * -v.y; v.x *= f; v.z *= 1 + (f - 1) * 0.6; }
-      // texture: a gentle ripple (plus, for curly hair, a finer one), only on
-      // the visible hair, so the tucked-away part never bumps back out through the face
-      const p = v.clone().multiplyScalar(r);
-      const wave = (f: number) => Math.sin(p.x * f + 1.3) * Math.cos(p.y * f * 1.2) + Math.sin(p.z * f * 0.9 + p.y * f * 0.7);
-      const edge = Math.pow(1 - k, 3);                            // fades out toward the cut edges, so the hairline stays clean
-      v.multiplyScalar(1 + edge * (rip * 0.5 * wave(freq) + curl * 0.5 * wave(freq * 2.1)));
-      pos.setXYZ(i, v.x * r, v.y * r + lift, v.z * r);
+  interface Style {
+    r: number;                                             // size, in head radii
+    end(deg: number, ap: number): number;                  // where the hair ends, in degrees from the top (ap = |deg|)
+    top?: number;                                          // extra height on the crown
+    lift?: number;                                         // raise the whole shell
+    bulge?(phi: number, a: number): number;                // lobes: extra radius at (phi, a), in radians
+    hug?: number;                                          // 1: below the middle it follows the head in; 0: it hangs straight
+    flare?: number; tuck?: number;                         // hanging hair spreads out / curls in at the ends
+    spikes?: readonly (readonly [number, number, number, number, number])[];   // direction x, y, z, height, half-width (radians)
+  }
+  /** 0 across the face opening (|phi| < half), 1 round the sides and back. */
+  const sides = (ap: number, half: number, w = 6) => smooth(half - w, half + w, ap);
+  const shell = (st: Style) => {
+    const C = 160, N = 46, pos: number[] = [], idx: number[] = [], p = new Vector3(), q = new Vector3();
+    const spikes = (st.spikes ?? []).map(([x, y, z, h, w]) => ({ dir: new Vector3(x, y, z).normalize(), h, w }));
+    const hug = st.hug ?? 0, flare = st.flare ?? 0, tuck = st.tuck ?? 0;
+    const point = (phi: number, ang: number) => {
+      const rad = st.r + (st.top ?? 0) * Math.pow(Math.max(0, Math.cos(ang)), 2) + (st.bulge?.(phi, ang) ?? 0);
+      const h = Math.max(0, ang - HALF);
+      const rho = ang <= HALF ? Math.sin(ang) : mix(1 + flare * h - tuck * h * h, Math.cos(h), hug);
+      const y = ang <= HALF ? Math.cos(ang) : -mix(h, Math.sin(h), hug);
+      p.set(Math.sin(phi) * rho * rad, y * rad + (st.lift ?? 0), Math.cos(phi) * rho * rad);
+      for (const s of spikes) {
+        const d = q.copy(p).normalize().angleTo(s.dir);
+        if (d < s.w) p.addScaledVector(s.dir, s.h * Math.pow(1 - d / s.w, 1.25));
+      }
+    };
+    const push = () => pos.push(p.x * R * wide, p.y * R * tall, p.z * R * wide);
+    point(0, 0); push();
+    for (let j = 1; j <= N + 1; j++) for (let i = 0; i < C; i++) {
+      const phi = -Math.PI + (i / C) * Math.PI * 2, deg = phi / D;
+      const end = st.end(deg, Math.abs(deg)) * D;
+      point(phi, end * Math.min(1, j / N));
+      if (j > N) {                                         // the lip: in to the head (or, for hanging hair, in under itself)
+        if (end <= HALF + 0.05 || hug > 0.5) p.multiplyScalar(0.9 / p.length()); else { p.x *= 0.7; p.z *= 0.7; }
+      }
+      push();
     }
-    pos.needsUpdate = true;
-    geo.computeVertexNormals();
-    return add(geo);
+    for (let i = 0; i < C; i++) idx.push(0, 1 + i, 1 + (i + 1) % C);
+    for (let j = 0; j < N; j++) for (let i = 0; i < C; i++) {
+      const v00 = 1 + j * C + i, v01 = 1 + j * C + (i + 1) % C, v10 = v00 + C, v11 = v01 + C;
+      idx.push(v00, v10, v11, v00, v11, v01);
+    }
+    const geo = new BufferGeometry();
+    geo.setAttribute('position', new Float32BufferAttribute(pos, 3)); geo.setIndex(idx); geo.computeVertexNormals();
+    const m = new Mesh(geo, mat); g.add(m); return m;
   };
-  /** A soft lump of hair (fringe curls, volume, tufts), squashed and turned. */
-  const lump = (x: number, y: number, z: number, sx: number, sy: number, sz: number, rz = 0, rx = 0) => {
-    const geo = new SphereGeometry(1, 20, 14); ripple(geo, 0.06, 5);
-    const m = add(geo, x, y, z); m.scale.set(sx * wide, sy * tall, sz * wide); m.rotation.set(rx, 0, rz); return m;
-  };
-  /** A point of hair sticking out of the head in direction (dx, dy, dz). */
-  const spike = (dx: number, dy: number, dz: number, len: number, w: number) => {
-    const dir = new Vector3(dx, dy, dz).normalize();
-    const m = add(new ConeGeometry(w, len, 6), dir.x * (R + len * 0.3), dir.y * (R + len * 0.3), dir.z * (R + len * 0.3));
-    m.quaternion.setFromUnitVectors(new Vector3(0, 1, 0), dir); return m;
-  };
-  const r = R * 1.1;
+  /** Soft lobes in staggered rows, with creases between them: waves and curls. */
+  const lobes = (amp: number, around: number, down: number, twist = 1.3) => (phi: number, ang: number) =>
+    amp * smooth(0.25, 0.8, ang) * puff(around * phi + twist * Math.sin(down * ang)) * (0.45 + 0.55 * puff(down * 0.9 * ang + 0.4));
+  /** |sin| with the crease rounded off a little, so it meshes cleanly. */
+  const puff = (x: number) => Math.sqrt(Math.sin(x) ** 2 + 0.03) - 0.17;
 
   switch (style) {
-    case 'wavy': {
-      // The original wavy style: a smooth cap with clusters of round curls on
-      // the crown, over the forehead and down the sides.
-      const capGeo = new SphereGeometry(R * 1.08, 24, 12, 0, Math.PI * 2, 0, Math.PI * 0.5);
-      const capM = add(capGeo, 0, shape === 'square' ? 0.03 : 0.01, 0); capM.rotation.x = -0.38;
-      for (const [x, y, z, rad] of [
-        [0, 0.17, -0.01, 0.085], [-0.09, 0.15, 0.03, 0.075], [0.09, 0.15, 0.02, 0.078], [-0.05, 0.16, -0.08, 0.075], [0.06, 0.15, -0.09, 0.075],
-        [-0.15, 0.08, -0.02, 0.07], [0.15, 0.08, -0.03, 0.07], [0, 0.11, -0.14, 0.08], [-0.11, 0.06, -0.11, 0.065], [0.11, 0.06, -0.11, 0.065],
-        [-0.165, 0.0, 0.01, 0.055], [0.165, 0.0, 0.0, 0.055],
-        [-0.07, 0.1, 0.12, 0.052], [0.015, 0.11, 0.135, 0.055], [0.085, 0.095, 0.115, 0.05],
-      ] as const) add(new SphereGeometry(rad, 12, 9), x, y, z);
+    case 'wavy':
+      // a short, full mop in loose waves: a scalloped fringe, down to the ears
+      shell({ r: 1.08, top: 0.1, hug: 0.6, bulge: lobes(0.17, 2.5, 3.6, 0.8),
+        end: (deg, ap) => mix(54 + 11 * Math.abs(Math.sin(deg * D * 2.5 + 0.5)), mix(92, 106, smooth(70, 130, ap)) + 7 * Math.abs(Math.sin(deg * D * 2.5)), sides(ap, 62)) });
       break;
-    }
     case 'shaggy':
-      // full on top, a fringe swept to one side with notches, notched sides down over the ears
-      hair(r * 1.0, (x) => 0.44 - 0.14 * x - 0.1 * saw(x * 3.2 + 0.3),
-        (x, z) => -0.05 - 0.18 * saw(Math.atan2(x, z) * 1.6) - 0.45 * smooth(0.1, -0.5, z), { rip: 0.02, freq: 22, faceW: 0.8 });
+      // full on top, a fringe swept to one side with a notch, notched sides down over the ears
+      shell({ r: 1.1, top: 0.05,
+        end: (deg, ap) => mix(66 - 13 * smooth(-45, 55, deg) + 6 * saw((deg + 12) / 36), 111 - 10 * saw(ap / 23), sides(ap, 60)) });
       break;
-    case 'spiky': {
+    case 'spiky':
       // short, with a zigzag fringe and a crown of points
-      hair(r * 0.98, (x) => 0.46 + 0.14 * saw(x * 3.5 + 0.5), (x, z) => 0.18 - 0.4 * smooth(0.1, -0.5, z), { rip: 0.01, freq: 30, faceW: 0.82 });
-      for (const [ax, ay, az, len] of [[0, 1, 0.15, 0.12], [-0.45, 0.85, 0.35, 0.1], [0.45, 0.85, 0.3, 0.1], [-0.25, 0.8, -0.5, 0.11], [0.3, 0.8, -0.5, 0.11], [-0.7, 0.6, 0, 0.09], [0.7, 0.6, -0.05, 0.09], [0, 0.75, -0.65, 0.1]] as const)
-        spike(ax, ay, az, len, 0.05);
+      shell({ r: 1.06, hug: 1,
+        end: (deg, ap) => mix(49 + 11 * saw(deg / 17 + 0.5), mix(84, 106, smooth(80, 140, ap)), sides(ap, 64)),
+        spikes: [[0, 1, 0.3, 0.6, 0.42], [-0.55, 0.85, 0.3, 0.5, 0.4], [0.55, 0.85, 0.25, 0.5, 0.4], [-0.9, 0.55, -0.1, 0.42, 0.38], [0.9, 0.55, -0.15, 0.42, 0.38],
+          [-0.4, 0.8, -0.55, 0.5, 0.4], [0.4, 0.8, -0.55, 0.5, 0.4], [0, 0.55, -0.85, 0.42, 0.4]] });
+      break;
+    case 'long':
+      // side-swept bangs; to the jaw in front (so it frames the face without covering the chest), long down the back
+      shell({ r: 1.09, top: 0.04, tuck: 0.04,
+        end: (deg, ap) => mix(71 - 23 * smooth(-25, 55, deg), 90 + mix(0.78, 1.5, smooth(92, 128, ap)) / D, sides(ap, 57, 5)) });
+      break;
+    case 'curly':
+      // long, full curls as one mass with a zigzag outline, spreading out as they fall
+      shell({ r: 1.12, top: 0.05, flare: 0.2, bulge: lobes(0.15, 3, 3.8, 0.9),
+        end: (deg, ap) => mix(65 - 18 * smooth(-50, 50, deg) + 6 * saw(deg / 16), 90 + (mix(0.78, 1.45, smooth(85, 125, ap)) + 0.17 * saw(deg / 18)) / D, sides(ap, 54, 5)) });
+      break;
+    case 'parted':
+      // a center part: the hairline rises to a point over the middle of the
+      // forehead, and the hair falls down both sides and behind, past the jaw,
+      // ending in jagged points; a few points on the crown
+      shell({ r: 1.08, top: 0.03,
+        end: (deg, ap) => mix(28 + 0.8 * ap, 90 + (mix(1.0, 1.3, smooth(95, 130, ap)) - 0.3 * saw(deg / 26 + 0.5)) / D, sides(ap, 50, 5)),
+        spikes: [[0, 1, 0.05, 0.42, 0.3], [-0.32, 0.95, 0.08, 0.3, 0.26], [0.32, 0.95, 0.08, 0.3, 0.26]] });
+      break;
+    case 'bob':
+      // one blunt length to the jaw, turning in at the ends
+      shell({ r: 1.12, top: 0.04, tuck: 0.24, end: (deg, ap) => mix(63, 90 + 0.8 / D, sides(ap, 58, 5)) });
+      break;
+    case 'bun': {
+      // pulled back tight, with a top knot
+      shell({ r: 1.05, hug: 1, end: (deg, ap) => mix(43, mix(86, 108, smooth(80, 140, ap)), sides(ap, 66, 10)) });
+      const bun = new Mesh(new SphereGeometry(R * 0.46, 20, 14), mat); bun.scale.y = 0.9;
+      bun.position.set(0, R * 1.02 * tall, -R * 0.62 * wide); g.add(bun);
       break;
     }
-    case 'long': {
-      // side-swept bangs; hair falls past the jaw, then a curtain behind and soft locks over the shoulders
-      hair(r * 1.04, (x) => 0.3 + 0.32 * Math.max(0, x + 0.15), () => -0.92, { rip: 0.012, freq: 18, faceW: 0.66, flare: 0.12 });
-      const back = new CapsuleGeometry(0.16, 0.16, 8, 24); ripple(back, 0.02, 12);
-      const bm = add(back, 0, -0.2, -0.085); bm.scale.set(1.25 * wide, tall, 0.5 * wide);
-      for (const d of [-1, 1]) {
-        const lock = new CapsuleGeometry(0.06, 0.16, 8, 16); ripple(lock, 0.02, 12);
-        const lm = add(lock, d * 0.16, -0.24, 0.02); lm.scale.set(wide, tall, 0.65 * wide); lm.rotation.z = d * 0.08;
-      }
+    case 'buzz':
+      // a close crop with square temples
+      shell({ r: 1.03, hug: 1, end: (deg, ap) => mix(47, mix(82, 104, smooth(80, 140, ap)), sides(ap, 66, 4)) });
       break;
-    }
-    case 'curly': {
-      // long, full curls as one solid mass with a scalloped outline (the way
-      // cartoon games draw curly hair). The front stops at the jaw, so it frames
-      // the face without covering the chest; the length falls at the sides and
-      // behind, over the back and shoulders
-      hair(r * 1.16, (x) => 0.28 + 0.26 * Math.max(0, x + 0.1),
-        (x, z) => -0.4 - 0.45 * Math.max(smooth(0.25, -0.25, z), smooth(0.55, 0.85, Math.abs(x)) * smooth(0.6, 0.2, z)),
-        { rip: 0.06, freq: 8, curl: 0.13, faceW: 0.6, flare: 0.25, soft: 0.14 });
-      const back = new SphereGeometry(0.21, 72, 54); ripple(back, 0.06, 8); ripple(back, 0.13, 17);
-      const bm = add(back, 0, -0.2, -0.1); bm.scale.set(1.25 * wide, 1.15 * tall, 0.7 * wide);
-      for (const d of [-1, 1]) {                                  // fuller ends either side, behind the shoulders
-        const end = new SphereGeometry(0.1, 40, 30); ripple(end, 0.07, 9); ripple(end, 0.14, 19);
-        const em = add(end, d * 0.19, -0.27, -0.09); em.scale.set(0.9 * wide, 1.2 * tall, 0.8 * wide);
-      }
+    case 'afro':
+      shell({ r: 1.36, lift: 0.16, hug: 1, bulge: lobes(0.09, 4, 5, 0.8), end: (deg, ap) => mix(66 + 4 * Math.abs(Math.sin(deg * D * 4.5)), 122, sides(ap, 40, 7)) });
       break;
-    }
-    case 'parted': {
-      // a center part: the hairline comes to a sharp point over the middle of
-      // the forehead, the hair falls down both sides and behind, past the jaw,
-      // and ends in jagged points; a crown of points on top
-      hair(r * 1.05, (x) => 0.78 - 1.3 * Math.abs(x), () => -0.5, { rip: 0.012, freq: 18, faceW: 0.6 });
-      const back = new CapsuleGeometry(0.16, 0.12, 8, 24); ripple(back, 0.015, 12);
-      const bm = add(back, 0, -0.16, -0.09); bm.scale.set(1.2 * wide, tall, 0.5 * wide);
-      // each side falls in two teardrop locks of different lengths (round where
-      // they leave the head, tapering to a point), so the ends are jagged
-      for (const d of [-1, 1]) {
-        for (const [x, y, z, w, h] of [[0.168, -0.12, 0.02, 0.06, 0.24], [0.14, -0.1, 0.06, 0.045, 0.16]] as const) {
-          const m = add(teardrop(), d * x, y, z); m.scale.set(w * wide, h * tall, w * 0.8 * wide); m.rotation.z = -d * 0.06;
-        }
-      }
-      // and the back ends in points too
-      for (const [x, y, z, w, h] of [[-0.12, -0.28, -0.1, 0.06, 0.13], [0, -0.3, -0.12, 0.065, 0.15], [0.12, -0.28, -0.1, 0.06, 0.13]] as const) {
-        const m = add(teardrop(), x, y, z); m.scale.set(w * wide, h * tall, w * 0.8 * wide);
-      }
-      for (const [ax, ay, az, len] of [[0, 1, 0.05, 0.11], [-0.32, 0.95, 0.1, 0.085], [0.32, 0.95, 0.1, 0.085]] as const) spike(ax, ay, az, len, 0.045);
-      break;
-    }
   }
   return g;
 }
 
-/** A unit teardrop: a round top, tapering to a point straight down (scale it to size). */
-function teardrop() {
-  const geo = new SphereGeometry(1, 16, 14), p = geo.attributes.position, v = new Vector3();
-  for (let i = 0; i < p.count; i++) {
-    v.fromBufferAttribute(p, i);
-    if (v.y < 0) { const k = 1 + v.y; p.setXYZ(i, v.x * k, v.y * 1.6, v.z * k); }   // the lower half narrows to a point, and stretches
-  }
-  p.needsUpdate = true; geo.computeVertexNormals();
-  return geo;
-}
-/** Triangle wave between 0 and 1 (for zigzag edges). */
-const saw = (t: number) => 2 * Math.abs(t - Math.floor(t) - 0.5);
-const smooth = (e0: number, e1: number, x: number) => { const t = Math.min(1, Math.max(0, (x - e0) / (e1 - e0))); return t * t * (3 - 2 * t); };
-
-/** Push vertices out a little in a smooth pattern, for a hand-made hair texture. */
-function ripple(geo: BufferGeometry, amp: number, freq: number) {
-  const p = geo.attributes.position, v = new Vector3();
-  for (let i = 0; i < p.count; i++) {
-    v.fromBufferAttribute(p, i);
-    const n = Math.sin(v.x * freq + 1.3) * Math.cos(v.y * freq * 1.2) + Math.sin(v.z * freq * 0.9 + v.y * freq * 0.7);
-    v.multiplyScalar(1 + amp * 0.5 * n);
-    p.setXYZ(i, v.x, v.y, v.z);
-  }
-  p.needsUpdate = true;
-  geo.computeVertexNormals();
-}
-/** Widen the lower part of a shell (for a bob that flares at the ends). */
-function flare(geo: BufferGeometry, amount: number) {
-  const p = geo.attributes.position, v = new Vector3();
-  for (let i = 0; i < p.count; i++) {
-    v.fromBufferAttribute(p, i);
-    const k = Math.max(0, -v.y / R) * amount;
-    p.setXYZ(i, v.x * (1 + k), v.y, v.z * (1 + k * 0.6));
-  }
-  p.needsUpdate = true;
+/** Blink now and then. Call every frame with the scene time. */
+export function blink(head: Object3D, t: number) {
+  const u = (t + (head.userData.blinkAt ?? 0)) % 3.9;
+  const k = u < 0.13 ? 1 - Math.sin((Math.PI * u) / 0.13) * 0.9 : 1;
+  for (const l of (head.userData.lids ?? []) as Group[]) l.scale.y = k;
 }
 
 export function makeAvatar(kit: Kit, a: Avatar) {
@@ -238,7 +265,7 @@ export function makeAvatar(kit: Kit, a: Avatar) {
   if (OPTIONS.body[a.body] === 'f') {
     const torso = new Mesh(new CapsuleGeometry(0.12, 0.1, 4, 12), toon(shirt)); torso.position.y = 0.49;
     const skirt = new Mesh(new CylinderGeometry(0.1, 0.18, 0.3, 20), pants); skirt.position.y = 0.2;
-    const legs = new Mesh(new CapsuleGeometry(0.04, 0.06, 3, 8), pants); legs.position.y = 0.05; legs.scale.x = 2;
+    const legs = new Mesh(new CapsuleGeometry(0.04, 0.06, 3, 8), pants); legs.position.y = 0.07; legs.scale.x = 2;
     body.add(torso, skirt, legs);
   } else {
     const torso = new Mesh(new CapsuleGeometry(0.15, 0.12, 4, 12), toon(shirt)); torso.position.y = 0.45;
@@ -246,6 +273,12 @@ export function makeAvatar(kit: Kit, a: Avatar) {
     for (const d of [-1, 1]) {
       const leg = new Mesh(new CapsuleGeometry(0.055, 0.14, 4, 8), pants); leg.position.set(d * 0.065, 0.13, 0); body.add(leg);
     }
+  }
+  // sneakers, toes forward, so you can tell which way it's facing
+  const shoe = toon('#f1eee6');
+  for (const d of [-1, 1]) {
+    const s = new Mesh(new SphereGeometry(0.06, 12, 9), shoe); s.scale.set(1, 0.62, 1.4);
+    s.position.set(d * (a.body === 1 ? 0.05 : 0.066), 0.036, 0.028); body.add(s);
   }
   // arms with round hands; both are shoulder pivots so scenes can pose them
   const arm = (side: number) => {
@@ -263,5 +296,5 @@ export function makeAvatar(kit: Kit, a: Avatar) {
   const head = makeHead(kit, a); head.position.y = 0.8 + (h - 1) * 0.62;
   g.add(head);
   kit.outline(g);
-  return { g, arm: right, left, right, head };
+  return { g, arm: right, left, right, head, /** call every frame: blinks now and then */ blink: (t: number) => blink(head, t) };
 }

@@ -6,9 +6,9 @@
 export const OPTIONS = {
   skin: ['#f6d7c3', '#f1c9a5', '#d9a47a', '#b97b53', '#8d5a3b', '#5e3b27'],
   head: ['round', 'oval', 'square'],
-  hair: ['wavy', 'shaggy', 'spiky', 'long', 'curly', 'parted'],
+  hair: ['wavy', 'shaggy', 'spiky', 'long', 'curly', 'parted', 'bob', 'bun', 'buzz', 'afro', 'none'],
   hairColor: ['#2a2320', '#3d2a1e', '#6b4428', '#a0673a', '#e0b25a', '#b5522e', '#9aa0a8'],
-  eyes: ['big', 'dots', 'happy', 'sleepy', 'wink'],
+  eyes: ['big', 'dots', 'happy', 'sleepy', 'wink', 'wide', 'chill', 'lashes'],
   glasses: ['none', 'round', 'square'],
   makeup: ['none', 'blush', 'lipstick', 'both'],
   shirt: ['#5b8def', '#e2463c', '#4caf6a', '#7c6cf6', '#f0a020', '#2b2a30'],
@@ -69,6 +69,11 @@ function hairBack(a: Avatar) {
     case 'curly': return `<path d="${CURLY_BACK}" fill="${c}" ${st}/>`;
     // center part: the length behind the head, ending in jagged points below the jaw
     case 'parted': return `<path d="M24 40 Q24 14 50 13 Q76 14 76 40 L79 62 L75 68 L80 74 L72 80 L66 70 L34 70 L28 80 L20 74 L25 68 L21 62 Z" fill="${c}" ${st}/>`;
+    // bob: one blunt length to the jaw, all the way round
+    case 'bob': return `<path d="M26 40 H74 L77 64 Q77 71 70 71 H30 Q23 71 23 64 Z" fill="${c}" ${st}/>`;
+    // bun: a top knot, sitting behind the crown
+    case 'bun': return `<circle cx="50" cy="11" r="8.5" fill="${c}" ${st}/>`;
+    case 'afro': return `<circle cx="50" cy="35" r="32.5" fill="${c}" ${st}/>`;
     default: return '';
   }
 }
@@ -84,6 +89,14 @@ function hairFront(a: Avatar) {
     case 'parted': return `<path d="M30 72 Q26 46 28 38 Q32 20 50 16 Q68 20 72 38 Q74 46 70 72 L76 66 L74 58 L78 52 L77 34 Q74 16 61 11 L58 4 L54 10 L50 3 L46 10 L42 4 L39 11 Q26 16 23 34 L22 52 L26 58 L24 66 Z" fill="${c}" ${st}/>`;
     // spiky (Will's design): a crown of points and a zigzag fringe
     case 'spiky': return `<path d="M25 46 L23 30 L29 23 L27 16 L37 16 L41 8 L50 13 L59 7 L63 15 L72 15 L71 22 L77 29 L75 46 L72 31 L67 34 L63 26 L58 33 L54 25 L49 32 L44 25 L40 31 L34 27 L29 34 Z" fill="${c}" ${st}/>`;
+    // bob: a straight fringe, the sides falling in front of the cheeks and turning in at the ends
+    case 'bob': return `<path d="M22 64 Q19 12 50 11 Q81 12 78 64 Q78 71 71 69 Q75 46 70 32 Q50 37 30 32 Q25 46 29 69 Q22 71 22 64 Z" fill="${c}" ${st}/>`;
+    // bun: pulled back tight off the forehead
+    case 'bun': return `<path d="M24 41 Q22 13 50 12 Q78 13 76 41 Q71 23 50 22 Q29 23 24 41 Z" fill="${c}" ${st}/>`;
+    // buzz: a close crop with square temples
+    case 'buzz': return `<path d="M25 39 Q23 14 50 13.5 Q77 14 75 39 L71 31 Q50 24 29 31 Z" fill="${c}" ${st}/>`;
+    // afro: the fringe is part of the big round shape behind, so only its lower edge is inked
+    case 'afro': return `<path d="M24 38 Q23 14 50 14 Q77 14 76 38 Q72 27 63 30 Q57 25 50 29 Q43 25 37 30 Q28 27 24 38 Z" fill="${c}"/><path d="M24 38 Q28 27 37 30 Q43 25 50 29 Q57 25 63 30 Q72 27 76 38" fill="none" ${st} stroke-linecap="round"/>`;
     default: return '';
   }
 }
@@ -93,6 +106,10 @@ function face(a: Avatar) {
     dots: `<circle cx="42" cy="43" r="2.8" fill="${INK}"/><circle cx="58" cy="43" r="2.8" fill="${INK}"/>`,
     happy: `<path d="M37 45 Q42 38 47 45 M53 45 Q58 38 63 45" fill="none" stroke="${INK}" stroke-width="3" stroke-linecap="round"/>`,
     sleepy: `<path d="M37 43 Q42 47 47 43 M53 43 Q58 47 63 43" fill="none" stroke="${INK}" stroke-width="3" stroke-linecap="round"/>`,
+    wide: `<circle cx="42" cy="43" r="5.4" fill="#fff" stroke="${INK}" stroke-width="1.8"/><circle cx="58" cy="43" r="5.4" fill="#fff" stroke="${INK}" stroke-width="1.8"/><circle cx="42.6" cy="43.5" r="2.5" fill="${INK}"/><circle cx="58.6" cy="43.5" r="2.5" fill="${INK}"/>`,
+    // half-lidded: unbothered
+    chill: `<path d="M38 42 A4 5.4 0 0 0 46 42 Z M54 42 A4 5.4 0 0 0 62 42 Z" fill="${INK}"/><path d="M36.5 42 H47.5 M52.5 42 H63.5" fill="none" stroke="${INK}" stroke-width="2.4" stroke-linecap="round"/><circle cx="43.3" cy="44.3" r="1" fill="#fff"/><circle cx="59.3" cy="44.3" r="1" fill="#fff"/>`,
+    lashes: `<ellipse cx="42" cy="43" rx="3.6" ry="5.4" fill="${INK}"/><ellipse cx="58" cy="43" rx="3.6" ry="5.4" fill="${INK}"/><circle cx="43.2" cy="40.8" r="1.4" fill="#fff"/><circle cx="59.2" cy="40.8" r="1.4" fill="#fff"/><path d="M39 40 L35.5 37.5 M40 38.3 L37.8 35 M61 40 L64.5 37.5 M60 38.3 L62.2 35" fill="none" stroke="${INK}" stroke-width="1.8" stroke-linecap="round"/>`,
     wink: `<ellipse cx="42" cy="43" rx="3.6" ry="5.4" fill="${INK}"/><circle cx="43.2" cy="40.8" r="1.4" fill="#fff"/><path d="M53 45 Q58 38 63 45" fill="none" stroke="${INK}" stroke-width="3" stroke-linecap="round"/>`,
   }[OPTIONS.eyes[a.eyes]];
   const mk = OPTIONS.makeup[a.makeup];
@@ -109,17 +126,20 @@ function face(a: Avatar) {
 }
 function head(a: Avatar) {
   const skin = OPTIONS.skin[a.skin];
+  const ears = (x: number) => `<circle cx="${50 - x}" cy="43" r="4.2" fill="${skin}" ${st}/><circle cx="${50 + x}" cy="43" r="4.2" fill="${skin}" ${st}/>`;
   switch (OPTIONS.head[a.head]) {
-    case 'oval': return `<ellipse cx="50" cy="40" rx="22" ry="26" fill="${skin}" ${st}/>`;
-    case 'square': return `<rect x="27" y="16" width="46" height="46" rx="15" fill="${skin}" ${st}/>`;
-    default: return `<circle cx="50" cy="40" r="25" fill="${skin}" ${st}/>`;
+    case 'oval': return ears(22) + `<ellipse cx="50" cy="40" rx="22" ry="26" fill="${skin}" ${st}/>`;
+    case 'square': return ears(23.5) + `<rect x="27" y="16" width="46" height="46" rx="15" fill="${skin}" ${st}/>`;
+    default: return ears(25) + `<circle cx="50" cy="40" r="25" fill="${skin}" ${st}/>`;
   }
 }
 function body(a: Avatar) {
   const skin = OPTIONS.skin[a.skin], shirt = OPTIONS.shirt[a.shirt], pants = '#2b2a30';
+  const SHOE = '#f1eee6';
+  const shoes = (x: number) => `<ellipse cx="${50 - x}" cy="116" rx="7" ry="4.2" fill="${SHOE}" ${st}/><ellipse cx="${50 + x}" cy="116" rx="7" ry="4.2" fill="${SHOE}" ${st}/>`;
   const torso = OPTIONS.body[a.body] === 'f'
-    ? `<path d="M38 92 H62 L70 116 Q50 120 30 116 Z" fill="${pants}" ${st}/><rect x="36" y="68" width="28" height="30" rx="12" fill="${shirt}" ${st}/>`
-    : `<rect x="38" y="94" width="10" height="22" rx="5" fill="${pants}" ${st}/><rect x="52" y="94" width="10" height="22" rx="5" fill="${pants}" ${st}/><rect x="33" y="68" width="34" height="32" rx="14" fill="${shirt}" ${st}/>`;
+    ? shoes(7) + `<path d="M38 92 H62 L69 112 Q50 116 31 112 Z" fill="${pants}" ${st}/><rect x="36" y="68" width="28" height="30" rx="12" fill="${shirt}" ${st}/>`
+    : `<rect x="38" y="94" width="10" height="20" rx="5" fill="${pants}" ${st}/><rect x="52" y="94" width="10" height="20" rx="5" fill="${pants}" ${st}/>` + shoes(8) + `<rect x="33" y="68" width="34" height="32" rx="14" fill="${shirt}" ${st}/>`;
   const arms = `<path d="M33 76 L22 96 M67 76 L78 96" stroke="${shirt}" stroke-width="9" stroke-linecap="round"/><circle cx="21" cy="98" r="5.5" fill="${skin}" ${st}/><circle cx="79" cy="98" r="5.5" fill="${skin}" ${st}/>`;
   // height stretches the body down from the neck; build widens it
   const h = heightScale(a), b = buildScale(a);

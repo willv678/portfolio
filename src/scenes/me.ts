@@ -45,6 +45,7 @@ export const create = () => createStage((kit) => {
   let prevT = 0;
   return (t) => {
     const dt = Math.min(0.05, t - prevT); prevT = t;
+    fig.blink(t);
     if (walkReq) { walkReq = false; walkAt = t; }
     const wk = walkAt < 0 ? 1 : seg(t, walkAt, walkAt + WALK);
     if (walkAt >= 0 && wk >= 1) { walkAt = -1; idle0 = t; }

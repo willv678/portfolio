@@ -36,6 +36,7 @@ export const create = () => createStage((kit) => {
   let prevT = 0;
   return (t) => {
     const dt = Math.min(0.05, t - prevT); prevT = t;
+    fig.blink(t);
     if (!dragging) { vel *= 0.9; angle += vel; }                   // a little momentum after a drag
     if (returning) {                                               // ease back to the front by the shortest way round
       const d = Math.atan2(Math.sin(FRONT - angle), Math.cos(FRONT - angle));
