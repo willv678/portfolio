@@ -21,9 +21,9 @@ export type Part = keyof typeof OPTIONS;
 export type Avatar = Record<Part, number>;
 export const PARTS = Object.keys(OPTIONS) as Part[];
 
-// The default is Will: fair skin, a dark brown curly mop, happy eyes, blue top.
+// The default is Will: fair skin, an oval face, a dark brown curly mop, happy eyes, blue top.
 export const DEFAULT: Avatar = {
-  skin: 1, head: 0, hair: 0, hairColor: 1, eyes: 2, glasses: 0, makeup: 0, shirt: 0, body: 0, height: 3, build: 1,
+  skin: 1, head: 1, hair: 0, hairColor: 1, eyes: 2, glasses: 0, makeup: 0, shirt: 0, body: 0, height: 3, build: 1,
 };
 
 /** True when the avatar is Will's own (the default). */
@@ -118,7 +118,7 @@ function head(a: Avatar) {
   const skin = OPTIONS.skin[a.skin];
   const ears = (x: number) => `<circle cx="${50 - x}" cy="43" r="4.2" fill="${skin}" ${st}/><circle cx="${50 + x}" cy="43" r="4.2" fill="${skin}" ${st}/>`;
   switch (OPTIONS.head[a.head]) {
-    case 'oval': return ears(22) + `<ellipse cx="50" cy="40" rx="22" ry="26" fill="${skin}" ${st}/>`;
+    case 'oval': return ears(23) + `<path d="M50 13 C65 13 73.5 24 73.5 38 C73.5 53 63 67 50 67 C37 67 26.5 53 26.5 38 C26.5 24 35 13 50 13 Z" fill="${skin}" ${st}/>`;
     case 'square': return ears(23.5) + `<rect x="27" y="16" width="46" height="46" rx="15" fill="${skin}" ${st}/>`;
     default: return ears(25) + `<circle cx="50" cy="40" r="25" fill="${skin}" ${st}/>`;
   }

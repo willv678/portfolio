@@ -29,8 +29,16 @@ export function makeHead(kit: Kit, a: Avatar) {
   const skull = square
     ? new Mesh(new RoundedBoxGeometry(0.33, 0.33, 0.31, 4, 0.125), toon(skin))
     : new Mesh(new SphereGeometry(R, 32, 20), toon(skin));
-  const ex = shape === 'oval' ? 0.9 : 1, ey = shape === 'oval' ? 1.12 : 1, ez = shape === 'oval' ? 0.94 : 1;
+  const ex = shape === 'oval' ? 0.93 : 1, ey = shape === 'oval' ? 1.14 : 1, ez = shape === 'oval' ? 0.95 : 1;
   skull.scale.set(ex, ey, ez);
+  // the oval face narrows toward the chin, like an egg standing on its point
+  const JAW = shape === 'oval' ? 0.17 : 0;
+  const jaw = (y: number) => 1 - JAW * Math.pow(Math.max(0, -y / R), 1.4);   // y in unscaled head units
+  if (JAW) {
+    const p = skull.geometry.attributes.position;
+    for (let i = 0; i < p.count; i++) { const k = jaw(p.getY(i)); p.setX(i, p.getX(i) * k); p.setZ(i, p.getZ(i) * k); }
+    skull.geometry.computeVertexNormals();
+  }
   g.add(skull);
   // hair is sized to the head shape (a square head needs roomier hair, or its corners poke through)
   const tall = shape === 'oval' ? 1.12 : square ? 1.07 : 1, wide = square ? 1.11 : 1;
@@ -51,7 +59,7 @@ export function makeHead(kit: Kit, a: Avatar) {
       const dz = Math.sqrt(Math.max(1e-5, 0.125 * 0.125 - dx * dx - dy * dy));
       n.set(dx, dy, dz).normalize(); return 0.03 + dz;
     }
-    const X = x / (R * ex), Y = y / (R * ey), z = R * ez * Math.sqrt(Math.max(0.02, 1 - X * X - Y * Y));
+    const j = jaw(y / ey), X = x / (R * ex * j), Y = y / (R * ey), z = R * ez * j * Math.sqrt(Math.max(0.02, 1 - X * X - Y * Y));
     n.set(X / ex, Y / ey, z / (R * ez * ez)).normalize(); return z;
   };
   /** Stick something onto the face at (x, y), lying flat against the head. */
