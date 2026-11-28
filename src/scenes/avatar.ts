@@ -74,18 +74,10 @@ export function makeHead(kit: Kit, a: Avatar) {
     else if (style === 'sleepy') { e.add(arc(0.025, false)); y = 0.03; }
     else {
       lids.push(open);
-      if (style === 'dots') open.add(disc(0.0165, 0.0165, ink));
-      else if (style === 'wide') {
-        open.add(disc(0.029, 0.029, ink), disc(0.0235, 0.0235, white, 0, 0, 1), disc(0.0155, 0.0155, ink, 0.002, -0.002, 2), disc(0.005, 0.005, white, 0.007, 0.005, 3));
-      } else if (style === 'chill') {
-        // half-lidded: the lower half of an eye under a straight lid
-        const half = new Mesh(new ShapeGeometry(new Shape().absarc(0, 0, 1, Math.PI, Math.PI * 2, false), 20), ink);
-        half.scale.set(0.022, 0.03, 1); half.position.y = 0.008;
-        open.add(half, disc(0.0055, 0.0055, white, 0.007, -0.004, 1));
-        e.add(bar(0.05, 0.0055, 0, 0, 0.008));
-      } else {                                             // big (also half of a wink, and under lashes)
-        open.add(disc(0.02, 0.031, ink), disc(0.0078, 0.0078, white, 0.006, 0.012, 1));
-        if (style === 'lashes') for (const [lx, ly, rz] of [[-0.021, 0.02, -0.7], [-0.011, 0.033, -1.15]] as const) e.add(bar(0.014, 0.0042, side * rz, side * -lx, ly));
+      if (style === 'dots') open.add(disc(0.015, 0.015, ink));
+      else {                                               // big (also half of a wink, and under lashes)
+        open.add(disc(0.0165, 0.027, ink), disc(0.0058, 0.0058, white, 0.0045, 0.011, 1));
+        if (style === 'lashes') for (const [lx, ly, rz] of [[-0.019, 0.018, -0.7], [-0.01, 0.03, -1.15]] as const) e.add(bar(0.014, 0.0042, side * rz, side * -lx, ly));
       }
     }
     put(e, side * 0.058, y);
@@ -93,7 +85,7 @@ export function makeHead(kit: Kit, a: Avatar) {
   const es = OPTIONS.eyes[a.eyes];
   eye(-1, es === 'wink' ? 'big' : es);
   eye(1, es === 'wink' ? 'happy' : es);
-  for (const d of [-1, 1]) { const b = new Group(); b.add(bar(0.03, 0.006, d * -0.2)); put(b, d * 0.058, es === 'wide' ? 0.08 : 0.073); }   // soft brows
+  for (const d of [-1, 1]) { const b = new Group(); b.add(bar(0.03, 0.006, d * -0.2)); put(b, d * 0.058, 0.073); }   // soft brows
   // a small button nose: no outline, so it only shows in profile and as a soft shade
   const nose = new Mesh(new SphereGeometry(0.016, 10, 8), skull.material); nose.userData.noOutline = true; nose.scale.z = 0.7;
   put(nose, 0, -0.014, -0.002);
@@ -186,16 +178,19 @@ export function makeHead(kit: Kit, a: Avatar) {
     const m = new Mesh(geo, mat); g.add(m); return m;
   };
   /** Soft lobes in staggered rows, with creases between them: waves and curls. */
-  const lobes = (amp: number, around: number, down: number, twist = 1.3) => (phi: number, ang: number) =>
-    amp * smooth(0.25, 0.8, ang) * puff(around * phi + twist * Math.sin(down * ang)) * (0.45 + 0.55 * puff(down * 0.9 * ang + 0.4));
+  const lobes = (amp: number, around: number, down: number, twist = 1.3, from = 0.25) => (phi: number, ang: number) =>
+    amp * smooth(from, from + 0.55, ang) * puff(around * phi + twist * Math.sin(down * ang)) * (0.45 + 0.55 * puff(down * 0.9 * ang + 0.4));
   /** |sin| with the crease rounded off a little, so it meshes cleanly. */
   const puff = (x: number) => Math.sqrt(Math.sin(x) ** 2 + 0.03) - 0.17;
 
   switch (style) {
     case 'wavy':
-      // a short, full mop in loose waves: a scalloped fringe, down to the ears
-      shell({ r: 1.08, top: 0.1, hug: 0.6, bulge: lobes(0.17, 2.5, 3.6, 0.8),
-        end: (deg, ap) => mix(54 + 11 * Math.abs(Math.sin(deg * D * 2.5 + 0.5)), mix(92, 106, smooth(70, 130, ap)) + 7 * Math.abs(Math.sin(deg * D * 2.5)), sides(ap, 62)) });
+      // Will's hair: a big curly mop. Tall and wide, curls tumbling onto the
+      // forehead, standing out over the ears (which show), shorter at the neck
+      shell({ r: 1.07, top: 0.2, hug: 1,
+        bulge: (phi, ang) => lobes(0.2, 3.5, 5.2, 1.2, 0.06)(phi, ang) + 0.07 * smooth(0.4, 1.2, ang),
+        end: (deg, ap) => mix(52 + 15 * Math.abs(Math.sin(deg * D * 3 + 1.2)) * (0.6 + 0.4 * Math.sin(deg * D * 1.3 + 2)),
+          mix(77, 102, smooth(95, 140, ap)) + 5 * Math.abs(Math.sin(deg * D * 4.5)), sides(ap, 60, 7)) });
       break;
     case 'shaggy':
       // full on top, a fringe swept to one side with a notch, notched sides down over the ears
@@ -231,19 +226,9 @@ export function makeHead(kit: Kit, a: Avatar) {
       // one blunt length to the jaw, turning in at the ends
       shell({ r: 1.12, top: 0.04, tuck: 0.24, end: (deg, ap) => mix(63, 90 + 0.8 / D, sides(ap, 58, 5)) });
       break;
-    case 'bun': {
-      // pulled back tight, with a top knot
-      shell({ r: 1.05, hug: 1, end: (deg, ap) => mix(43, mix(86, 108, smooth(80, 140, ap)), sides(ap, 66, 10)) });
-      const bun = new Mesh(new SphereGeometry(R * 0.46, 20, 14), mat); bun.scale.y = 0.9;
-      bun.position.set(0, R * 1.02 * tall, -R * 0.62 * wide); g.add(bun);
-      break;
-    }
     case 'buzz':
       // a close crop with square temples
       shell({ r: 1.03, hug: 1, end: (deg, ap) => mix(47, mix(82, 104, smooth(80, 140, ap)), sides(ap, 66, 4)) });
-      break;
-    case 'afro':
-      shell({ r: 1.36, lift: 0.16, hug: 1, bulge: lobes(0.09, 4, 5, 0.8), end: (deg, ap) => mix(66 + 4 * Math.abs(Math.sin(deg * D * 4.5)), 122, sides(ap, 40, 7)) });
       break;
   }
   return g;
@@ -265,7 +250,7 @@ export function makeAvatar(kit: Kit, a: Avatar) {
   if (OPTIONS.body[a.body] === 'f') {
     const torso = new Mesh(new CapsuleGeometry(0.12, 0.1, 4, 12), toon(shirt)); torso.position.y = 0.49;
     const skirt = new Mesh(new CylinderGeometry(0.1, 0.18, 0.3, 20), pants); skirt.position.y = 0.2;
-    const legs = new Mesh(new CapsuleGeometry(0.04, 0.06, 3, 8), pants); legs.position.y = 0.07; legs.scale.x = 2;
+    const legs = new Mesh(new CapsuleGeometry(0.04, 0.06, 3, 8), pants); legs.position.y = 0.05; legs.scale.x = 2;
     body.add(torso, skirt, legs);
   } else {
     const torso = new Mesh(new CapsuleGeometry(0.15, 0.12, 4, 12), toon(shirt)); torso.position.y = 0.45;
@@ -273,12 +258,6 @@ export function makeAvatar(kit: Kit, a: Avatar) {
     for (const d of [-1, 1]) {
       const leg = new Mesh(new CapsuleGeometry(0.055, 0.14, 4, 8), pants); leg.position.set(d * 0.065, 0.13, 0); body.add(leg);
     }
-  }
-  // sneakers, toes forward, so you can tell which way it's facing
-  const shoe = toon('#f1eee6');
-  for (const d of [-1, 1]) {
-    const s = new Mesh(new SphereGeometry(0.06, 12, 9), shoe); s.scale.set(1, 0.62, 1.4);
-    s.position.set(d * (a.body === 1 ? 0.05 : 0.066), 0.036, 0.028); body.add(s);
   }
   // arms with round hands; both are shoulder pivots so scenes can pose them
   const arm = (side: number) => {
